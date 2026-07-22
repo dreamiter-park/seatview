@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeatView - 좌석별 시야 공유 서비스</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Styling -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- PC / Desktop container with floating phone mock -->
+  <div class="app-container">
+    <div class="phone-frame">
+      
+      <!-- Top Status bar simulation -->
+      <div class="status-bar">
+        <span class="time" id="current-time">09:41</span>
+        <div class="status-icons">
+          <i data-lucide="signal" class="status-icon"></i>
+          <i data-lucide="wifi" class="status-icon"></i>
+          <i data-lucide="battery" class="status-icon"></i>
+        </div>
+      </div>
+
+      <!-- App Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button class="back-btn" id="header-back-btn" onclick="app.handleHeaderBack()" style="display: none;" aria-label="Go back">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <div class="header-logo" id="header-logo" onclick="app.navigateTo('main')">
+            <span class="logo-accent">Seat</span>View
+          </div>
+        </div>
+        <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
+        <div class="header-right">
+          <button class="icon-btn" onclick="app.openMenuModal()" aria-label="Menu">
+            <i data-lucide="menu"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Scrollable Content Area -->
+      <main class="app-content" id="app-content">
+
+        <!-- 1. MAIN VIEW -->
+        <section id="view-main" class="view active">
+          <!-- Banner / Hero -->
+          <div class="hero-section">
+            <h1 class="hero-title">이 자리에서<br>경기/무대가 잘 보일까?</h1>
+            <p class="hero-desc">유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.</p>
+            <div class="search-bar-container">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" placeholder="경기장, 공연장 또는 좌석 검색..." id="main-search-input">
+            </div>
+          </div>
+
+          <!-- Category Selection -->
+          <div class="section-container">
+            <h2 class="section-title">카테고리 선택</h2>
+            <div class="category-grid">
+              <div class="category-card" onclick="app.navigateTo('stadiums')">
+                <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
+                <div class="category-tag">MAX TRAFFIC</div>
+                <div class="category-info">
+                  <h3 class="category-name">⚾ 프로야구장</h3>
+                  <p class="category-sub">10개 구단 홈구장</p>
+                </div>
+              </div>
+              <div class="category-card" onclick="app.showMusicalComingSoon()">
+                <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
+                <div class="category-tag danger">HOT</div>
+                <div class="category-info">
+                  <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
+                  <p class="category-sub">주요 대형 아트센터</p>
+                </div>
+              </div>
+              <div class="category-card disabled">
+                <div class="category-tag secondary">SOON</div>
+                <div class="category-info">
+                  <h3 class="category-name">✈️ 항공 / 영화관</h3>
+                  <p class="category-sub">스페셜관 & 인기 기종</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Trend Stats / Banner -->
+          <div class="banner-card">
+            <div class="banner-content">
+              <h4>🔥 실시간 인기 좌석 시야</h4>
+              <p>이번 주 예매 전쟁의 핫 플레이스, 잠실 1루 레드석 102블록 4열!</p>
+            </div>
+            <button class="banner-btn" onclick="app.loadJamsilDetail()">
+              시야 보기 <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+
+          <!-- Campaign / Points Promo -->
+          <div class="promo-card">
+            <div class="promo-icon-box">
+              <i data-lucide="gift"></i>
+            </div>
+            <div class="promo-text">
+              <h5>나만의 직관 티켓북 등록하기</h5>
+              <p>시야 사진을 올리고 포인트를 모아 네이버페이 상품권으로 교환하세요!</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. STADIUM SELECTION VIEW -->
+        <section id="view-stadiums" class="view">
+          
+          <div class="stadium-intro">
+            <p>시야 정보를 확인하고 싶은 야구장을 선택하세요.</p>
+          </div>
+
+          <!-- Stadium Card Grid -->
+          <div class="stadium-grid" id="stadium-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 3. STADIUM DETAIL VIEW -->
+        <section id="view-stadium-detail" class="view">
+
+          <!-- Stadium Mini Profile -->
+          <div class="stadium-detail-profile" id="detail-stadium-banner">
+            <div class="profile-overlay"></div>
+            <div class="profile-info">
+              <span class="stadium-badge" id="detail-stadium-team">구단명</span>
+              <h3 id="detail-stadium-fullname">구장이름</h3>
+              <p class="stadium-meta"><i data-lucide="map-pin"></i> <span id="detail-stadium-loc">위치</span></p>
+            </div>
+          </div>
+
+          <!-- Section Navigation -->
+          <div class="detail-tabs">
+            <button class="tab-btn active" onclick="app.switchDetailTab('map')">구장 지도 & 시야</button>
+            <button class="tab-btn" onclick="app.switchDetailTab('info')">구장 정보</button>
+          </div>
+
+          <!-- Tab Content: Map & Seating -->
+          <div id="tab-content-map" class="tab-pane active">
+            <!-- Depth 3: Overall Map View -->
+            <div id="stadium-overall-map-view" class="stadium-map-wrapper">
+              <div class="map-label">📍 대구역을 선택하세요 (1루 내야, 3루 내야, 외야 등)</div>
+              
+              <div class="stadium-svg-container" id="stadium-map-container">
+                <!-- SVG map will be injected here dynamically -->
+              </div>
+              
+              <!-- Direct Button Selectors for Accessibility -->
+              <div class="overall-zone-selectors" style="display: flex; gap: 8px; margin: 12px 0 4px 0;">
+                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('1루 내야/응원석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">⚾ 1루 내야/응원</button>
+                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('3루 내야/응원석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">⚾ 3루 내야/응원</button>
+                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('외야석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">🌳 외야석</button>
+              </div>
+
+              <!-- Amenities Overlays Toggle -->
+              <div class="amenity-bar">
+                <span class="amenity-title">주변 편의시설 필터:</span>
+                <div class="amenity-pills">
+                  <button class="amenity-pill" data-amenity="toilet" onclick="app.toggleAmenity('toilet')">
+                    <i data-lucide="smile"></i> 화장실
+                  </button>
+                  <button class="amenity-pill" data-amenity="snack" onclick="app.toggleAmenity('snack')">
+                    <i data-lucide="utensils"></i> 매점
+                  </button>
+                  <button class="amenity-pill" data-amenity="exit" onclick="app.toggleAmenity('exit')">
+                    <i data-lucide="log-out"></i> 출구
+                  </button>
+                  <button class="amenity-pill" data-amenity="medical" onclick="app.toggleAmenity('medical')">
+                    <i data-lucide="activity"></i> 의무실
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Depth 4: Detailed Block Map View (NEW) -->
+            <div id="stadium-detailed-blocks-view" class="stadium-map-wrapper" style="display: none; padding: 16px 0;">
+              <div id="detailed-block-map-container">
+                <!-- Detailed block buttons, cheer stage, ground layouts rendered here dynamically -->
+              </div>
+            </div>
+
+            <!-- Depth 5: Row Grid & Seat selection -->
+            <div class="block-seats-section" id="block-seats-section" style="display: none;">
+              <div class="block-info-header">
+                <div>
+                  <span class="block-badge" id="selected-block-badge">구역 미선택</span>
+                  <h4 class="block-name" id="selected-block-title">원하는 구역을 먼저 지도에서 선택해 주세요</h4>
+                </div>
+              </div>
+
+              <!-- Detailed Seat Grid container -->
+              <div class="seat-grid-container" id="seat-grid-wrapper">
+                <div class="seat-grid-legend">
+                  <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
+                  <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                </div>
+
+                <!-- Seat row grids -->
+                <div class="seat-rows" id="seat-rows-container">
+                  <!-- Row 1, 2, 3... -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Stadium Info -->
+          <div id="tab-content-info" class="tab-pane">
+            <div class="info-card">
+              <h4>🍔 대표 맛집 및 먹거리</h4>
+              <p class="info-text">1루 내야에 위치한 삼겹살 도시락과 원조 김말이 떡볶이가 최고 인기 메뉴입니다. 대기 줄이 길 수 있으니 경기 시작 1시간 전 방문을 추천합니다.</p>
+            </div>
+            <div class="info-card">
+              <h4>🚗 주차 및 대중교통 팁</h4>
+              <p class="info-text">지하철 2/9호선 종합운동장역 5번, 6번 출구에서 도보 1분 거리로 대중교통 접근성이 완벽합니다. 주차는 사전 등록 차량만 이용 가능하므로 대중교통 이용을 강하게 권장합니다.</p>
+            </div>
+            <div class="info-card">
+              <h4>☀️ 시간대별 햇빛 위치</h4>
+              <p class="info-text">낮 경기(14시) 진행 시, 3루측 좌석(원정팀)은 경기 내내 강한 직사광선에 노출되므로 선글라스와 모자가 필수입니다. 반면 1루측은 비교적 그늘이 빨리 집니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. 1:1 COMPARE VIEW -->
+        <section id="view-compare" class="view">
+          <div class="view-header">
+            <h2 class="view-title">1:1 시야 비교</h2>
+            <button class="clear-compare-btn" onclick="app.clearComparison()" id="clear-compare-btn">비우기</button>
+          </div>
+
+          <div class="compare-container" id="compare-main-container">
+            <!-- Filled dynamically by app.js depending on comparisons list -->
+          </div>
+        </section>
+
+        <!-- 5. TICKETBOOK VIEW -->
+        <section id="view-ticketbook" class="view">
+          <div class="view-header">
+            <h2 class="view-title">나만의 직관 티켓북</h2>
+            <button class="add-ticket-btn" onclick="app.openAddTicketModal()">
+              <i data-lucide="plus"></i> 직관 등록
+            </button>
+          </div>
+
+          <!-- Stats Overview -->
+          <div class="ticketbook-stats">
+            <div class="stat-main">
+              <div class="stat-progress-circle" id="win-rate-circle">
+                <span class="win-rate-val" id="win-rate-text">66%</span>
+                <span class="win-rate-lbl">승률</span>
+              </div>
+              <div class="stat-summary-text">
+                <h3>나의 직관 기록</h3>
+                <p id="ticketbook-summary-desc">총 6회 직관 | 4승 2패</p>
+              </div>
+            </div>
+            <div class="stat-details">
+              <div class="stat-sub">
+                <span class="stat-sub-label">최애 구장</span>
+                <span class="stat-sub-val">잠실 야구장</span>
+              </div>
+              <div class="stat-sub">
+                <span class="stat-sub-label">응원 구단</span>
+                <span class="stat-sub-val text-accent">LG Twins</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ticket Archive Grid -->
+          <div class="tickets-archive" id="tickets-archive-container">
+            <!-- Loaded dynamically -->
+          </div>
+        </section>
+
+      </main>
+
+
+
+      <!-- MODALS -->
+
+      <!-- A. Seat Detail View Modal -->
+      <div class="modal" id="modal-seat-detail">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-seat-detail')"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <span class="modal-subtitle" id="modal-seat-stadium">잠실 야구장</span>
+              <h3 class="modal-title" id="modal-seat-title">101블록 3열 4번</h3>
+            </div>
+            <button class="close-btn" onclick="app.closeModal('modal-seat-detail')" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <!-- Seat View Image -->
+            <div class="modal-image-wrapper">
+              <img id="modal-seat-img" src="" alt="실제 좌석 시야">
+            </div>
+
+            <!-- Uploader & Vote Bar -->
+            <div class="modal-vote-bar">
+              <div class="uploader-info">
+                <i data-lucide="user" class="uploader-icon"></i>
+                <span id="modal-seat-uploader">@twins_fan</span>
+                <span class="uploader-badge" id="modal-seat-badge">VIP 제보자</span>
+              </div>
+              <div class="vote-actions">
+                <button class="vote-btn upvote" onclick="app.voteCurrentSeat('up')" aria-label="Upvote">
+                  <i data-lucide="thumbs-up"></i> <span id="modal-seat-upvotes">0</span>
+                </button>
+                <button class="vote-btn downvote" onclick="app.voteCurrentSeat('down')" aria-label="Downvote">
+                  <i data-lucide="thumbs-down"></i> <span id="modal-seat-downvotes">0</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="modal-tags-container">
+              <span class="tag-label">좌석 특성 태그:</span>
+              <div class="tag-list" id="modal-seat-tags">
+                <!-- Javascript populates tags -->
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="modal-desc-box">
+              <h4>💬 실제 관람객 평</h4>
+              <p id="modal-seat-description">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="modal-actions">
+              <button class="btn btn-secondary" onclick="app.addCurrentSeatToCompare()">
+                <i data-lucide="plus-square"></i> 1:1 비교함 담기
+              </button>
+              <button class="btn btn-primary" onclick="app.addCurrentSeatToTicketbook()">
+                <i data-lucide="book-open"></i> 내 티켓북 등록
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B. Add Ticket to Ticketbook Modal -->
+      <div class="modal" id="modal-add-ticket">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-add-ticket')"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">새 직관 기록 등록</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-add-ticket')" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <form id="add-ticket-form" onsubmit="app.saveNewTicket(event)">
+              <!-- Step 1: Ticket OCR Upload -->
+              <div class="form-group">
+                <label>🎫 1단계: 티켓 사진/영수증 업로드 (OCR 스캔 시뮬레이션)</label>
+                <div class="photo-upload-box" id="ticket-ocr-box" onclick="document.getElementById('ticket-ocr-input').click()">
+                  <input type="file" id="ticket-ocr-input" accept="image/*" style="display: none;" onchange="app.handleTicketOCRSelect(event)">
+                  <div class="upload-placeholder" id="ocr-placeholder-content">
+                    <i data-lucide="scan-line"></i>
+                    <span>티켓 등록 (날짜/좌석 정보 자동 스캔)</span>
+                  </div>
+                  <img id="ticket-ocr-preview" src="" alt="티켓 이미지 미리보기" style="display: none;">
+                  <div class="ocr-scanning-overlay" id="ocr-scanning-overlay" style="display: none;">
+                    <div class="scan-bar"></div>
+                    <span>티켓 글자를 판독하고 있습니다...</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: Seat Photo Upload -->
+              <div class="form-group">
+                <label>📷 2단계: 실제 좌석 시야 사진 업로드</label>
+                <div class="photo-upload-box" id="ticket-photo-box" onclick="document.getElementById('ticket-photo-input').click()">
+                  <input type="file" id="ticket-photo-input" accept="image/*" style="display: none;" onchange="app.handleTicketPhotoSelect(event)">
+                  <div class="upload-placeholder" id="upload-placeholder-content">
+                    <i data-lucide="image-plus"></i>
+                    <span>실제 시야 사진 업로드</span>
+                  </div>
+                  <img id="ticket-photo-preview" src="" alt="시야 이미지 미리보기" style="display: none;">
+                </div>
+              </div>
+
+              <!-- Step 3: Cheering Team -->
+              <div class="form-group">
+                <label for="form-cheering-team">응원 구단 선택</label>
+                <select id="form-cheering-team" required onchange="app.updateMatchResultAutomatically()">
+                  <option value="">응원팀을 선택하세요</option>
+                  <option value="LG">LG 트윈스</option>
+                  <option value="Doosan">두산 베어스</option>
+                  <option value="SSG">SSG 랜더스</option>
+                  <option value="Kiwoom">키움 히어로즈</option>
+                  <option value="KT">KT 위즈</option>
+                  <option value="Samsung">삼성 라이온즈</option>
+                  <option value="KIA">KIA 타이거즈</option>
+                  <option value="Hanwha">한화 이글스</option>
+                  <option value="Lotte">롯데 자이언츠</option>
+                  <option value="NC">NC 다이노스</option>
+                </select>
+              </div>
+
+              <!-- OCR Auto-filled Fields Container -->
+              <div class="ocr-autofill-section" style="border: 1px solid rgba(59, 130, 246, 0.2); background-color: rgba(59, 130, 246, 0.02); border-radius: 16px; padding: 14px; margin-bottom: 16px;">
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--accent-blue); display: block; margin-bottom: 10px;">✨ 티켓 OCR 스캔 판독 정보 (자동 입력됨)</span>
+
+                <!-- Stadium Selection -->
+                <div class="form-group">
+                  <label for="form-stadium">경기장</label>
+                  <select id="form-stadium" required>
+                    <!-- Populated from stadiums list -->
+                  </select>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="form-block">구역/블록</label>
+                    <input type="text" id="form-block" placeholder="스캔 시 자동 입력" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="form-seat">상세 좌석</label>
+                    <input type="text" id="form-seat" placeholder="스캔 시 자동 입력" required>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="form-match-date">경기 일자</label>
+                    <input type="date" id="form-match-date" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="form-result">경기 결과</label>
+                    <input type="text" id="form-result" readonly placeholder="응원팀 선택 시 자동 계산" style="background-color: rgba(255,255,255,0.02); color: var(--text-secondary);">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="form-score">경기 스코어</label>
+                  <input type="text" id="form-score" placeholder="스캔 시 자동 입력">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="form-comment">관람평 / 꿀팁</label>
+                <textarea id="form-comment" rows="2" placeholder="이 자리에 대해 다른 관람객에게 알려줄 팁이 있나요? (예: 오후 4시 이후엔 햇빛 안들어옴!)"></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-full-width">
+                <i data-lucide="check"></i> 티켓북에 등록 완료
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- D. Profile / Login Simulator Modal -->
+      <div class="modal" id="modal-profile">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-profile')"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">SeatView 회원 서비스</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-profile')" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body" id="profile-modal-body">
+            <!-- Populated dynamically by app.js based on login state -->
+          </div>
+        </div>
+      </div>
+
+      <!-- E. Hamburger Menu Modal -->
+      <div class="modal" id="modal-menu">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-menu')"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">전체 메뉴</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-menu')" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <ul class="menu-list" style="list-style: none; display: flex; flex-direction: column; gap: 16px; padding: 10px 0;">
+              <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="home"></i> 홈 화면</li>
+              <li onclick="app.closeModal('modal-menu'); app.navigateTo('stadiums')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="compass"></i> 야구장 시야 탐색</li>
+              <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="columns"></i> 1:1 시야 비교</li>
+              <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="user"></i> 마이페이지</li>
+              <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
+              <li onclick="app.closeModal('modal-menu'); app.openProfileModal()" style="font-size: 1.0rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="settings"></i> 회원 계정 설정</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- C. Common Alert/Toast Notification -->
+      <div class="toast-container" id="toast-container"></div>
+
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
