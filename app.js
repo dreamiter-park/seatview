@@ -359,6 +359,23 @@ class SeatViewApp {
     // Setup Event Listeners
     this.setupListeners();
 
+    // Initialize Theme
+    const savedTheme = localStorage.getItem("seatview_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+
+    // Update menu elements immediately based on theme
+    const themeIcon = document.getElementById("theme-icon");
+    const themeText = document.getElementById("theme-text");
+    if (themeIcon && themeText) {
+      if (savedTheme === "light") {
+        themeIcon.setAttribute("data-lucide", "moon");
+        themeText.textContent = "다크 모드로 전환";
+      } else {
+        themeIcon.setAttribute("data-lucide", "sun");
+        themeText.textContent = "라이트 모드로 전환";
+      }
+    }
+
     // Trigger Initial Layout setup
     lucide.createIcons();
   }
@@ -1657,6 +1674,34 @@ class SeatViewApp {
         toast.remove();
       }, 300);
     }, 3000);
+  }
+
+  toggleTheme() {
+    // Close the menu first for smooth experience
+    this.closeModal("modal-menu");
+    
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("seatview_theme", newTheme);
+
+    // Update menu icons and texts
+    const themeIcon = document.getElementById("theme-icon");
+    const themeText = document.getElementById("theme-text");
+    if (themeIcon && themeText) {
+      if (newTheme === "light") {
+        themeIcon.setAttribute("data-lucide", "moon");
+        themeText.textContent = "다크 모드로 전환";
+      } else {
+        themeIcon.setAttribute("data-lucide", "sun");
+        themeText.textContent = "라이트 모드로 전환";
+      }
+      // Re-render Lucide icons
+      lucide.createIcons();
+    }
+    
+    this.showToast(newTheme === "light" ? "☀️" : "🌙", `${newTheme === "light" ? "라이트" : "다크"} 모드로 전환되었습니다.`);
   }
 }
 

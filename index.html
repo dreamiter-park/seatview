@@ -501,7 +501,12 @@
               <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="columns"></i> 1:1 시야 비교</li>
               <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="user"></i> 마이페이지</li>
               <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
-              <li onclick="app.closeModal('modal-menu'); app.openProfileModal()" style="font-size: 1.0rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="settings"></i> 회원 계정 설정</li>
+              <li onclick="app.toggleTheme()" style="font-size: 1.0rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 12px; justify-content: space-between; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <i id="theme-icon" data-lucide="sun"></i>
+                  <span id="theme-text">라이트 모드로 전환</span>
+                </div>
+              </li>
             </ul>
           </div>
         </div>

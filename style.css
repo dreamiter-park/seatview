@@ -9,6 +9,7 @@
   --bg-card: #121620;
   --bg-card-hover: #1b212f;
   --bg-input: #1b202e;
+  --bg-header: rgba(8, 10, 15, 0.85);
   
   --border-color: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(59, 130, 246, 0.5);
@@ -133,7 +134,7 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-  background-color: rgba(8, 10, 15, 0.85);
+  background-color: var(--bg-header);
   backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
@@ -2283,4 +2284,49 @@ body {
 
 .block-card:hover .block-card-action svg {
   transform: translateX(3px);
+}
+
+/* ==========================================================================
+   Light / Dark Mode switching system
+   ========================================================================== */
+:root[data-theme="light"] {
+  --bg-app: #f9fafb;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f3f4f6;
+  --bg-input: #f3f4f6;
+  --bg-header: rgba(249, 250, 251, 0.85);
+  
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-focus: rgba(59, 130, 246, 0.5);
+
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="light"] .app-container {
+  background: radial-gradient(circle at 80% 20%, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+:root[data-theme="light"] .phone-frame {
+  border-color: #e5e7eb;
+  box-shadow: var(--shadow-lg), 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure high text contrast in specific elements with background images or dark gradient overlays */
+.category-card {
+  color: #f3f4f6 !important;
+}
+.category-card .category-sub {
+  color: #9ca3af !important;
+}
+.stadium-detail-profile {
+  color: #f3f4f6 !important;
+}
+.stadium-detail-profile .stadium-meta {
+  color: #9ca3af !important;
 }
