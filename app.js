@@ -13,34 +13,46 @@ const STADIUMS_DB = [
     bg: "assets/jamsil_stadium.png",
     gradient: "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(127, 29, 29, 0.75))",
     blocks: [
-      { id: "b101", name: "1루 레드석 101블록", category: "내야" },
-      { id: "b102", name: "1루 레드석 102블록", category: "내야" },
-      { id: "b103", name: "1루 오렌지석(응원단상) 103블록", category: "응원" },
-      { id: "b104", name: "1루 오렌지석(응원단상) 104블록", category: "응원" },
-      { id: "b105", name: "1루 네이비석 301블록", category: "상층" },
-      { id: "b201", name: "3루 레드석 120블록", category: "내야" },
-      { id: "b202", name: "3루 오렌지석(원정응원) 121블록", category: "응원" },
-      { id: "b301", name: "외야 그린석 401블록", category: "외야" }
+      { id: "b101", name: "1루 레드석 101블록", category: "내야", grade: "red" },
+      { id: "b102", name: "1루 레드석 102블록", category: "내야", grade: "red" },
+      { id: "b103", name: "1루 오렌지석(응원단상) 103블록", category: "응원", grade: "orange" },
+      { id: "b104", name: "1루 오렌지석(응원단상) 104블록", category: "응원", grade: "orange" },
+      { id: "b105", name: "1루 네이비석 301블록", category: "상층", grade: "navy" },
+      { id: "b117", name: "3루 레드석 117블록", category: "내야", grade: "red" },
+      { id: "b118", name: "3루 레드석 118블록", category: "내야", grade: "red" },
+      { id: "b119", name: "3루 레드석 119블록", category: "내야", grade: "red" },
+      { id: "b120", name: "3루 레드석 120블록", category: "내야", grade: "red" },
+      { id: "b121", name: "3루 오렌지석(원정응원) 121블록", category: "응원", grade: "orange" },
+      { id: "b122", name: "3루 오렌지석 122블록", category: "응원", grade: "orange" },
+      { id: "b223", name: "3루 레드석 223블록", category: "내야", grade: "red" },
+      { id: "b224", name: "3루 레드석 224블록", category: "내야", grade: "red" },
+      { id: "b225", name: "3루 레드석 225블록", category: "내야", grade: "red" },
+      { id: "b226", name: "3루 레드석 226블록", category: "내야", grade: "red" },
+      { id: "b301", name: "외야 그린석 401블록", category: "외야", grade: "green" },
+      { id: "b_prem", name: "프리미엄석 212블록", category: "프리미엄", grade: "premium" },
+      { id: "b_table", name: "1루 테이블석 110블록", category: "테이블", grade: "table" },
+      { id: "b_excit", name: "1루 익사이팅석 104블록 옆", category: "내야", grade: "exciting" },
+      { id: "b_blue", name: "1루 블루석 107블록", category: "내야", grade: "blue" }
     ],
     // Amenity coordinates (top% / left% inside stadium map wrapper)
     amenities: {
       toilet: [
-        { name: "1루 화장실", x: 65, y: 70 },
-        { name: "3루 화장실", x: 35, y: 70 },
-        { name: "외야 중앙 화장실", x: 50, y: 15 }
+        { name: "1루 화장실", x: 70, y: 71 },
+        { name: "3루 화장실", x: 30, y: 71 },
+        { name: "외야 중앙 화장실", x: 50, y: 13 }
       ],
       snack: [
-        { name: "삼겹살 광장 매점", x: 72, y: 65 },
-        { name: "원조 김말이 떡볶이", x: 58, y: 72 },
-        { name: "3루 백미당/스테프핫도그", x: 28, y: 65 }
+        { name: "삼겹살 광장 매점", x: 79, y: 66 },
+        { name: "원조 김말이 떡볶이", x: 61, y: 73.5 },
+        { name: "3루 백미당/스테프핫도그", x: 21, y: 66 }
       ],
       exit: [
-        { name: "1루 내야 출입구", x: 78, y: 80 },
-        { name: "3루 내야 출입구", x: 22, y: 80 },
-        { name: "외야 매표소 게이트", x: 50, y: 8 }
+        { name: "1루 내야 출입구", x: 87, y: 82 },
+        { name: "3루 내야 출입구", x: 13, y: 82 },
+        { name: "외야 매표소 게이트", x: 50, y: 5 }
       ],
       medical: [
-        { name: "의무실 (1루 복도 안쪽)", x: 60, y: 55 }
+        { name: "의무실 (1루 복도 안쪽)", x: 63, y: 55 }
       ]
     }
   },
@@ -208,8 +220,138 @@ const STADIUMS_DB = [
   }
 ];
 
+// Dynamically initialize all Jamsil blocks to match Ticketlink exactly
+const jamsil = STADIUMS_DB.find(s => s.id === "jamsil");
+if (jamsil) {
+  jamsil.blocks = [
+    { id: "b_prem", name: "프리미엄석 212블록", category: "프리미엄", grade: "premium" }
+  ];
+  
+  const homeCols = [
+    { inner: "111", innerGrade: "table", mid: "213", midGrade: "table", outer: "315", outerGrade: "navy" },
+    { inner: "110", innerGrade: "table", mid: "212", midGrade: "table", outer: "314", outerGrade: "navy" },
+    { inner: "109", innerGrade: "blue", mid: "211", midGrade: "blue", outer: "313", outerGrade: "navy" },
+    { inner: "108", innerGrade: "blue", mid: "210", midGrade: "blue", outer: "312", outerGrade: "navy" },
+    { inner: "107", innerGrade: "blue", mid: "209", midGrade: "blue", outer: "311", outerGrade: "navy" },
+    { inner: "106", innerGrade: "orange", mid: "208", midGrade: "blue", outer: "310", outerGrade: "navy" },
+    { inner: "105", innerGrade: "orange", mid: "207", midGrade: "blue", outer: "309", outerGrade: "navy" },
+    { inner: "104", innerGrade: "orange", mid: "206", midGrade: "red", outer: "308", outerGrade: "navy" },
+    { inner: "103", innerGrade: "red", mid: "205", midGrade: "red", outer: "307", outerGrade: "navy" },
+    { inner: "102", innerGrade: "red", mid: "204", midGrade: "red", outer: "306", outerGrade: "navy" },
+    { inner: "101", innerGrade: "red", mid: "203", midGrade: "red", outer: "305", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "202", midGrade: "red", outer: "304", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "201", midGrade: "red", outer: "303", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "302", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "301", outerGrade: "navy" }
+  ];
+
+  const awayCols = [
+    { inner: "112", innerGrade: "table", mid: "214", midGrade: "table", outer: "316", outerGrade: "navy" },
+    { inner: "113", innerGrade: "table", mid: "215", midGrade: "table", outer: "317", outerGrade: "navy" },
+    { inner: "114", innerGrade: "table", mid: "216", midGrade: "table", outer: "318", outerGrade: "navy" },
+    { inner: "115", innerGrade: "table", mid: "217", midGrade: "blue", outer: "319", outerGrade: "navy" },
+    { inner: "116", innerGrade: "blue", mid: "218", midGrade: "blue", outer: "320", outerGrade: "navy" },
+    { inner: "117", innerGrade: "red", mid: "219", midGrade: "blue", outer: "321", outerGrade: "navy" },
+    { inner: "118", innerGrade: "red", mid: "220", midGrade: "blue", outer: "322", outerGrade: "navy" },
+    { inner: "119", innerGrade: "red", mid: "221", midGrade: "red", outer: "323", outerGrade: "navy" },
+    { inner: "120", innerGrade: "red", mid: "222", midGrade: "red", outer: "324", outerGrade: "navy" },
+    { inner: "121", innerGrade: "orange", mid: "223", midGrade: "red", outer: "325", outerGrade: "navy" },
+    { inner: "122", innerGrade: "orange", mid: "224", midGrade: "red", outer: "326", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "225", midGrade: "red", outer: "327", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "226", midGrade: "red", outer: "328", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "329", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "330", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "331", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "332", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "333", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "334", outerGrade: "navy" }
+  ];
+
+  const getKoreanName = (grade, num) => {
+    const names = {
+      premium: "프리미엄석",
+      table: "테이블석",
+      blue: "블루석",
+      orange: "오렌지석(응원단상)",
+      red: "레드석",
+      navy: "네이비석",
+      green: "외야 그린석"
+    };
+    return `${names[grade] || "지정석"} ${num}블록`;
+  };
+
+  homeCols.forEach(col => {
+    if (col.inner) jamsil.blocks.push({ id: `b${col.inner}`, name: `1루 ${getKoreanName(col.innerGrade, col.inner)}`, category: "내야", grade: col.innerGrade });
+    if (col.mid) jamsil.blocks.push({ id: `b${col.mid}`, name: `1루 ${getKoreanName(col.midGrade, col.mid)}`, category: "내야", grade: col.midGrade });
+    if (col.outer) jamsil.blocks.push({ id: `b${col.outer}`, name: `1루 ${getKoreanName(col.outerGrade, col.outer)}`, category: "상층", grade: col.outerGrade });
+  });
+
+  awayCols.forEach(col => {
+    if (col.inner) jamsil.blocks.push({ id: `b${col.inner}`, name: `3루 ${getKoreanName(col.innerGrade, col.inner)}`, category: "내야", grade: col.innerGrade });
+    if (col.mid) jamsil.blocks.push({ id: `b${col.mid}`, name: `3루 ${getKoreanName(col.midGrade, col.mid)}`, category: "내야", grade: col.midGrade });
+    if (col.outer) jamsil.blocks.push({ id: `b${col.outer}`, name: `3루 ${getKoreanName(col.outerGrade, col.outer)}`, category: "상층", grade: col.outerGrade });
+  });
+
+  for (let i = 0; i < 22; i++) {
+    const num = 401 + i;
+    jamsil.blocks.push({ id: `b${num}`, name: `외야 그린석 ${num}블록`, category: "외야", grade: "green" });
+  }
+}
+
 // Seat Views DB (Key: stadiumId_blockId_rowNum_seatNum)
 const SEAT_VIEWS_DB = {
+  "jamsil_b103_1_1": {
+    stadiumName: "잠실 야구장",
+    blockName: "1루 오렌지석 103블록",
+    seatName: "1열 1번",
+    image: "assets/seat_view_clean.png",
+    uploader: "@twins_victory",
+    uploaderBadge: "골드 제보자",
+    upvotes: 34,
+    downvotes: 0,
+    userVoted: null,
+    tags: ["🔥 응원단상 코앞", "✅ 열정 응원존", "✅ 통로석"],
+    comment: "오렌지석 103블록 맨 앞자리! 치어리더 분들과 거의 하이파이브 할 수 있을 정도로 가깝습니다. 응원단 앰프 바로 옆이라 흥이 배가 되며, 통로와 맞닿아 있어 드나들기 최고입니다."
+  },
+  "jamsil_b103_1_7": {
+    stadiumName: "잠실 야구장",
+    blockName: "1루 오렌지석 103블록",
+    seatName: "1열 7번",
+    image: "assets/seat_view_clean.png",
+    uploader: "@stadium_goer",
+    uploaderBadge: "VIP 제보자",
+    upvotes: 56,
+    downvotes: 2,
+    userVoted: null,
+    tags: ["✅ 시야 대만족", "🔥 열광의 오렌지", "✅ 홈플레이트 잘보임"],
+    comment: "1열 7번 중앙자리입니다! 투수 마운드와 홈플레이트가 막힘 없이 한눈에 조망되고 단상과도 가까워서 경기 몰입도와 응원 열기 두 가지 모두를 챙길 수 있는 잠실야구장 최고의 꿀자리입니다."
+  },
+  "jamsil_b103_1_14": {
+    stadiumName: "잠실 야구장",
+    blockName: "1루 오렌지석 103블록",
+    seatName: "1열 14번",
+    image: "assets/seat_view_clean.png",
+    uploader: "@lotte_no_lg",
+    uploaderBadge: "일반 제보자",
+    upvotes: 12,
+    downvotes: 1,
+    userVoted: null,
+    tags: ["✅ 경기장 전경 한눈에", "🔥 서서 응원 필수"],
+    comment: "103블록 맨 우측 라인 1열입니다. 우측 익사이팅석 방면까지 탁 트인 시야를 볼 수 있어 답답함이 없습니다. 응원단상 열기를 느끼고 싶으시다면 강추합니다."
+  },
+  "jamsil_b103_10_95": {
+    stadiumName: "잠실 야구장",
+    blockName: "1루 오렌지석 103블록",
+    seatName: "10열 95번",
+    image: "assets/seat_view_blocked.png",
+    uploader: "@silent_fan",
+    uploaderBadge: "실버 제보자",
+    upvotes: 8,
+    downvotes: 15,
+    userVoted: null,
+    tags: ["⚠️ 응원봉 시야 방해", "☀️ 강한 오후 햇빛"],
+    comment: "단차는 나쁘지 않으나 서서 응원하시는 분들이 많을 때 응원도구나 깃발 등에 홈플레이트 부근이 일부 가릴 수 있습니다. 오후 경기 때 햇빛이 정면으로 드는 점 참고해 주세요."
+  },
   // Jamsil Block 101, Row 3, Seat 4
   "jamsil_b101_3_4": {
     stadiumName: "잠실 야구장",
@@ -313,6 +455,7 @@ const state = {
   currentView: "main",
   selectedStadium: null,
   selectedBlock: null,
+  selectedGradeFilter: "all", // Seat grade filter state (all, premium, table, etc.)
   activeAmenities: {
     toilet: false,
     snack: false,
@@ -393,9 +536,6 @@ class SeatViewApp {
   }
 
   setupListeners() {
-    // Listen for form stadium change to load block dropdown if needed
-    // Simple routing link handlers already set inline on HTML (e.g. onclick="app.navigateTo(...)")
-    
     // Quick handle search box typing
     const searchInput = document.getElementById("main-search-input");
     if (searchInput) {
@@ -406,18 +546,49 @@ class SeatViewApp {
         }
       });
     }
+
+    // Set up click-and-drag horizontal scroll for the grade filter bar
+    this.setupDragScroll("grade-filter-bar");
+  }
+
+  setupDragScroll(elementId) {
+    const slider = document.getElementById(elementId);
+    if (!slider) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    slider.style.cursor = "grab";
+
+    slider.addEventListener("mousedown", (e) => {
+      isDown = true;
+      slider.style.cursor = "grabbing";
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    });
+
+    slider.addEventListener("mouseleave", () => {
+      isDown = false;
+      slider.style.cursor = "grab";
+    });
+
+    slider.addEventListener("mouseup", () => {
+      isDown = false;
+      slider.style.cursor = "grab";
+    });
+
+    slider.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.8; // scroll speed multiplier
+      slider.scrollLeft = scrollLeft - walk;
+    });
   }
 
   // --- Router ---
   navigateTo(viewId) {
-    // --- 1:1 비교 로그인 차단 기능 추가 ---
-    if (viewId === "compare" && !state.isLoggedIn) {
-      if (confirm("[로그인 안내] 1:1 시야 비교함은 회원 전용 서비스입니다. 1초 간편 로그인 화면으로 이동하시겠습니까?")) {
-        this.openModal("modal-profile");
-      }
-      return;
-    }
-
     // Hide all views
     document.querySelectorAll(".view").forEach(view => {
       view.classList.remove("active");
@@ -485,19 +656,9 @@ class SeatViewApp {
   handleHeaderBack() {
     if (state.currentView === "stadium-detail") {
       if (state.selectedBlock) {
-        // Depth 5 -> Depth 4
+        // Back to Stadium overall map view
         state.selectedBlock = null;
         document.getElementById("block-seats-section").style.display = "none";
-        document.getElementById("stadium-detailed-blocks-view").style.display = "block";
-        
-        const titleEl = document.getElementById("header-title");
-        if (titleEl && state.selectedStadium && state.selectedZone) {
-          titleEl.textContent = `${state.selectedStadium.name} - ${state.selectedZone}`;
-        }
-      } else if (state.selectedZone) {
-        // Depth 4 -> Depth 3
-        state.selectedZone = null;
-        document.getElementById("stadium-detailed-blocks-view").style.display = "none";
         document.getElementById("stadium-overall-map-view").style.display = "block";
         
         const titleEl = document.getElementById("header-title");
@@ -505,7 +666,7 @@ class SeatViewApp {
           titleEl.textContent = state.selectedStadium.name;
         }
       } else {
-        // Depth 3 -> Depth 2
+        // Back to Stadiums list
         this.navigateTo("stadiums");
       }
     } else if (state.currentView === "stadiums") {
@@ -576,71 +737,241 @@ class SeatViewApp {
     // Inject Stadium SVG Map
     this.injectStadiumMap(stadiumId);
 
-    // Reset display divs to Depth 3
+    // Reset display divs
     document.getElementById("stadium-overall-map-view").style.display = "block";
-    document.getElementById("stadium-detailed-blocks-view").style.display = "none";
     document.getElementById("block-seats-section").style.display = "none";
 
     // Switch default tab
     this.switchDetailTab("map");
+
+    // Render detailed blocks list for '전체' by default
+    this.renderDetailedBlocks("전체");
 
     // Navigate to Detail view
     this.navigateTo("stadium-detail");
   }
 
   // Inject beautiful customizable SVG for Seating layout
-  injectStadiumMap(stadiumId) {
-    const container = document.getElementById("stadium-map-container");
+  injectStadiumMap(stadiumId, detailedZoneName = null) {
+    const containerId = detailedZoneName ? "detailed-block-svg-container" : "stadium-map-container";
+    const container = document.getElementById(containerId);
     if (!container) return;
 
-    // We build a responsive SVG representation of a baseball field and seating sections
-    // Inside/Outfield layout
-    container.innerHTML = `
-      <svg viewBox="0 0 400 300" width="100%" height="100%">
-        <!-- Outfield green background -->
-        <path d="M 80 130 A 150 150 0 0 1 320 130 L 200 250 Z" fill="#132c1c" stroke="#1e3a27" stroke-width="2" />
-        <!-- Infield clay/dirt diamond -->
-        <path d="M 140 190 L 200 130 L 260 190 L 200 250 Z" fill="#5c4033" opacity="0.6"/>
-        <!-- Pitcher's mound and bases -->
-        <circle cx="200" cy="190" r="8" fill="#a0785a" />
-        <rect x="196" y="246" width="8" height="8" fill="#ffffff" transform="rotate(45, 200, 250)" />
-        <rect x="256" y="186" width="8" height="8" fill="#ffffff" transform="rotate(45, 260, 190)" />
-        <rect x="136" y="186" width="8" height="8" fill="#ffffff" transform="rotate(45, 140, 190)" />
-        <rect x="196" y="126" width="8" height="8" fill="#ffffff" transform="rotate(45, 200, 130)" />
+    const is3B = detailedZoneName === "3루 내야/응원석";
+    const is1B = detailedZoneName === "1루 내야/응원석";
+    const isOutfield = detailedZoneName === "외야석";
+    const hasFilter = detailedZoneName !== null;
 
-        <!-- 1st Base Lower Stands Zone -->
-        <path d="M 230 250 A 45 45 0 0 0 290 190 L 330 210 A 90 90 0 0 1 245 285 Z" 
-              class="stadium-zone" id="map-zone-b101" data-block="b101" onclick="app.selectStadiumZone('1루 내야/응원석')" fill="#334155" />
-        <text x="280" y="235" fill="white" font-size="8" font-weight="bold" pointer-events="none">1루 레드</text>
+    // Reset grade filter view state on reload of Overall map
+    state.selectedGradeFilter = "all";
+    document.querySelectorAll(".grade-pill").forEach(p => p.classList.remove("active"));
+    const allPill = Array.from(document.querySelectorAll(".grade-pill")).find(p => p.textContent.includes("전체"));
+    if (allPill) allPill.classList.add("active");
 
-        <!-- 1st Base Cheer Stage Zone -->
-        <path d="M 290 190 A 45 45 0 0 0 310 150 L 355 160 A 90 90 0 0 1 330 210 Z" 
-              class="stadium-zone" id="map-zone-b103" data-block="b103" onclick="app.selectStadiumZone('1루 내야/응원석')" fill="#f97316" />
-        <text x="325" y="180" fill="white" font-size="7" font-weight="bold" pointer-events="none" transform="rotate(-30, 325, 180)">응원석(1루)</text>
+    if (stadiumId === "jamsil") {
+      const cx = 200, cy = 160;
+      let svgContent = `
+        <svg viewBox="50 10 300 300" width="100%" height="100%">
+          <!-- Baseball infield grass background -->
+          <circle cx="${cx}" cy="${cy}" r="45" fill="#14532d" opacity="0.3" />
+          <path d="M 160 ${cy} L 200 ${cy - 40} L 240 ${cy} L 200 ${cy + 40} Z" fill="#b45309" opacity="0.4" />
+          <rect x="197" y="${cy + 37}" width="6" height="6" fill="#ffffff" transform="rotate(45, 200, ${cy + 40})" />
+      `;
 
-        <!-- 1st Base Upper / Navy Zone -->
-        <path d="M 245 285 A 90 90 0 0 0 330 210 L 375 235 A 140 140 0 0 1 265 300 Z" 
-              class="stadium-zone" id="map-zone-b105" data-block="b105" onclick="app.selectStadiumZone('1루 내야/응원석')" fill="#1e293b" />
-        <text x="310" y="270" fill="white" font-size="8" pointer-events="none">1루 네이비</text>
+      // Helper function to generate mathematically precise concentric wedge path
+      const getWedgePath = (rIn, rOut, startAngle, endAngle) => {
+        const rad = Math.PI / 180;
+        // In Jamsil coordinate system, 0 is at the bottom (180 degrees from standard polar)
+        const sAngle = (startAngle + 90) * rad;
+        const eAngle = (endAngle + 90) * rad;
 
-        <!-- 3루 Red Stands Zone -->
-        <path d="M 170 250 A 45 45 0 0 1 110 190 L 70 210 A 90 90 0 0 0 155 285 Z" 
-              class="stadium-zone" id="map-zone-b201" data-block="b201" onclick="app.selectStadiumZone('3루 내야/응원석')" fill="#334155" />
-        <text x="105" y="235" fill="white" font-size="8" font-weight="bold" pointer-events="none">3루 레드</text>
+        const x1_in = cx + rIn * Math.cos(sAngle);
+        const y1_in = cy + rIn * Math.sin(sAngle);
+        const x2_in = cx + rIn * Math.cos(eAngle);
+        const y2_in = cy + rIn * Math.sin(eAngle);
 
-        <!-- 3루 Cheer Stage Zone -->
-        <path d="M 110 190 A 45 45 0 0 1 90 150 L 45 160 A 90 90 0 0 0 70 210 Z" 
-              class="stadium-zone" id="map-zone-b202" data-block="b202" onclick="app.selectStadiumZone('3루 내야/응원석')" fill="#f97316" />
-        <text x="50" y="180" fill="white" font-size="7" font-weight="bold" pointer-events="none" transform="rotate(30, 50, 180)">응원석(3루)</text>
+        const x1_out = cx + rOut * Math.cos(sAngle);
+        const y1_out = cy + rOut * Math.sin(sAngle);
+        const x2_out = cx + rOut * Math.cos(eAngle);
+        const y2_out = cy + rOut * Math.sin(eAngle);
 
-        <!-- Outfield Green Zone -->
-        <path d="M 70 130 A 130 130 0 0 1 330 130 L 360 110 A 170 170 0 0 0 40 110 Z" 
-              class="stadium-zone" id="map-zone-b301" data-block="b301" onclick="app.selectStadiumZone('외야석')" fill="#166534" />
-        <text x="200" y="90" fill="white" font-size="10" font-weight="bold" text-anchor="middle" pointer-events="none">외야 그린석</text>
-      </svg>
-      <!-- Amenity pin markers overlay wrapper -->
-      <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
-    `;
+        const largeArc = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+
+        return `M ${x1_in} ${y1_in} L ${x1_out} ${y1_out} A ${rOut} ${rOut} 0 ${largeArc} 1 ${x2_out} ${y2_out} L ${x2_in} ${y2_in} A ${rIn} ${rIn} 0 ${largeArc} 0 ${x1_in} ${y1_in} Z`;
+      };
+
+      const getColorForGrade = (grade) => {
+        const colors = {
+          premium: "#a3e635",
+          table: "#db2777",
+          blue: "#2563eb",
+          orange: "#ea580c",
+          red: "#dc2626",
+          navy: "#1e3a8a",
+          green: "#16a34a"
+        };
+        return colors[grade] || "#64748b";
+      };
+
+      const homeCols = [
+        { inner: "111", innerGrade: "table", mid: "213", midGrade: "table", outer: "315", outerGrade: "navy" },
+        { inner: "110", innerGrade: "table", mid: "212", midGrade: "table", outer: "314", outerGrade: "navy" },
+        { inner: "109", innerGrade: "blue", mid: "211", midGrade: "blue", outer: "313", outerGrade: "navy" },
+        { inner: "108", innerGrade: "blue", mid: "210", midGrade: "blue", outer: "312", outerGrade: "navy" },
+        { inner: "107", innerGrade: "blue", mid: "209", midGrade: "blue", outer: "311", outerGrade: "navy" },
+        { inner: "106", innerGrade: "orange", mid: "208", midGrade: "blue", outer: "310", outerGrade: "navy" },
+        { inner: "105", innerGrade: "orange", mid: "207", midGrade: "blue", outer: "309", outerGrade: "navy" },
+        { inner: "104", innerGrade: "orange", mid: "206", midGrade: "red", outer: "308", outerGrade: "navy" },
+        { inner: "103", innerGrade: "red", mid: "205", midGrade: "red", outer: "307", outerGrade: "navy" },
+        { inner: "102", innerGrade: "red", mid: "204", midGrade: "red", outer: "306", outerGrade: "navy" },
+        { inner: "101", innerGrade: "red", mid: "203", midGrade: "red", outer: "305", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: "202", midGrade: "red", outer: "304", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: "201", midGrade: "red", outer: "303", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "302", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "301", outerGrade: "navy" }
+      ];
+
+      const awayCols = [
+        { inner: "112", innerGrade: "table", mid: "214", midGrade: "table", outer: "316", outerGrade: "navy" },
+        { inner: "113", innerGrade: "table", mid: "215", midGrade: "table", outer: "317", outerGrade: "navy" },
+        { inner: "114", innerGrade: "table", mid: "216", midGrade: "table", outer: "318", outerGrade: "navy" },
+        { inner: "115", innerGrade: "table", mid: "217", midGrade: "blue", outer: "319", outerGrade: "navy" },
+        { inner: "116", innerGrade: "blue", mid: "218", midGrade: "blue", outer: "320", outerGrade: "navy" },
+        { inner: "117", innerGrade: "red", mid: "219", midGrade: "blue", outer: "321", outerGrade: "navy" },
+        { inner: "118", innerGrade: "red", mid: "220", midGrade: "blue", outer: "322", outerGrade: "navy" },
+        { inner: "119", innerGrade: "red", mid: "221", midGrade: "red", outer: "323", outerGrade: "navy" },
+        { inner: "120", innerGrade: "red", mid: "222", midGrade: "red", outer: "324", outerGrade: "navy" },
+        { inner: "121", innerGrade: "orange", mid: "223", midGrade: "red", outer: "325", outerGrade: "navy" },
+        { inner: "122", innerGrade: "orange", mid: "224", midGrade: "red", outer: "326", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: "225", midGrade: "red", outer: "327", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: "226", midGrade: "red", outer: "328", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "329", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "330", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "331", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "332", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "333", outerGrade: "navy" },
+        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "334", outerGrade: "navy" }
+      ];
+
+      const blocks = [
+        { id: "b_prem", label: "212", grade: "premium", rIn: 55, rOut: 75, start: -4, end: 4, color: "#a3e635" }
+      ];
+
+      homeCols.forEach((col, idx) => {
+        const start = 4 + idx * 8;
+        const end = start + 8;
+        if (col.inner) blocks.push({ id: `b${col.inner}`, label: col.inner, grade: col.innerGrade, rIn: 55, rOut: 75, start, end, color: getColorForGrade(col.innerGrade) });
+        if (col.mid) blocks.push({ id: `b${col.mid}`, label: col.mid, grade: col.midGrade, rIn: 77, rOut: 105, start, end, color: getColorForGrade(col.midGrade) });
+        if (col.outer) blocks.push({ id: `b${col.outer}`, label: col.outer, grade: col.outerGrade, rIn: 107, rOut: 135, start, end, color: getColorForGrade(col.outerGrade) });
+      });
+
+      awayCols.forEach((col, idx) => {
+        const end = -4 - idx * 8;
+        const start = end - 8;
+        if (col.inner) blocks.push({ id: `b${col.inner}`, label: col.inner, grade: col.innerGrade, rIn: 55, rOut: 75, start, end, color: getColorForGrade(col.innerGrade) });
+        if (col.mid) blocks.push({ id: `b${col.mid}`, label: col.mid, grade: col.midGrade, rIn: 77, rOut: 105, start, end, color: getColorForGrade(col.midGrade) });
+        if (col.outer) blocks.push({ id: `b${col.outer}`, label: col.outer, grade: col.outerGrade, rIn: 107, rOut: 135, start, end, color: getColorForGrade(col.outerGrade) });
+      });
+
+      const outfieldStart = 125;
+      const outfieldEnd = 235;
+      const outfieldStep = (outfieldEnd - outfieldStart) / 22;
+      for (let i = 0; i < 22; i++) {
+        const start = outfieldStart + i * outfieldStep;
+        const end = start + outfieldStep;
+        const num = 401 + i;
+        blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: "#16a34a" });
+      }
+
+      blocks.forEach(b => {
+        const path = getWedgePath(b.rIn, b.rOut, b.start, b.end);
+        
+        // Calculate label position
+        const rad = Math.PI / 180;
+        const midAngle = ((b.start + b.end) / 2 + 90) * rad;
+        const midRadius = (b.rIn + b.rOut) / 2;
+        const lx = cx + midRadius * Math.cos(midAngle);
+        const ly = cy + midRadius * Math.sin(midAngle);
+        
+        // Set font size based on block grade to fit narrow sectors nicely
+        const fontSize = b.grade === "green" ? 5.2 : (b.grade === "navy" ? 5.6 : 6.2);
+
+        svgContent += `
+          <path d="${path}" class="stadium-sector" data-grade="${b.grade}" onclick="app.selectStadiumBlock('${b.id}')" fill="${b.color}" />
+          <text x="${lx}" y="${ly + 2}" fill="white" font-size="${fontSize}" font-weight="normal" text-anchor="middle" pointer-events="none">${b.label}</text>
+        `;
+      });
+
+      // Wheelchair circles
+      svgContent += `
+          <circle cx="${cx + 82 * Math.cos((32 + 90) * Math.PI / 180)}" cy="${cy + 82 * Math.sin((32 + 90) * Math.PI / 180)}" r="4" class="stadium-sector" data-grade="wheelchair" onclick="app.selectStadiumBlock('b103')" fill="#64748b" />
+          <circle cx="${cx + 82 * Math.cos((-74 + 90) * Math.PI / 180)}" cy="${cy + 82 * Math.sin((-74 + 90) * Math.PI / 180)}" r="4" class="stadium-sector" data-grade="wheelchair" onclick="app.selectStadiumBlock('b121')" fill="#64748b" />
+        </svg>
+        <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
+      `;
+
+      container.innerHTML = svgContent;
+    } else {
+      // General fall-back SVG
+      container.innerHTML = `
+        <svg viewBox="0 0 400 300" width="100%" height="100%">
+          <path d="M 80 130 A 150 150 0 0 1 320 130 L 200 250 Z" fill="#132c1c" stroke="#1e3a27" stroke-width="2" />
+          <path d="M 140 190 L 200 130 L 260 190 L 200 250 Z" fill="#5c4033" opacity="0.6"/>
+          <circle cx="200" cy="190" r="8" fill="#a0785a" />
+          <path d="M 230 250 A 45 45 0 0 0 330 210 L 375 235 A 140 140 0 0 1 265 300 Z" class="stadium-sector" data-grade="red" onclick="app.selectStadiumBlock('b_prem')" fill="#dc2626" />
+          <text x="290" y="260" fill="white" font-size="8" font-weight="bold" pointer-events="none">내야지정석</text>
+          <path d="M 170 250 A 45 45 0 0 1 70 210 L 25 235 A 140 140 0 0 0 135 300 Z" class="stadium-sector" data-grade="blue" onclick="app.selectStadiumBlock('b_blue')" fill="#2563eb" />
+          <text x="75" y="260" fill="white" font-size="8" font-weight="bold" pointer-events="none">내야지정석</text>
+        </svg>
+        <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
+      `;
+    }
+  }
+
+  // Filter map sectors by clicked grade
+  filterMapByGrade(gradeName) {
+    // 1. Update active class on filter pills
+    document.querySelectorAll(".grade-pill").forEach(pill => {
+      pill.classList.remove("active");
+    });
+    
+    // Find clicked pill
+    const clickedPill = Array.from(document.querySelectorAll(".grade-pill")).find(pill => 
+      pill.getAttribute("onclick").includes(`'${gradeName}'`)
+    );
+    if (clickedPill) {
+      clickedPill.classList.add("active");
+    }
+
+    state.selectedGradeFilter = gradeName;
+
+    // 2. Dim non-matching sectors on the SVG map
+    const sectors = document.querySelectorAll(".stadium-sector");
+    sectors.forEach(sec => {
+      const secGrade = sec.getAttribute("data-grade");
+      if (gradeName === "all" || secGrade === gradeName) {
+        sec.classList.remove("dimmed");
+      } else {
+        sec.classList.add("dimmed");
+      }
+    });
+
+    // 3. Update the blocks grid below dynamically
+    this.renderDetailedBlocks(state.selectedZone || "전체");
+
+    const gradeLabels = {
+      all: "전체 구역",
+      premium: "프리미엄석",
+      table: "테이블석",
+      exciting: "익사이팅석",
+      blue: "블루석",
+      orange: "오렌지석(응원)",
+      red: "레드석",
+      navy: "네이비석",
+      green: "외야그린석",
+      wheelchair: "휠체어석"
+    };
+    this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} 필터가 적용되었습니다.`);
   }
 
   // --- Amenities Toggling & Drawing Markers ---
@@ -697,12 +1028,14 @@ class SeatViewApp {
   }
 
   // --- Seating Grid Selection ---
+  // --- Seating Grid Selection ---
   selectStadiumZone(zoneName) {
     state.selectedZone = zoneName;
 
-    // Hide Overall map, show Detailed blocks map
+    // Toggle screen views (Depth 3 -> Depth 4)
     document.getElementById("stadium-overall-map-view").style.display = "none";
     document.getElementById("stadium-detailed-blocks-view").style.display = "block";
+    document.getElementById("block-seats-section").style.display = "none";
 
     // Set header title
     const titleEl = document.getElementById("header-title");
@@ -710,15 +1043,25 @@ class SeatViewApp {
       titleEl.textContent = `${state.selectedStadium.name} - ${zoneName}`;
     }
 
-    // Render detailed blocks list / map
+    // Inject detailed block SVG map in-place!
+    this.injectStadiumMap(state.selectedStadium.id, zoneName);
+
+    // Render detailed blocks list
     this.renderDetailedBlocks(zoneName);
+
+    // Scroll to top of the view content
+    const appContent = document.getElementById("app-content");
+    if (appContent) appContent.scrollTop = 0;
   }
 
   getBlocksForZone(stadium, zoneName) {
+    if (zoneName === "전체") {
+      return stadium.blocks;
+    }
     if (zoneName.includes("1루")) {
       return stadium.blocks.filter(b => b.name.includes("1루") || b.name.includes("버건디") || b.name.includes("지니") || b.name.includes("블루존") || b.id.includes("101") || b.id.includes("102") || b.id.includes("103") || b.id.includes("105"));
     } else if (zoneName.includes("3루")) {
-      return stadium.blocks.filter(b => b.name.includes("3루") || b.name.includes("다크버건디") || b.id.includes("201") || b.id.includes("202"));
+      return stadium.blocks.filter(b => b.name.includes("3루") || b.name.includes("다크버건디") || b.id.includes("117") || b.id.includes("118") || b.id.includes("119") || b.id.includes("120") || b.id.includes("121") || b.id.includes("122") || b.id.includes("223") || b.id.includes("224") || b.id.includes("225") || b.id.includes("226"));
     } else {
       return stadium.blocks.filter(b => b.name.includes("외야") || b.name.includes("프리미엄") || b.name.includes("다이아몬드") || b.name.includes("테이블") || b.id.includes("301") || b.name.includes("피크닉"));
     }
@@ -728,7 +1071,13 @@ class SeatViewApp {
     const container = document.getElementById("detailed-block-map-container");
     if (!container || !state.selectedStadium) return;
 
-    const blocks = this.getBlocksForZone(state.selectedStadium, zoneName);
+    let blocks = this.getBlocksForZone(state.selectedStadium, zoneName);
+    
+    // Filter blocks by selected grade filter if active
+    if (state.selectedGradeFilter && state.selectedGradeFilter !== "all") {
+      blocks = blocks.filter(b => b.grade === state.selectedGradeFilter);
+    }
+
     const isCheerZone = zoneName.includes("응원") || blocks.some(b => b.category === "응원");
 
     container.innerHTML = `
@@ -756,7 +1105,7 @@ class SeatViewApp {
       `}
 
       <div class="blocks-grid">
-        ${blocks.map(b => {
+        ${blocks.length > 0 ? blocks.map(b => {
           let catClass = "general";
           if (b.category === "응원") catClass = "cheer";
           if (b.category === "프리미엄") catClass = "premium";
@@ -772,7 +1121,11 @@ class SeatViewApp {
               </div>
             </div>
           `;
-        }).join("")}
+        }).join("") : `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 0.85rem;">
+            🔍 선택하신 등급의 좌석이 이 구역에 없습니다. <br> 다른 등급 필터를 선택해 주세요.
+          </div>
+        `}
       </div>
     `;
 
@@ -787,8 +1140,8 @@ class SeatViewApp {
 
     state.selectedBlock = block;
 
-    // Hide Detailed blocks map, show Seating Grid
-    document.getElementById("stadium-detailed-blocks-view").style.display = "none";
+    // Hide Overall map, show Seating Grid
+    document.getElementById("stadium-overall-map-view").style.display = "none";
     document.getElementById("block-seats-section").style.display = "block";
 
     // Set header title
@@ -805,32 +1158,8 @@ class SeatViewApp {
 
   handleNoPhotoSeatClick(blockName, seatName) {
     if (!state.selectedStadium) return;
-
     const stadiumName = state.selectedStadium.name;
-    const msg = `이 좌석 [${stadiumName} - ${blockName} ${seatName}]은 등록된 시야 사진이 없습니다.\n\n최초 제보자가 되어 소중한 시야 사진을 등록하시겠습니까?`;
-    
-    if (confirm(msg)) {
-      if (state.isLoggedIn) {
-        this.openAddTicketModal();
-        
-        document.getElementById("form-stadium").value = state.selectedStadium.id;
-        document.getElementById("form-block").value = blockName;
-        document.getElementById("form-seat").value = seatName;
-        
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        let mm = today.getMonth() + 1;
-        let dd = today.getDate();
-        if (mm < 10) mm = '0' + mm;
-        if (dd < 10) dd = '0' + dd;
-        document.getElementById("form-match-date").value = `${yyyy}-${mm}-${dd}`;
-      } else {
-        const loginMsg = "[로그인 안내]\n사진 제보는 회원만 가능합니다. 1초 간편 로그인 페이지로 이동하시겠습니까?";
-        if (confirm(loginMsg)) {
-          this.openModal("modal-profile");
-        }
-      }
-    }
+    this.showToast("ℹ️", `📷 [${stadiumName} - ${blockName} ${seatName}] 최초 시야 사진 제보 및 등록 기능은 정식 오픈 시 지원 예정입니다. 첫 제보자가 되어 보세요!`);
   }
 
   renderSeatingGrid(blockId) {
@@ -841,53 +1170,176 @@ class SeatViewApp {
     wrapper.style.display = "block";
     container.innerHTML = "";
 
-    // Generate simulated rows: Row 1 to Row 5, seats 1 to 8
-    const maxRows = 5;
-    const maxSeats = 8;
+    const isJamsil103 = (blockId === "b103" && state.selectedStadium && state.selectedStadium.id === "jamsil");
+    const isJamsil118 = (blockId === "b118" && state.selectedStadium && state.selectedStadium.id === "jamsil");
 
-    for (let r = 1; r <= maxRows; r++) {
-      const rowDiv = document.createElement("div");
-      rowDiv.className = "seat-row";
+    if (isJamsil103 || isJamsil118) {
+      let layout, occupied, blocked;
 
-      const label = document.createElement("span");
-      label.className = "row-num";
-      label.textContent = `${r}열`;
-      rowDiv.appendChild(label);
+      if (isJamsil103) {
+        layout = {
+          1: [1, 2, 3, 4, null, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+          2: [29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15],
+          3: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44],
+          4: [null, null, null, null, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45],
+          5: [null, null, null, null, 56, 57, 58, 59, 60, 61, 62, null, null, null, null],
+          6: [null, null, null, 70, 69, 68, 67, 66, 65, 64, 63, null, null, null, null],
+          7: [null, null, null, 71, 72, 73, 74, 75, 76, 77, 78, null, null, null, null],
+          8: [null, null, null, 86, 85, 84, 83, 82, 81, 80, 79, null, null, null, null],
+          9: [null, null, null, 87, 88, 89, 90, 91, 92, 93, 94, null, null, null, null],
+          10: [null, 106, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95, null, null],
+          11: [107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122],
+          12: [138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127, 126, 125, 124, 123],
+          13: [139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154],
+          14: [170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155],
+          15: [171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186],
+          16: [202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 190, 189, 188, 187],
+          17: [203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218],
+          18: [null, null, null, 229, 228, 227, 226, 225, 224, 223, 222, 221, 220, 219, null, null]
+        };
+        occupied = ["1_1", "1_7", "1_14", "10_95"];
+        blocked = [
+          "3_30", "3_37", "3_44",
+          "6_70", "6_63",
+          "10_106", "10_100",
+          "15_171", "15_178", "15_186",
+          "18_229", "18_224", "18_219"
+        ];
+      } else {
+        // jamsil 118 block layout
+        layout = {
+          1: [null, null, 1, 2, 3, 4, 5, 6, null, null],
+          2: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+          3: [17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
+          4: [27, 28, 29, 30, 31, 32, 33, 34, 35, 36],
+          5: [null, null, null, 37, null, null, 38, null, null, null],
+          6: [null, null, null, 39, null, null, 40, null, null, null],
+          7: [null, null, 41, 42, 43, null, null, 44, 45, 46],
+          8: [null, 47, 48, 49, 50, null, 51, 52, null, null],
+          9: [null, null, null, null, 53, 54, 55, null, null, null],
+          10: [null, 56, 57, 58, 59, 60, null, null, null, null],
+          11: [null, null, null, 61, 62, 63, 64, 65, null, null],
+          12: [66, 67, 68, 69, 70, 71, 72, 73, 74, 75],
+          13: [76, 77, 78, 79, 80, 81, 82, 83, 84, 85],
+          14: [86, 87, 88, 89, 90, 91, 92, 93, 94, 95],
+          15: [96, 97, 98, 99, 100, 101, 102, 103, 104, 105],
+          16: [106, 107, 108, 109, 110, 111, 112, 113, 114, 115],
+          17: [116, 117, 118, 119, 120, 121, 122, 123, 124, 125],
+          18: [126, 127, 128, 129, 130, null, null, null, null, null]
+        };
+        occupied = ["1_3", "1_4", "1_5", "1_6", "5_37", "5_38", "7_41", "7_42", "7_43", "7_44", "8_48", "8_49", "8_50", "8_51", "8_52", "10_57", "10_58", "10_59", "10_60", "18_126", "18_127", "18_128", "18_129", "18_130"];
+        blocked = [];
+      }
 
-      const seatsDiv = document.createElement("div");
-      seatsDiv.className = "row-seats";
+      for (let r = 1; r <= 18; r++) {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "seat-row";
 
-      for (let s = 1; s <= maxSeats; s++) {
-        const seatBtn = document.createElement("button");
-        seatBtn.className = "seat-item";
-        seatBtn.textContent = s;
-        
-        // Check if database contains a camera view for this seat
-        const dbKey = `${state.selectedStadium.id}_${blockId}_${r}_${s}`;
-        const hasPhoto = !!SEAT_VIEWS_DB[dbKey];
+        const label = document.createElement("span");
+        label.className = "row-num";
+        label.textContent = `${r}열`;
+        rowDiv.appendChild(label);
 
-        if (hasPhoto) {
-          seatBtn.classList.add("has-camera");
-          seatBtn.innerHTML = "📷";
-          seatBtn.onclick = () => this.openSeatDetail(dbKey);
-        } else {
-          // Mock some other seats to have camera views with a lower probability to feel realistic,
-          // but for this demo, let's keep only strict seed database matches or add random mock views.
-          // Let's make 10% of seats randomly viewable if not seeded.
-          const isMockPhoto = (r + s) % 7 === 0;
-          if (isMockPhoto) {
+        const seatsDiv = document.createElement("div");
+        seatsDiv.className = "row-seats";
+
+        const rowSeatsArray = layout[r];
+        rowSeatsArray.forEach((sVal, sIdx) => {
+          if (sVal === null) {
+            if (isJamsil118 && r === 18 && sIdx === 5) {
+              // Render wide Cheer stage label
+              const stageEl = document.createElement("div");
+              stageEl.className = "cheer-stage-mini-label";
+              stageEl.style.flex = "5";
+              stageEl.style.backgroundColor = "#4b5563";
+              stageEl.style.color = "white";
+              stageEl.style.fontSize = "clamp(6px, 1.8vw, 9px)";
+              stageEl.style.fontWeight = "bold";
+              stageEl.style.display = "flex";
+              stageEl.style.alignItems = "center";
+              stageEl.style.justifyContent = "center";
+              stageEl.style.borderRadius = "4px";
+              stageEl.style.padding = "2px";
+              stageEl.textContent = "응원단상";
+              seatsDiv.appendChild(stageEl);
+            } else if (isJamsil118 && r === 18 && sIdx > 5) {
+              // Do nothing, covered by span
+            } else {
+              const gapBtn = document.createElement("button");
+              gapBtn.className = "seat-item gap";
+              seatsDiv.appendChild(gapBtn);
+            }
+          } else {
+            const seatBtn = document.createElement("button");
+            seatBtn.className = "seat-item";
+            seatBtn.textContent = sVal;
+            const seatKey = `${r}_${sVal}`;
+            
+            if (occupied.includes(seatKey)) {
+              seatBtn.classList.add("has-camera");
+              seatBtn.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
+              seatBtn.style.borderColor = "var(--danger)";
+              seatBtn.style.color = "#ef4444";
+              
+              // Seed view key mapping
+              const dbKey = isJamsil103 ? `jamsil_b103_${r}_${sVal}` : `jamsil_b103_1_1`; // reuse same photo detail for demo comparison
+              seatBtn.onclick = () => this.openSeatDetail(dbKey);
+            } else if (blocked.includes(seatKey)) {
+              seatBtn.classList.add("blocked");
+              seatBtn.disabled = true;
+            } else {
+              seatBtn.onclick = () => this.handleNoPhotoSeatClick(isJamsil103 ? "103블록" : "118블록", `${r}열 ${sVal}번`);
+            }
+            seatsDiv.appendChild(seatBtn);
+          }
+        });
+        rowDiv.appendChild(seatsDiv);
+        container.appendChild(rowDiv);
+      }
+    } else {
+      // Standard grid layout (Fallback)
+      const maxRows = 5;
+      const maxSeats = 8;
+
+      for (let r = 1; r <= maxRows; r++) {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "seat-row";
+
+        const label = document.createElement("span");
+        label.className = "row-num";
+        label.textContent = `${r}열`;
+        rowDiv.appendChild(label);
+
+        const seatsDiv = document.createElement("div");
+        seatsDiv.className = "row-seats";
+
+        for (let s = 1; s <= maxSeats; s++) {
+          const seatBtn = document.createElement("button");
+          seatBtn.className = "seat-item";
+          seatBtn.textContent = s;
+          
+          const dbKey = `${state.selectedStadium.id}_${blockId}_${r}_${s}`;
+          const hasPhoto = !!SEAT_VIEWS_DB[dbKey];
+
+          if (hasPhoto) {
             seatBtn.classList.add("has-camera");
             seatBtn.innerHTML = "📷";
-            seatBtn.onclick = () => this.openMockSeatDetail(r, s);
+            seatBtn.onclick = () => this.openSeatDetail(dbKey);
           } else {
-            seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${r}열 ${s}번`);
+            const isMockPhoto = (r + s) % 7 === 0;
+            if (isMockPhoto) {
+              seatBtn.classList.add("has-camera");
+              seatBtn.innerHTML = "📷";
+              seatBtn.onclick = () => this.openMockSeatDetail(r, s);
+            } else {
+              seatBtn.onclick = () => this.handleNoPhotoSeatClick(state.selectedBlock.name.split(" ")[1] || "구역", `${r}열 ${s}번`);
+            }
           }
+          seatsDiv.appendChild(seatBtn);
         }
-
-        seatsDiv.appendChild(seatBtn);
+        rowDiv.appendChild(seatsDiv);
+        container.appendChild(rowDiv);
       }
-      rowDiv.appendChild(seatsDiv);
-      container.appendChild(rowDiv);
     }
   }
 
@@ -974,15 +1426,6 @@ class SeatViewApp {
   addCurrentSeatToCompare() {
     if (!state.activeModalSeatKey) return;
     
-    // Check if logged in!
-    if (!state.isLoggedIn) {
-      this.closeModal("modal-seat-detail");
-      if (confirm("[로그인 안내] 1:1 시야 비교함 담기는 회원 전용 기능입니다. 지금 1초 소셜 로그인 화면으로 이동하시겠습니까?")) {
-        this.openModal("modal-profile");
-      }
-      return;
-    }
-
     const seatInfo = SEAT_VIEWS_DB[state.activeModalSeatKey];
     if (!seatInfo) return;
 
@@ -1230,31 +1673,7 @@ class SeatViewApp {
 
   // --- Add to Ticketbook flow ---
   openAddTicketModal() {
-    // Populate form stadium list
-    const select = document.getElementById("form-stadium");
-    if (select) {
-      select.innerHTML = STADIUMS_DB.map(st => `<option value="${st.id}">${st.name}</option>`).join("");
-    }
-
-    // Reset upload placeholder preview for seat view photo
-    document.getElementById("ticket-photo-preview").style.display = "none";
-    document.getElementById("upload-placeholder-content").style.display = "flex";
-    state.currentUploadedPhotoBase64 = null;
-
-    // Reset upload placeholder preview for ticket OCR photo
-    const ocrPreview = document.getElementById("ticket-ocr-preview");
-    if (ocrPreview) ocrPreview.style.display = "none";
-    const ocrPlaceholder = document.getElementById("ocr-placeholder-content");
-    if (ocrPlaceholder) ocrPlaceholder.style.display = "flex";
-    const ocrOverlay = document.getElementById("ocr-scanning-overlay");
-    if (ocrOverlay) ocrOverlay.style.display = "none";
-
-    // Reset fields
-    document.getElementById("add-ticket-form").reset();
-    document.getElementById("form-match-date").value = "";
-    document.getElementById("form-result").value = "";
-
-    this.openModal("modal-add-ticket");
+    this.showToast("ℹ️", "📷 시야 사진 제보 및 직관 등록 기능은 정식 서비스 오픈 시 제공 예정입니다.");
   }
 
   handleTicketOCRSelect(e) {

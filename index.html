@@ -151,19 +151,29 @@
           <div id="tab-content-map" class="tab-pane active">
             <!-- Depth 3: Overall Map View -->
             <div id="stadium-overall-map-view" class="stadium-map-wrapper">
-              <div class="map-label">📍 대구역을 선택하세요 (1루 내야, 3루 내야, 외야 등)</div>
+              <div class="map-label">📍 원하는 등급이나 좌석 구역을 직접 선택하세요</div>
               
+              <!-- Seat Grade Filter Bar (NEW) -->
+              <div class="grade-filter-container">
+                <div class="grade-filter-title">등급 선택 필터:</div>
+                <div class="grade-filter-bar" id="grade-filter-bar">
+                  <button class="grade-pill active" onclick="app.filterMapByGrade('all')">전체</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('premium')" style="border-left: 3px solid #a3e635;">프리미엄석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('table')" style="border-left: 3px solid #db2777;">테이블석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('exciting')" style="border-left: 3px solid #eab308;">익사이팅석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('blue')" style="border-left: 3px solid #2563eb;">블루석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('orange')" style="border-left: 3px solid #ea580c;">오렌지석(응원)</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('red')" style="border-left: 3px solid #dc2626;">레드석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('navy')" style="border-left: 3px solid #1e3a8a;">네이비석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('green')" style="border-left: 3px solid #16a34a;">외야그린석</button>
+                  <button class="grade-pill" onclick="app.filterMapByGrade('wheelchair')" style="border-left: 3px solid #64748b;">휠체어석</button>
+                </div>
+              </div>
+
               <div class="stadium-svg-container" id="stadium-map-container">
                 <!-- SVG map will be injected here dynamically -->
               </div>
               
-              <!-- Direct Button Selectors for Accessibility -->
-              <div class="overall-zone-selectors" style="display: flex; gap: 8px; margin: 12px 0 4px 0;">
-                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('1루 내야/응원석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">⚾ 1루 내야/응원</button>
-                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('3루 내야/응원석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">⚾ 3루 내야/응원</button>
-                <button class="btn btn-secondary btn-sm" onclick="app.selectStadiumZone('외야석')" style="flex: 1; font-size: 0.75rem; padding: 10px 4px;">🌳 외야석</button>
-              </div>
-
               <!-- Amenities Overlays Toggle -->
               <div class="amenity-bar">
                 <span class="amenity-title">주변 편의시설 필터:</span>
@@ -182,13 +192,7 @@
                   </button>
                 </div>
               </div>
-            </div>
 
-            <!-- Depth 4: Detailed Block Map View (NEW) -->
-            <div id="stadium-detailed-blocks-view" class="stadium-map-wrapper" style="display: none; padding: 16px 0;">
-              <div id="detailed-block-map-container">
-                <!-- Detailed block buttons, cheer stage, ground layouts rendered here dynamically -->
-              </div>
             </div>
 
             <!-- Depth 5: Row Grid & Seat selection -->
@@ -205,6 +209,7 @@
                 <div class="seat-grid-legend">
                   <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
                   <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                  <div class="legend-item"><span class="legend-box empty" style="background-color: #2e3b4e; border: 1px solid rgba(255,255,255,0.03);"></span> 통로/통행 불가</div>
                 </div>
 
                 <!-- Seat row grids -->
