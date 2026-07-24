@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://zgdumfqkhqroehaszmau.supabase.co/rest/v1/'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZHVtZnFraHFyb2VoYXN6bWF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDA2NDcsImV4cCI6MjEwMDQ3NjY0N30.ZtbbY2R0iKMtmNyB36EF6YRR62TRV-_l6huo87FQ41g'; 
 
-let supabase = null;
+let supabaseClient = null;
 if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") && window.supabase) {
   try {
     // URL에서 뒤쪽의 '/rest/v1/' 또는 '/rest/v1' 경로가 있다면 제거하여 SDK가 정상 작동하도록 함
@@ -12,7 +12,7 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
     } else if (cleanUrl.endsWith('/rest/v1')) {
       cleanUrl = cleanUrl.slice(0, -8);
     }
-    supabase = window.supabase.createClient(cleanUrl, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(cleanUrl, SUPABASE_ANON_KEY);
   } catch (e) {
     console.error("Supabase 초기화 오류:", e);
   }
@@ -549,9 +549,9 @@ class SeatViewApp {
     const container = document.getElementById("category-grid-container");
     if (!container) return;
 
-    if (supabase) {
+    if (supabaseClient) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('categories')
           .select('*')
           .order('display_order', { ascending: true });
@@ -632,21 +632,29 @@ class SeatViewApp {
   }
 
   async loadStadiums() {
-    if (supabase) {
+    if (supabaseClient) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('stadiums')
           .select('*')
           .order('display_order', { ascending: true });
 
         if (!error && data && data.length > 0) {
+          const idMap = {
+            1: "jamsil",
+            2: "gocheok",
+            3: "suwon",
+            4: "incheon",
+            5: "daejeon",
+            6: "daegu",
+            7: "gwangju",
+            8: "changwon",
+            9: "busan"
+          };
+
           data.forEach(dbStadium => {
-            const cleanName = dbStadium.name.replace(/\s+/g, "");
-            const mockStadium = STADIUMS_DB.find(st => 
-              st.name.replace(/\s+/g, "") === cleanName || 
-              st.fullname.replace(/\s+/g, "") === cleanName ||
-              st.id === dbStadium.name.toLowerCase()
-            );
+            const mappedId = idMap[dbStadium.id] || dbStadium.id;
+            const mockStadium = STADIUMS_DB.find(st => st.id === mappedId);
 
             if (mockStadium) {
               mockStadium.name = dbStadium.name;
@@ -860,9 +868,15 @@ class SeatViewApp {
       card.style.backgroundImage = `${st.gradient}, url('${st.bg}')`;
       card.onclick = () => this.loadStadiumDetail(st.id);
 
+      const teamsHtml = st.team
+        ? st.team.split(" / ").map(t => `<span class="stadium-card-team">[${t.replace(/\s+/g, "")}]</span>`).join("")
+        : "";
+
       card.innerHTML = `
         <div class="stadium-card-main">
-          <span class="stadium-card-team">${st.team.split(" / ")[0]}</span>
+          <div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${teamsHtml}
+          </div>
           <h3 class="stadium-card-name">${st.name}</h3>
           <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${st.location.split(" ").slice(0, 2).join(" ")}</span>
         </div>

@@ -4,6 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SeatView - 좌석별 시야 공유 서비스</title>
+  <!-- Global Debug Error Logger -->
+  <script>
+    window.errors = [];
+    window.onerror = function(message, source, lineno, colno, error) {
+      window.errors.push(message + ' at ' + (source ? source.split('/').pop() : '') + ':' + lineno + ':' + colno);
+      console.error(message, error);
+      showVisualError();
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      window.errors.push('Promise Rejection: ' + event.reason);
+      showVisualError();
+    });
+    function showVisualError() {
+      var div = document.getElementById('debug-log-div');
+      if (!div) {
+        div = document.createElement('div');
+        div.id = 'debug-log-div';
+        div.style = 'position:fixed;top:0;left:0;right:0;background:red;color:white;z-index:99999;padding:20px;font-family:monospace;font-size:12px;max-height:300px;overflow-y:auto;text-align:left;';
+        document.body.appendChild(div);
+      }
+      div.innerHTML = '<h3>[JS Crash Error Caught!]</h3>' + window.errors.map(function(e) { return '<p style="margin:4px 0;">🔴 ' + e + '</p>'; }).join('');
+    }
+    window.onload = function() {
+      if (window.errors.length > 0) showVisualError();
+      setTimeout(function() {
+        var catContainer = document.getElementById("category-grid-container");
+        var stadContainer = document.getElementById("stadium-grid-container");
+        console.log("FINAL_CAT_DOM: " + (catContainer ? catContainer.innerHTML : "NOT FOUND"));
+        console.log("FINAL_STAD_DOM: " + (stadContainer ? stadContainer.innerHTML : "NOT FOUND"));
+      }, 3500);
+    };
+  </script>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
