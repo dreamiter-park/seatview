@@ -65,7 +65,7 @@
           <!-- Category Selection -->
           <div class="section-container">
             <h2 class="section-title">카테고리 선택</h2>
-            <div class="category-grid">
+            <div class="category-grid" id="category-grid-container">
               <div class="category-card" onclick="app.navigateTo('stadiums')">
                 <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
                 <div class="category-tag">MAX TRAFFIC</div>
@@ -224,15 +224,15 @@
           <div id="tab-content-info" class="tab-pane">
             <div class="info-card">
               <h4>🍔 대표 맛집 및 먹거리</h4>
-              <p class="info-text">1루 내야에 위치한 삼겹살 도시락과 원조 김말이 떡볶이가 최고 인기 메뉴입니다. 대기 줄이 길 수 있으니 경기 시작 1시간 전 방문을 추천합니다.</p>
+              <p class="info-text" id="info-food">정보를 불러오는 중입니다...</p>
             </div>
             <div class="info-card">
               <h4>🚗 주차 및 대중교통 팁</h4>
-              <p class="info-text">지하철 2/9호선 종합운동장역 5번, 6번 출구에서 도보 1분 거리로 대중교통 접근성이 완벽합니다. 주차는 사전 등록 차량만 이용 가능하므로 대중교통 이용을 강하게 권장합니다.</p>
+              <p class="info-text" id="info-parking">정보를 불러오는 중입니다...</p>
             </div>
             <div class="info-card">
               <h4>☀️ 시간대별 햇빛 위치</h4>
-              <p class="info-text">낮 경기(14시) 진행 시, 3루측 좌석(원정팀)은 경기 내내 강한 직사광선에 노출되므로 선글라스와 모자가 필수입니다. 반면 1루측은 비교적 그늘이 빨리 집니다.</p>
+              <p class="info-text" id="info-sunlight">정보를 불러오는 중입니다...</p>
             </div>
           </div>
         </section>
@@ -523,6 +523,8 @@
     </div>
   </div>
 
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,22 @@
-/* ==========================================================================
-   SeatView SPA Core Application Logic (Vanilla JS)
-   ========================================================================== */
+// --- Supabase Config & Client ---
+const SUPABASE_URL = 'https://zgdumfqkhqroehaszmau.supabase.co/rest/v1/'; 
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZHVtZnFraHFyb2VoYXN6bWF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDA2NDcsImV4cCI6MjEwMDQ3NjY0N30.ZtbbY2R0iKMtmNyB36EF6YRR62TRV-_l6huo87FQ41g'; 
+
+let supabase = null;
+if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") && window.supabase) {
+  try {
+    // URL에서 뒤쪽의 '/rest/v1/' 또는 '/rest/v1' 경로가 있다면 제거하여 SDK가 정상 작동하도록 함
+    let cleanUrl = SUPABASE_URL.trim();
+    if (cleanUrl.endsWith('/rest/v1/')) {
+      cleanUrl = cleanUrl.slice(0, -9);
+    } else if (cleanUrl.endsWith('/rest/v1')) {
+      cleanUrl = cleanUrl.slice(0, -8);
+    }
+    supabase = window.supabase.createClient(cleanUrl, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.error("Supabase 초기화 오류:", e);
+  }
+}
 
 // --- 1. Seed & Mock Database ---
 const STADIUMS_DB = [
@@ -228,39 +244,39 @@ if (jamsil) {
   ];
   
   const homeCols = [
-    { inner: "111", innerGrade: "table", mid: "213", midGrade: "table", outer: "315", outerGrade: "navy" },
-    { inner: "110", innerGrade: "table", mid: "212", midGrade: "table", outer: "314", outerGrade: "navy" },
-    { inner: "109", innerGrade: "blue", mid: "211", midGrade: "blue", outer: "313", outerGrade: "navy" },
-    { inner: "108", innerGrade: "blue", mid: "210", midGrade: "blue", outer: "312", outerGrade: "navy" },
-    { inner: "107", innerGrade: "blue", mid: "209", midGrade: "blue", outer: "311", outerGrade: "navy" },
-    { inner: "106", innerGrade: "orange", mid: "208", midGrade: "orange", outer: "310", outerGrade: "navy" },
-    { inner: "105", innerGrade: "orange", mid: "207", midGrade: "orange", outer: "309", outerGrade: "navy" },
-    { inner: "104", innerGrade: "orange", mid: "206", midGrade: "orange", outer: "308", outerGrade: "navy" },
-    { inner: "103", innerGrade: "red", mid: "205", midGrade: "orange", outer: "307", outerGrade: "navy" },
-    { inner: "102", innerGrade: "red", mid: "204", midGrade: "red", outer: "306", outerGrade: "navy" },
-    { inner: "101", innerGrade: "red", mid: "203", midGrade: "red", outer: "305", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: "202", midGrade: "red", outer: "304", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: "201", midGrade: "red", outer: "303", outerGrade: "navy" },
+    { inner: "111", innerGrade: "table", mid: "213", midGrade: "table", outer: "317", outerGrade: "navy" },
+    { inner: "110", innerGrade: "table", mid: "212", midGrade: "table", outer: "316", outerGrade: "navy" },
+    { inner: "109", innerGrade: "blue", mid: "211", midGrade: "blue", outer: "315", outerGrade: "navy" },
+    { inner: "108", innerGrade: "blue", mid: "210", midGrade: "blue", outer: "314", outerGrade: "navy" },
+    { inner: "107", innerGrade: "blue", mid: "209", midGrade: "blue", outer: "313", outerGrade: "navy" },
+    { inner: "106", innerGrade: "red", mid: "208", midGrade: "orange", outer: "312", outerGrade: "navy" },
+    { inner: "105", innerGrade: "red", mid: "207", midGrade: "orange", outer: "311", outerGrade: "navy" },
+    { inner: "104", innerGrade: "red", mid: "206", midGrade: "orange", outer: "310", outerGrade: "navy" },
+    { inner: "103", innerGrade: "red", mid: "205", midGrade: "orange", outer: "309", outerGrade: "navy" },
+    { inner: "102", innerGrade: "red", mid: "204", midGrade: "red", outer: "308", outerGrade: "navy" },
+    { inner: "101", innerGrade: "red", mid: "203", midGrade: "red", outer: "307", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "202", midGrade: "red", outer: "306", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "201", midGrade: "red", outer: "305", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "304", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "303", outerGrade: "navy" },
     { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "302", outerGrade: "navy" },
     { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "301", outerGrade: "navy" }
   ];
 
   const awayCols = [
-    { inner: "112", innerGrade: "table", mid: "214", midGrade: "table", outer: "316", outerGrade: "navy" },
-    { inner: "113", innerGrade: "table", mid: "215", midGrade: "table", outer: "317", outerGrade: "navy" },
-    { inner: "114", innerGrade: "blue", mid: "216", midGrade: "blue", outer: "318", outerGrade: "navy" },
-    { inner: "115", innerGrade: "blue", mid: "217", midGrade: "blue", outer: "319", outerGrade: "navy" },
-    { inner: "116", innerGrade: "blue", mid: "218", midGrade: "blue", outer: "320", outerGrade: "navy" },
-    { inner: "117", innerGrade: "red", mid: "219", midGrade: "red", outer: "321", outerGrade: "navy" },
-    { inner: "118", innerGrade: "red", mid: "220", midGrade: "red", outer: "322", outerGrade: "navy" },
-    { inner: "119", innerGrade: "red", mid: "221", midGrade: "orange", outer: "323", outerGrade: "navy" },
-    { inner: "120", innerGrade: "red", mid: "222", midGrade: "orange", outer: "324", outerGrade: "navy" },
-    { inner: "121", innerGrade: "orange", mid: "223", midGrade: "red", outer: "325", outerGrade: "navy" },
-    { inner: "122", innerGrade: "orange", mid: "224", midGrade: "red", outer: "326", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: "225", midGrade: "red", outer: "327", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: "226", midGrade: "red", outer: "328", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "329", outerGrade: "navy" },
-    { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "330", outerGrade: "navy" },
+    { inner: "112", innerGrade: "table", mid: "214", midGrade: "table", outer: "318", outerGrade: "navy" },
+    { inner: "113", innerGrade: "table", mid: "215", midGrade: "table", outer: "319", outerGrade: "navy" },
+    { inner: "114", innerGrade: "blue", mid: "216", midGrade: "blue", outer: "320", outerGrade: "navy" },
+    { inner: "115", innerGrade: "blue", mid: "217", midGrade: "blue", outer: "321", outerGrade: "navy" },
+    { inner: "116", innerGrade: "blue", mid: "218", midGrade: "blue", outer: "322", outerGrade: "navy" },
+    { inner: "117", innerGrade: "red", mid: "219", midGrade: "orange", outer: "323", outerGrade: "navy" },
+    { inner: "118", innerGrade: "red", mid: "220", midGrade: "orange", outer: "324", outerGrade: "navy" },
+    { inner: "119", innerGrade: "red", mid: "221", midGrade: "orange", outer: "325", outerGrade: "navy" },
+    { inner: "120", innerGrade: "red", mid: "222", midGrade: "orange", outer: "326", outerGrade: "navy" },
+    { inner: "121", innerGrade: "red", mid: "223", midGrade: "red", outer: "327", outerGrade: "navy" },
+    { inner: "122", innerGrade: "red", mid: "224", midGrade: "red", outer: "328", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "225", midGrade: "red", outer: "329", outerGrade: "navy" },
+    { inner: null, innerGrade: null, mid: "226", midGrade: "red", outer: "330", outerGrade: "navy" },
     { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "331", outerGrade: "navy" },
     { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "332", outerGrade: "navy" },
     { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "333", outerGrade: "navy" },
@@ -293,8 +309,10 @@ if (jamsil) {
   });
 
   for (let i = 0; i < 22; i++) {
-    const num = 401 + i;
-    jamsil.blocks.push({ id: `b${num}`, name: `외야 그린석 ${num}블록`, category: "외야", grade: "green" });
+    const num = 422 - i;
+    const isOutfieldCheer = (num >= 405 && num <= 408);
+    const blockName = isOutfieldCheer ? `외야 응원석 ${num}블록` : `외야 그린석 ${num}블록`;
+    jamsil.blocks.push({ id: `b${num}`, name: blockName, category: "외야", grade: "green" });
   }
 }
 
@@ -497,6 +515,10 @@ class SeatViewApp {
 
     // Populate Dynamic DOM Elements
     this.renderStadiumList();
+    this.loadStadiums().then(() => {
+      this.renderStadiumList();
+    });
+    this.loadCategories();
     this.updateCompareBadge();
 
     // Setup Event Listeners
@@ -521,6 +543,151 @@ class SeatViewApp {
 
     // Trigger Initial Layout setup
     lucide.createIcons();
+  }
+
+  async loadCategories() {
+    const container = document.getElementById("category-grid-container");
+    if (!container) return;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          container.innerHTML = "";
+          data.forEach(cat => {
+            const card = document.createElement("div");
+            // Determine CSS background image based on category ID
+            let bgImage = "assets/jamsil_stadium.png";
+            if (cat.id === "musical") bgImage = "assets/musical_stage.png";
+            else if (cat.id === "aviation") bgImage = "assets/aviation_bg.jpg"; // fallback
+
+            // Set card status
+            const isClickable = cat.is_active;
+            card.className = `category-card${isClickable ? '' : ' disabled'}`;
+            
+            if (isClickable) {
+              if (cat.id === "baseball") {
+                card.onclick = () => this.navigateTo('stadiums');
+              } else if (cat.id === "musical") {
+                card.onclick = () => this.showMusicalComingSoon();
+              }
+            } else {
+              card.onclick = () => this.showToast("SOON", "서비스 준비 중입니다!");
+            }
+
+            // Badge HTML
+            let badgeHtml = "";
+            if (cat.badge_text) {
+              const styleClass = cat.badge_style === "danger" ? "danger" : (cat.badge_style === "secondary" ? "secondary" : "");
+              badgeHtml = `<div class="category-tag ${styleClass}">${cat.badge_text}</div>`;
+            }
+
+            card.innerHTML = `
+              <div class="card-bg-overlay" style="background-image: url('${bgImage}');"></div>
+              ${badgeHtml}
+              <div class="category-info">
+                <h3 class="category-name">${cat.icon || ''} ${cat.name}</h3>
+                <p class="category-sub">${cat.subtitle || ''}</p>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+          return;
+        }
+      } catch (e) {
+        console.error("Supabase 카테고리 로드 오류, 하드코딩 대체 작동:", e);
+      }
+    }
+
+    // Fallback: render hardcoded items if Supabase is not ready or keys are placeholders
+    container.innerHTML = `
+      <div class="category-card" onclick="app.navigateTo('stadiums')">
+        <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
+        <div class="category-tag">MAX TRAFFIC</div>
+        <div class="category-info">
+          <h3 class="category-name">⚾ 프로야구장</h3>
+          <p class="category-sub">10개 구단 홈구장</p>
+        </div>
+      </div>
+      <div class="category-card" onclick="app.showMusicalComingSoon()">
+        <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
+        <div class="category-tag danger">HOT</div>
+        <div class="category-info">
+          <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
+          <p class="category-sub">주요 대형 아트센터</p>
+        </div>
+      </div>
+      <div class="category-card disabled">
+        <div class="category-tag secondary">SOON</div>
+        <div class="category-info">
+          <h3 class="category-name">✈️ 항공 / 영화관</h3>
+          <p class="category-sub">스페셜관 & 인기 기종</p>
+        </div>
+      </div>
+    `;
+  }
+
+  async loadStadiums() {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('stadiums')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          data.forEach(dbStadium => {
+            const cleanName = dbStadium.name.replace(/\s+/g, "");
+            const mockStadium = STADIUMS_DB.find(st => 
+              st.name.replace(/\s+/g, "") === cleanName || 
+              st.fullname.replace(/\s+/g, "") === cleanName ||
+              st.id === dbStadium.name.toLowerCase()
+            );
+
+            if (mockStadium) {
+              mockStadium.name = dbStadium.name;
+              mockStadium.fullname = dbStadium.stadium_title || dbStadium.name;
+              mockStadium.team = dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "";
+              mockStadium.location = dbStadium.address || dbStadium.location_district;
+              if (dbStadium.bg_image_url) {
+                mockStadium.bg = dbStadium.bg_image_url;
+              }
+              if (dbStadium.primary_color) {
+                const secColor = dbStadium.secondary_color || '#1e293b';
+                mockStadium.gradient = `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)`;
+              }
+              mockStadium.food_info = dbStadium.food_info;
+              mockStadium.parking_info = dbStadium.parking_info;
+              mockStadium.sunlight_info = dbStadium.sunlight_info;
+            } else {
+              const newId = dbStadium.name.replace(/\s+/g, "_").toLowerCase();
+              const secColor = dbStadium.secondary_color || '#1e293b';
+              const newStadium = {
+                id: newId,
+                name: dbStadium.name,
+                fullname: dbStadium.stadium_title || dbStadium.name,
+                team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
+                location: dbStadium.address || dbStadium.location_district,
+                bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
+                gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
+                blocks: [],
+                amenities: { toilet: [], snack: [], exit: [], medical: [] },
+                food_info: dbStadium.food_info,
+                parking_info: dbStadium.parking_info,
+                sunlight_info: dbStadium.sunlight_info
+              };
+              STADIUMS_DB.push(newStadium);
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Supabase 야구장 로딩 에러, 임시 데이터 대체 작동:", e);
+      }
+    }
   }
 
   updateClock() {
@@ -747,6 +914,15 @@ class SeatViewApp {
     // Render detailed blocks list for '전체' by default
     this.renderDetailedBlocks("전체");
 
+    // Set info tab content from DB values
+    const foodEl = document.getElementById("info-food");
+    const parkingEl = document.getElementById("info-parking");
+    const sunlightEl = document.getElementById("info-sunlight");
+    
+    if (foodEl) foodEl.textContent = stadium.food_info || "등록된 맛집 정보가 없습니다.";
+    if (parkingEl) parkingEl.textContent = stadium.parking_info || "등록된 주차 정보가 없습니다.";
+    if (sunlightEl) sunlightEl.textContent = stadium.sunlight_info || "등록된 햇빛 정보가 없습니다.";
+
     // Navigate to Detail view
     this.navigateTo("stadium-detail");
   }
@@ -813,74 +989,164 @@ class SeatViewApp {
         return colors[grade] || "#64748b";
       };
 
-      const homeCols = [
-        { inner: "111", innerGrade: "table", mid: "213", midGrade: "table", outer: "315", outerGrade: "navy" },
-        { inner: "110", innerGrade: "table", mid: "212", midGrade: "table", outer: "314", outerGrade: "navy" },
-        { inner: "109", innerGrade: "blue", mid: "211", midGrade: "blue", outer: "313", outerGrade: "navy" },
-        { inner: "108", innerGrade: "blue", mid: "210", midGrade: "blue", outer: "312", outerGrade: "navy" },
-        { inner: "107", innerGrade: "blue", mid: "209", midGrade: "blue", outer: "311", outerGrade: "navy" },
-        { inner: "106", innerGrade: "orange", mid: "208", midGrade: "orange", outer: "310", outerGrade: "navy" },
-        { inner: "105", innerGrade: "orange", mid: "207", midGrade: "orange", outer: "309", outerGrade: "navy" },
-        { inner: "104", innerGrade: "orange", mid: "206", midGrade: "orange", outer: "308", outerGrade: "navy" },
-        { inner: "103", innerGrade: "red", mid: "205", midGrade: "orange", outer: "307", outerGrade: "navy" },
-        { inner: "102", innerGrade: "red", mid: "204", midGrade: "red", outer: "306", outerGrade: "navy" },
-        { inner: "101", innerGrade: "red", mid: "203", midGrade: "red", outer: "305", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: "202", midGrade: "red", outer: "304", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: "201", midGrade: "red", outer: "303", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "302", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "301", outerGrade: "navy" }
-      ];
-
-      const awayCols = [
-        { inner: "112", innerGrade: "table", mid: "214", midGrade: "table", outer: "316", outerGrade: "navy" },
-        { inner: "113", innerGrade: "table", mid: "215", midGrade: "table", outer: "317", outerGrade: "navy" },
-        { inner: "114", innerGrade: "blue", mid: "216", midGrade: "blue", outer: "318", outerGrade: "navy" },
-        { inner: "115", innerGrade: "blue", mid: "217", midGrade: "blue", outer: "319", outerGrade: "navy" },
-        { inner: "116", innerGrade: "blue", mid: "218", midGrade: "blue", outer: "320", outerGrade: "navy" },
-        { inner: "117", innerGrade: "red", mid: "219", midGrade: "red", outer: "321", outerGrade: "navy" },
-        { inner: "118", innerGrade: "red", mid: "220", midGrade: "red", outer: "322", outerGrade: "navy" },
-        { inner: "119", innerGrade: "red", mid: "221", midGrade: "orange", outer: "323", outerGrade: "navy" },
-        { inner: "120", innerGrade: "red", mid: "222", midGrade: "orange", outer: "324", outerGrade: "navy" },
-        { inner: "121", innerGrade: "orange", mid: "223", midGrade: "red", outer: "325", outerGrade: "navy" },
-        { inner: "122", innerGrade: "orange", mid: "224", midGrade: "red", outer: "326", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: "225", midGrade: "red", outer: "327", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: "226", midGrade: "red", outer: "328", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "329", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "330", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "331", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "332", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "333", outerGrade: "navy" },
-        { inner: null, innerGrade: null, mid: null, midGrade: null, outer: "334", outerGrade: "navy" }
-      ];
-
+      // 1. Premium Seats (covers Col 0, 1, 2 of 1B and Col 0, 1 of 3B)
+      const premStart = -4 - 3 * 5.65;
+      const premEnd = 4 + 2 * 5.65;
       const blocks = [
-        { id: "b_prem", label: "212", grade: "premium", rIn: 55, rOut: 75, start: -4, end: 4, color: "#a3e635" }
+        { id: "b_prem", label: "프리미엄", grade: "premium", rIn: 55, rOut: 105, start: premStart, end: premEnd, color: "#a3e635" }
       ];
 
-      homeCols.forEach((col, idx) => {
-        const start = 4 + idx * 8;
-        const end = start + 8;
-        if (col.inner) blocks.push({ id: `b${col.inner}`, label: col.inner, grade: col.innerGrade, rIn: 55, rOut: 75, start, end, color: getColorForGrade(col.innerGrade) });
-        if (col.mid) blocks.push({ id: `b${col.mid}`, label: col.mid, grade: col.midGrade, rIn: 77, rOut: 105, start, end, color: getColorForGrade(col.midGrade) });
-        if (col.outer) blocks.push({ id: `b${col.outer}`, label: col.outer, grade: col.outerGrade, rIn: 107, rOut: 135, start, end, color: getColorForGrade(col.outerGrade) });
-      });
+      // Helper function to return grade based on block number
+      const getGradeForBlockNum = (num) => {
+        if (num >= 212 && num <= 215) return "table";
+        if (num >= 110 && num <= 113) return "table";
+        if (num >= 209 && num <= 211) return "blue";
+        if (num >= 216 && num <= 218) return "blue";
+        if (num >= 107 && num <= 109) return "blue";
+        if (num >= 114 && num <= 116) return "blue";
+        if (num >= 205 && num <= 208) return "orange";
+        if (num >= 219 && num <= 222) return "orange";
+        if (num >= 201 && num <= 204) return "red";
+        if (num >= 223 && num <= 226) return "red";
+        if (num >= 101 && num <= 106) return "red";
+        if (num >= 117 && num <= 122) return "red";
+        if (num >= 301 && num <= 334) return "navy";
+        return "green";
+      };
 
-      awayCols.forEach((col, idx) => {
-        const end = -4 - idx * 8;
-        const start = end - 8;
-        if (col.inner) blocks.push({ id: `b${col.inner}`, label: col.inner, grade: col.innerGrade, rIn: 55, rOut: 75, start, end, color: getColorForGrade(col.innerGrade) });
-        if (col.mid) blocks.push({ id: `b${col.mid}`, label: col.mid, grade: col.midGrade, rIn: 77, rOut: 105, start, end, color: getColorForGrade(col.midGrade) });
-        if (col.outer) blocks.push({ id: `b${col.outer}`, label: col.outer, grade: col.outerGrade, rIn: 107, rOut: 135, start, end, color: getColorForGrade(col.outerGrade) });
-      });
+      // 2. 1루 (Home) side blocks (RIGHT side, negative angles)
+      // 1B Navy: 317 down to 301 (Col 0 to 16)
+      for (let idx = 0; idx < 17; idx++) {
+        const end = -4 - idx * 5.65;
+        const start = end - 5.65;
+        const num = 317 - idx;
+        const rIn = 107 + 11 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade: "navy", rIn, rOut: 135, start, end, color: getColorForGrade("navy") });
+      }
 
-      const outfieldStart = 125;
-      const outfieldEnd = 235;
-      const outfieldStep = (outfieldEnd - outfieldStart) / 22;
-      for (let i = 0; i < 22; i++) {
+      // 1B 200-level: 213 (covers Col 3 & 4)
+      const b213Start = -4 - 5 * 5.65;
+      const b213End = -4 - 3 * 5.65;
+      const rIn213 = 77 + 3 * (3.5 / 16);
+      const rOut213 = 105 + 11 * (3.5 / 16);
+      blocks.push({ id: "b213", label: "213", grade: "table", rIn: rIn213, rOut: rOut213, start: b213Start, end: b213End, color: getColorForGrade("table") });
+
+      // 1B 100-level: 111 (covers Col 3 & 4)
+      const rOut111 = 75 + 3 * (3.5 / 16);
+      blocks.push({ id: "b111", label: "111", grade: "table", rIn: 55, rOut: rOut111, start: b213Start, end: b213End, color: getColorForGrade("table") });
+
+      // Other 1B 200-level (idx 5 to 15)
+      for (let idx = 5; idx < 16; idx++) {
+        const end = -4 - idx * 5.65;
+        const start = end - 5.65;
+        const num = 217 - idx; // 212 down to 202
+        const grade = getGradeForBlockNum(num);
+        const rIn = 77 + 3 * (idx / 16);
+        const rOut = 105 + 11 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn, rOut, start, end, color: getColorForGrade(grade) });
+      }
+
+      // 1B 201 covers Col 16 (idx 16)
+      const b201Start = -4 - 17 * 5.65;
+      const b201End = -4 - 16 * 5.65;
+      const rIn201 = 77 + 3 * (16 / 16);
+      const rOut201 = 105 + 11 * (16 / 16);
+      blocks.push({ id: "b201", label: "201", grade: "red", rIn: rIn201, rOut: rOut201, start: b201Start, end: b201End, color: getColorForGrade("red") });
+
+      // Other 1B 100-level (idx 5 to 12)
+      for (let idx = 5; idx < 13; idx++) {
+        const end = -4 - idx * 5.65;
+        const start = end - 5.65;
+        const num = 115 - idx; // 110 down to 103
+        const grade = getGradeForBlockNum(num);
+        const rOut = 75 + 3 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn: 55, rOut, start, end, color: getColorForGrade(grade) });
+      }
+      // 102 covers Col 13 & 14 (idx 13 & 14)
+      const rOut102 = 75 + 3 * (13.5 / 16);
+      blocks.push({ id: "b102", label: "102", grade: "red", rIn: 55, rOut: rOut102, start: -4 - 15 * 5.65, end: -4 - 13 * 5.65, color: getColorForGrade("red") });
+      // 101 covers Col 15 & 16 (idx 15 & 16)
+      const rOut101 = 75 + 3 * (15.5 / 16);
+      blocks.push({ id: "b101", label: "101", grade: "red", rIn: 55, rOut: rOut101, start: -4 - 17 * 5.65, end: -4 - 15 * 5.65, color: getColorForGrade("red") });
+
+
+      // 3. 3루 (Away) side blocks (LEFT side, positive angles)
+      // 3B Navy: 318 to 334 (Col 0 to 16)
+      for (let idx = 0; idx < 17; idx++) {
+        const start = 4 + idx * 5.65;
+        const end = start + 5.65;
+        const num = 318 + idx;
+        const rIn = 107 + 11 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade: "navy", rIn, rOut: 135, start, end, color: getColorForGrade("navy") });
+      }
+
+      // 3B 200-level: 214 (covers Col 2 & 3)
+      const b214Start = 4 + 2 * 5.65;
+      const b214End = 4 + 4 * 5.65;
+      const rIn214 = 77 + 3 * (2.5 / 16);
+      const rOut214 = 105 + 11 * (2.5 / 16);
+      blocks.push({ id: "b214", label: "214", grade: "table", rIn: rIn214, rOut: rOut214, start: b214Start, end: b214End, color: getColorForGrade("table") });
+
+      // 3B 100-level: 112 (covers Col 2 & 3)
+      const rOut112 = 75 + 3 * (2.5 / 16);
+      blocks.push({ id: "b112", label: "112", grade: "table", rIn: 55, rOut: rOut112, start: b214Start, end: b214End, color: getColorForGrade("table") });
+
+      // Other 3B 200-level (idx 4 to 14)
+      for (let idx = 4; idx < 15; idx++) {
+        const start = 4 + idx * 5.65;
+        const end = start + 5.65;
+        const num = 211 + idx; // 215 to 225
+        const grade = getGradeForBlockNum(num);
+        const rIn = 77 + 3 * (idx / 16);
+        const rOut = 105 + 11 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn, rOut, start, end, color: getColorForGrade(grade) });
+      }
+
+      // 3B 226 covers Col 15 & 16
+      const b226Start = 4 + 15 * 5.65;
+      const b226End = 4 + 17 * 5.65;
+      const rIn226 = 77 + 3 * (15.5 / 16);
+      const rOut226 = 105 + 11 * (15.5 / 16);
+      blocks.push({ id: "b226", label: "226", grade: "red", rIn: rIn226, rOut: rOut226, start: b226Start, end: b226End, color: getColorForGrade("red") });
+
+      // Other 3B 100-level (idx 4 to 11)
+      for (let idx = 4; idx < 12; idx++) {
+        const start = 4 + idx * 5.65;
+        const end = start + 5.65;
+        const num = 109 + idx; // 113 to 120
+        const grade = getGradeForBlockNum(num);
+        const rOut = 75 + 3 * (idx / 16);
+        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn: 55, rOut, start, end, color: getColorForGrade(grade) });
+      }
+      // 121 covers Col 12 & 13 (idx 12 & 13)
+      const rOut121 = 75 + 3 * (12.5 / 16);
+      blocks.push({ id: "b121", label: "121", grade: "red", rIn: 55, rOut: rOut121, start: 4 + 12 * 5.65, end: 4 + 14 * 5.65, color: getColorForGrade("red") });
+      // 122 covers Col 14, 15, 16 (idx 14, 15, 16)
+      const rOut122 = 75 + 3 * (15 / 16);
+      blocks.push({ id: "b122", label: "122", grade: "red", rIn: 55, rOut: rOut122, start: 4 + 14 * 5.65, end: 4 + 17 * 5.65, color: getColorForGrade("red") });
+
+      // 4. Outfield covers 160 degrees total (from 100 to 260 degrees) without gaps
+      const outfieldStart = 100;
+      const outfieldEnd = 260;
+      const outfieldStep = (outfieldEnd - outfieldStart) / 23;
+      for (let i = 0; i < 23; i++) {
         const start = outfieldStart + i * outfieldStep;
         const end = start + outfieldStep;
-        const num = 401 + i;
-        blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: "#16a34a" });
+
+        if (i < 11) {
+          // Left side (3루): 422 down to 412
+          const num = 422 - i;
+          blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: "#16a34a" });
+        } else if (i === 11) {
+          // Center scoreboard
+          blocks.push({ id: "scoreboard", label: "전광판", grade: "scoreboard", rIn: 95, rOut: 135, start, end, color: "#1e293b" });
+        } else {
+          // Right side (1루): 411 down to 401
+          const num = 423 - i;
+          const isOutfieldCheer = (num >= 405 && num <= 408);
+          const color = isOutfieldCheer ? "#15803d" : "#16a34a";
+          blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: color });
+        }
       }
 
       blocks.forEach(b => {
@@ -949,7 +1215,7 @@ class SeatViewApp {
     const sectors = document.querySelectorAll(".stadium-sector");
     sectors.forEach(sec => {
       const secGrade = sec.getAttribute("data-grade");
-      if (gradeName === "all" || secGrade === gradeName) {
+      if (gradeName === "all" || secGrade === gradeName || secGrade === "scoreboard" || secGrade === "wheelchair") {
         sec.classList.remove("dimmed");
       } else {
         sec.classList.add("dimmed");
@@ -1133,6 +1399,10 @@ class SeatViewApp {
   }
 
   selectStadiumBlock(blockId) {
+    if (blockId === "scoreboard") {
+      this.showToast("ℹ️", "🏟️ 전광판 영역입니다. 경기 정보가 실시간 표기됩니다.");
+      return;
+    }
     if (!state.selectedStadium) return;
 
     const block = state.selectedStadium.blocks.find(b => b.id === blockId);
