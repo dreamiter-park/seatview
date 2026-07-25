@@ -709,12 +709,15 @@ body {
 .stadium-card-team {
   font-size: 0.65rem;
   font-weight: 700;
-  color: #fff;
-  background-color: var(--accent-blue);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 2px 6px;
   border-radius: 4px;
   align-self: flex-start;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .stadium-card-name {
