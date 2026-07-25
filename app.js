@@ -1454,10 +1454,33 @@ class SeatViewApp {
     wrapper.style.display = "block";
     container.innerHTML = "";
 
+    // Prepend Field/Stage direction indicator at the top
+    if (state.selectedStadium) {
+      const isPerformance = state.selectedStadium.category === "musical" || state.selectedStadium.id === "musical";
+      const directionText = isPerformance ? "▲ 🎭 무대 (STAGE) 방면 ▲" : "▲ ⚾ 그라운드 (경기장) 방면 ▲";
+      
+      const indicator = document.createElement("div");
+      indicator.className = "field-direction-indicator";
+      indicator.style.width = "100%";
+      indicator.style.textAlign = "center";
+      indicator.style.background = "rgba(255, 255, 255, 0.04)";
+      indicator.style.border = "1px dashed rgba(255, 255, 255, 0.15)";
+      indicator.style.borderRadius = "6px";
+      indicator.style.padding = "6px 8px";
+      indicator.style.marginBottom = "14px";
+      indicator.style.fontSize = "0.7rem";
+      indicator.style.color = "rgba(255, 255, 255, 0.5)";
+      indicator.style.fontWeight = "bold";
+      indicator.style.letterSpacing = "2px";
+      indicator.textContent = directionText;
+      container.appendChild(indicator);
+    }
+
     const isJamsil103 = (blockId === "b103" && state.selectedStadium && state.selectedStadium.id === "jamsil");
     const isJamsil118 = (blockId === "b118" && state.selectedStadium && state.selectedStadium.id === "jamsil");
+    const isJamsil219 = (blockId === "b219" && state.selectedStadium && state.selectedStadium.id === "jamsil");
 
-    if (isJamsil103 || isJamsil118) {
+    if (isJamsil103 || isJamsil118 || isJamsil219) {
       let layout, occupied, blocked;
 
       if (isJamsil103) {
@@ -1489,6 +1512,32 @@ class SeatViewApp {
           "15_171", "15_178", "15_186",
           "18_229", "18_224", "18_219"
         ];
+      } else if (isJamsil219) {
+        layout = {
+          1: [null, null, 25, 24, 23, 22, null, null, null, null, null, null, null, 3, 2, 1],
+          2: [null, null, 26, 27, 28, 29, null, null, null, null, null, null, null, 4, 5, 6],
+          3: [null, null, 33, 32, 31, 30, null, null, null, null, null, null, null, 9, 8, 7],
+          4: [null, null, 34, 35, 36, 37, null, null, null, null, null, null, null, 10, 11, 12],
+          5: [null, null, 41, 40, 39, 38, null, null, null, null, null, null, null, 15, 14, 13],
+          6: [null, null, 42, 43, 44, 45, null, null, null, null, null, null, null, 16, 17, 18],
+          7: [null, null, 49, 48, 47, 46, null, null, null, null, null, null, null, 21, 20, 19],
+          8: [null, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64],
+          9: [null, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65],
+          10: [null, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94],
+          11: [null, 109, 108, 107, 106, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95],
+          12: [null, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124],
+          13: [null, 139, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127, 126, 125],
+          14: [null, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154],
+          15: [170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155],
+          16: [171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186],
+          17: [202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 190, 189, 188, 187],
+          18: [203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218],
+          19: [234, 233, 232, 231, 230, 229, 228, 227, 226, 225, 224, 223, 222, 221, 220, 219],
+          20: [235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250],
+          21: [266, 265, 264, 263, 262, 261, 260, 259, 258, 257, 256, 255, 254, 253, 252, 251]
+        };
+        occupied = ["1_23", "1_2", "3_32", "3_8"];
+        blocked = [];
       } else {
         // jamsil 118 block layout
         layout = {
@@ -1515,7 +1564,8 @@ class SeatViewApp {
         blocked = [];
       }
 
-      for (let r = 1; r <= 18; r++) {
+      const maxRows = Math.max(...Object.keys(layout).map(Number));
+      for (let r = 1; r <= maxRows; r++) {
         const rowDiv = document.createElement("div");
         rowDiv.className = "seat-row";
 
@@ -1565,14 +1615,17 @@ class SeatViewApp {
               seatBtn.style.borderColor = "var(--danger)";
               seatBtn.style.color = "#ef4444";
               
-              // Seed view key mapping
-              const dbKey = isJamsil103 ? `jamsil_b103_${r}_${sVal}` : `jamsil_b103_1_1`; // reuse same photo detail for demo comparison
+              // Seed view key mapping (we'll reuse jamsil_b103 for demo detail visual comparison)
+              const dbKey = isJamsil103 ? `jamsil_b103_${r}_${sVal}` : `jamsil_b103_1_1`;
               seatBtn.onclick = () => this.openSeatDetail(dbKey);
             } else if (blocked.includes(seatKey)) {
               seatBtn.classList.add("blocked");
               seatBtn.disabled = true;
             } else {
-              seatBtn.onclick = () => this.handleNoPhotoSeatClick(isJamsil103 ? "103블록" : "118블록", `${r}열 ${sVal}번`);
+              let blockName = "103블록";
+              if (isJamsil118) blockName = "118블록";
+              else if (isJamsil219) blockName = "219블록";
+              seatBtn.onclick = () => this.handleNoPhotoSeatClick(blockName, `${r}열 ${sVal}번`);
             }
             seatsDiv.appendChild(seatBtn);
           }
