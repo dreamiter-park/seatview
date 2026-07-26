@@ -835,6 +835,8 @@ class SeatViewApp {
         state.selectedBlock = null;
         document.getElementById("block-seats-section").style.display = "none";
         document.getElementById("stadium-overall-map-view").style.display = "block";
+        const tabMapContainer = document.getElementById("tab-content-map");
+        if (tabMapContainer) tabMapContainer.classList.remove("detailed-active");
         
         const titleEl = document.getElementById("header-title");
         if (titleEl && state.selectedStadium) {
@@ -887,7 +889,7 @@ class SeatViewApp {
   }
 
   // --- Stadium Detail View ---
-  loadStadiumDetail(stadiumId) {
+  async loadStadiumDetail(stadiumId) {
     const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
     if (!stadium) return;
 
@@ -915,12 +917,72 @@ class SeatViewApp {
       bannerOverlay.style.backgroundImage = `url('${stadium.bg}')`;
     }
 
+    // Fetch blocks dynamically from Supabase
+    if (supabaseClient) {
+      try {
+        const reverseIdMap = {
+          "jamsil": 1,
+          "gocheok": 2,
+          "suwon": 3,
+          "incheon": 4,
+          "daejeon": 5,
+          "daegu": 6,
+          "gwangju": 7,
+          "changwon": 8,
+          "busan": 9
+        };
+        const dbId = reverseIdMap[stadiumId];
+        if (dbId) {
+          const { data: blocks, error } = await supabaseClient
+            .from('baseball_blocks')
+            .select('*')
+            .eq('stadium_id', dbId);
+
+          if (!error && blocks && blocks.length > 0) {
+            const gradeMapping = {
+              "프리미엄석": "premium",
+              "테이블석": "table",
+              "익사이팅석": "exciting",
+              "블루석": "blue",
+              "오렌지석": "orange",
+              "오렌지석(응원)": "orange",
+              "레드석": "red",
+              "네이비석": "navy",
+              "외야그린석": "green",
+              "외야석": "green",
+              "휠체어석": "wheelchair"
+            };
+
+            stadium.blocks = blocks.map(b => {
+              let engGrade = gradeMapping[b.seat_grade] || "navy";
+              return {
+                id: `b${b.block_code}`, // Match JAMSIL_MAP_MAPPING format
+                db_id: b.id,
+                block_code: b.block_code,
+                name: b.full_name || `${b.block_code}블록`,
+                grade: engGrade,
+                category: b.seat_grade,
+                color_code: b.color_code,
+                total_rows: b.total_rows,
+                max_seats: b.max_seats
+              };
+            });
+            console.log(`Loaded ${blocks.length} blocks from Supabase for ${stadiumId}.`);
+          }
+        }
+      } catch (e) {
+        console.error("Supabase blocks fetch failed, falling back to local:", e);
+      }
+    }
+
     // Inject Stadium SVG Map
     this.injectStadiumMap(stadiumId);
 
     // Reset display divs
     document.getElementById("stadium-overall-map-view").style.display = "block";
     document.getElementById("block-seats-section").style.display = "none";
+    const tabMapContainer = document.getElementById("tab-content-map");
+    if (tabMapContainer) tabMapContainer.classList.remove("detailed-active");
 
     // Switch default tab
     this.switchDetailTab("map");
@@ -946,6 +1008,7 @@ class SeatViewApp {
     const containerId = detailedZoneName ? "detailed-block-svg-container" : "stadium-map-container";
     const container = document.getElementById(containerId);
     if (!container) return;
+    container.style.aspectRatio = stadiumId === "jamsil" ? "963 / 1164" : "";
 
     const is3B = detailedZoneName === "3루 내야/응원석";
     const is1B = detailedZoneName === "1루 내야/응원석";
@@ -959,238 +1022,79 @@ class SeatViewApp {
     if (allPill) allPill.classList.add("active");
 
     if (stadiumId === "jamsil") {
-      const cx = 200, cy = 160;
-      let svgContent = `
-        <svg viewBox="50 10 300 300" width="100%" height="100%">
-          <!-- Baseball infield grass background -->
-          <circle cx="${cx}" cy="${cy}" r="45" fill="#14532d" opacity="0.3" />
-          <path d="M 160 ${cy} L 200 ${cy - 40} L 240 ${cy} L 200 ${cy + 40} Z" fill="#b45309" opacity="0.4" />
-          <rect x="197" y="${cy + 37}" width="6" height="6" fill="#ffffff" transform="rotate(45, 200, ${cy + 40})" />
-      `;
-
-      // Helper function to generate mathematically precise concentric wedge path
-      const getWedgePath = (rIn, rOut, startAngle, endAngle) => {
-        const rad = Math.PI / 180;
-        // In Jamsil coordinate system, 0 is at the bottom (180 degrees from standard polar)
-        const sAngle = (startAngle + 90) * rad;
-        const eAngle = (endAngle + 90) * rad;
-
-        const x1_in = cx + rIn * Math.cos(sAngle);
-        const y1_in = cy + rIn * Math.sin(sAngle);
-        const x2_in = cx + rIn * Math.cos(eAngle);
-        const y2_in = cy + rIn * Math.sin(eAngle);
-
-        const x1_out = cx + rOut * Math.cos(sAngle);
-        const y1_out = cy + rOut * Math.sin(sAngle);
-        const x2_out = cx + rOut * Math.cos(eAngle);
-        const y2_out = cy + rOut * Math.sin(eAngle);
-
-        const largeArc = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
-
-        return `M ${x1_in} ${y1_in} L ${x1_out} ${y1_out} A ${rOut} ${rOut} 0 ${largeArc} 1 ${x2_out} ${y2_out} L ${x2_in} ${y2_in} A ${rIn} ${rIn} 0 ${largeArc} 0 ${x1_in} ${y1_in} Z`;
-      };
-
-      const getColorForGrade = (grade) => {
-        const colors = {
-          premium: "#a3e635",
-          table: "#db2777",
-          blue: "#2563eb",
-          orange: "#ea580c",
-          red: "#dc2626",
-          navy: "#1e3a8a",
-          green: "#16a34a"
-        };
-        return colors[grade] || "#64748b";
-      };
-
-      // 1. Premium Seats (covers Col 0, 1, 2 of 1B and Col 0, 1 of 3B)
-      const premStart = -4 - 3 * 5.65;
-      const premEnd = 4 + 2 * 5.65;
-      const blocks = [
-        { id: "b_prem", label: "프리미엄", grade: "premium", rIn: 55, rOut: 105, start: premStart, end: premEnd, color: "#a3e635" }
-      ];
-
-      // Helper function to return grade based on block number
-      const getGradeForBlockNum = (num) => {
-        if (num >= 212 && num <= 215) return "table";
-        if (num >= 110 && num <= 113) return "table";
-        if (num >= 209 && num <= 211) return "blue";
-        if (num >= 216 && num <= 218) return "blue";
-        if (num >= 107 && num <= 109) return "blue";
-        if (num >= 114 && num <= 116) return "blue";
-        if (num >= 205 && num <= 208) return "orange";
-        if (num >= 219 && num <= 222) return "orange";
-        if (num >= 201 && num <= 204) return "red";
-        if (num >= 223 && num <= 226) return "red";
-        if (num >= 101 && num <= 106) return "red";
-        if (num >= 117 && num <= 122) return "red";
-        if (num >= 301 && num <= 334) return "navy";
-        return "green";
-      };
-
-      // 2. 1루 (Home) side blocks (RIGHT side, negative angles)
-      // 1B Navy: 317 down to 301 (Col 0 to 16)
-      for (let idx = 0; idx < 17; idx++) {
-        const end = -4 - idx * 5.65;
-        const start = end - 5.65;
-        const num = 317 - idx;
-        const rIn = 107 + 11 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade: "navy", rIn, rOut: 135, start, end, color: getColorForGrade("navy") });
-      }
-
-      // 1B 200-level: 213 (covers Col 3 & 4)
-      const b213Start = -4 - 5 * 5.65;
-      const b213End = -4 - 3 * 5.65;
-      const rIn213 = 77 + 3 * (3.5 / 16);
-      const rOut213 = 105 + 11 * (3.5 / 16);
-      blocks.push({ id: "b213", label: "213", grade: "table", rIn: rIn213, rOut: rOut213, start: b213Start, end: b213End, color: getColorForGrade("table") });
-
-      // 1B 100-level: 111 (covers Col 3 & 4)
-      const rOut111 = 75 + 3 * (3.5 / 16);
-      blocks.push({ id: "b111", label: "111", grade: "table", rIn: 55, rOut: rOut111, start: b213Start, end: b213End, color: getColorForGrade("table") });
-
-      // Other 1B 200-level (idx 5 to 15)
-      for (let idx = 5; idx < 16; idx++) {
-        const end = -4 - idx * 5.65;
-        const start = end - 5.65;
-        const num = 217 - idx; // 212 down to 202
-        const grade = getGradeForBlockNum(num);
-        const rIn = 77 + 3 * (idx / 16);
-        const rOut = 105 + 11 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn, rOut, start, end, color: getColorForGrade(grade) });
-      }
-
-      // 1B 201 covers Col 16 (idx 16)
-      const b201Start = -4 - 17 * 5.65;
-      const b201End = -4 - 16 * 5.65;
-      const rIn201 = 77 + 3 * (16 / 16);
-      const rOut201 = 105 + 11 * (16 / 16);
-      blocks.push({ id: "b201", label: "201", grade: "red", rIn: rIn201, rOut: rOut201, start: b201Start, end: b201End, color: getColorForGrade("red") });
-
-      // Other 1B 100-level (idx 5 to 12)
-      for (let idx = 5; idx < 13; idx++) {
-        const end = -4 - idx * 5.65;
-        const start = end - 5.65;
-        const num = 115 - idx; // 110 down to 103
-        const grade = getGradeForBlockNum(num);
-        const rOut = 75 + 3 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn: 55, rOut, start, end, color: getColorForGrade(grade) });
-      }
-      // 102 covers Col 13 & 14 (idx 13 & 14)
-      const rOut102 = 75 + 3 * (13.5 / 16);
-      blocks.push({ id: "b102", label: "102", grade: "red", rIn: 55, rOut: rOut102, start: -4 - 15 * 5.65, end: -4 - 13 * 5.65, color: getColorForGrade("red") });
-      // 101 covers Col 15 & 16 (idx 15 & 16)
-      const rOut101 = 75 + 3 * (15.5 / 16);
-      blocks.push({ id: "b101", label: "101", grade: "red", rIn: 55, rOut: rOut101, start: -4 - 17 * 5.65, end: -4 - 15 * 5.65, color: getColorForGrade("red") });
-
-
-      // 3. 3루 (Away) side blocks (LEFT side, positive angles)
-      // 3B Navy: 318 to 334 (Col 0 to 16)
-      for (let idx = 0; idx < 17; idx++) {
-        const start = 4 + idx * 5.65;
-        const end = start + 5.65;
-        const num = 318 + idx;
-        const rIn = 107 + 11 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade: "navy", rIn, rOut: 135, start, end, color: getColorForGrade("navy") });
-      }
-
-      // 3B 200-level: 214 (covers Col 2 & 3)
-      const b214Start = 4 + 2 * 5.65;
-      const b214End = 4 + 4 * 5.65;
-      const rIn214 = 77 + 3 * (2.5 / 16);
-      const rOut214 = 105 + 11 * (2.5 / 16);
-      blocks.push({ id: "b214", label: "214", grade: "table", rIn: rIn214, rOut: rOut214, start: b214Start, end: b214End, color: getColorForGrade("table") });
-
-      // 3B 100-level: 112 (covers Col 2 & 3)
-      const rOut112 = 75 + 3 * (2.5 / 16);
-      blocks.push({ id: "b112", label: "112", grade: "table", rIn: 55, rOut: rOut112, start: b214Start, end: b214End, color: getColorForGrade("table") });
-
-      // Other 3B 200-level (idx 4 to 14)
-      for (let idx = 4; idx < 15; idx++) {
-        const start = 4 + idx * 5.65;
-        const end = start + 5.65;
-        const num = 211 + idx; // 215 to 225
-        const grade = getGradeForBlockNum(num);
-        const rIn = 77 + 3 * (idx / 16);
-        const rOut = 105 + 11 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn, rOut, start, end, color: getColorForGrade(grade) });
-      }
-
-      // 3B 226 covers Col 15 & 16
-      const b226Start = 4 + 15 * 5.65;
-      const b226End = 4 + 17 * 5.65;
-      const rIn226 = 77 + 3 * (15.5 / 16);
-      const rOut226 = 105 + 11 * (15.5 / 16);
-      blocks.push({ id: "b226", label: "226", grade: "red", rIn: rIn226, rOut: rOut226, start: b226Start, end: b226End, color: getColorForGrade("red") });
-
-      // Other 3B 100-level (idx 4 to 11)
-      for (let idx = 4; idx < 12; idx++) {
-        const start = 4 + idx * 5.65;
-        const end = start + 5.65;
-        const num = 109 + idx; // 113 to 120
-        const grade = getGradeForBlockNum(num);
-        const rOut = 75 + 3 * (idx / 16);
-        blocks.push({ id: `b${num}`, label: `${num}`, grade, rIn: 55, rOut, start, end, color: getColorForGrade(grade) });
-      }
-      // 121 covers Col 12 & 13 (idx 12 & 13)
-      const rOut121 = 75 + 3 * (12.5 / 16);
-      blocks.push({ id: "b121", label: "121", grade: "red", rIn: 55, rOut: rOut121, start: 4 + 12 * 5.65, end: 4 + 14 * 5.65, color: getColorForGrade("red") });
-      // 122 covers Col 14, 15, 16 (idx 14, 15, 16)
-      const rOut122 = 75 + 3 * (15 / 16);
-      blocks.push({ id: "b122", label: "122", grade: "red", rIn: 55, rOut: rOut122, start: 4 + 14 * 5.65, end: 4 + 17 * 5.65, color: getColorForGrade("red") });
-
-      // 4. Outfield covers 160 degrees total (from 100 to 260 degrees) without gaps
-      const outfieldStart = 100;
-      const outfieldEnd = 260;
-      const outfieldStep = (outfieldEnd - outfieldStart) / 23;
-      for (let i = 0; i < 23; i++) {
-        const start = outfieldStart + i * outfieldStep;
-        const end = start + outfieldStep;
-
-        if (i < 11) {
-          // Left side (3루): 422 down to 412
-          const num = 422 - i;
-          blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: "#16a34a" });
-        } else if (i === 11) {
-          // Center scoreboard
-          blocks.push({ id: "scoreboard", label: "전광판", grade: "scoreboard", rIn: 95, rOut: 135, start, end, color: "#1e293b" });
-        } else {
-          // Right side (1루): 411 down to 401
-          const num = 423 - i;
-          const isOutfieldCheer = (num >= 405 && num <= 408);
-          const color = isOutfieldCheer ? "#15803d" : "#16a34a";
-          blocks.push({ id: `b${num}`, label: `${num}`, grade: "green", rIn: 95, rOut: 135, start, end, color: color });
-        }
-      }
-
-      blocks.forEach(b => {
-        const path = getWedgePath(b.rIn, b.rOut, b.start, b.end);
-        
-        // Calculate label position
-        const rad = Math.PI / 180;
-        const midAngle = ((b.start + b.end) / 2 + 90) * rad;
-        const midRadius = (b.rIn + b.rOut) / 2;
-        const lx = cx + midRadius * Math.cos(midAngle);
-        const ly = cy + midRadius * Math.sin(midAngle);
-        
-        // Set font size based on block grade to fit narrow sectors nicely
-        const fontSize = b.grade === "green" ? 5.2 : (b.grade === "navy" ? 5.6 : 6.2);
-
-        svgContent += `
-          <path d="${path}" class="stadium-sector" data-grade="${b.grade}" onclick="app.selectStadiumBlock('${b.id}')" fill="${b.color}" />
-          <text x="${lx}" y="${ly + 2}" fill="white" font-size="${fontSize}" font-weight="normal" text-anchor="middle" pointer-events="none">${b.label}</text>
-        `;
-      });
-
-      // Wheelchair circles
-      svgContent += `
-          <circle cx="${cx + 82 * Math.cos((32 + 90) * Math.PI / 180)}" cy="${cy + 82 * Math.sin((32 + 90) * Math.PI / 180)}" r="4" class="stadium-sector" data-grade="wheelchair" onclick="app.selectStadiumBlock('b103')" fill="#64748b" />
-          <circle cx="${cx + 82 * Math.cos((-74 + 90) * Math.PI / 180)}" cy="${cy + 82 * Math.sin((-74 + 90) * Math.PI / 180)}" r="4" class="stadium-sector" data-grade="wheelchair" onclick="app.selectStadiumBlock('b121')" fill="#64748b" />
-        </svg>
+      let mapContent = `
+        <div id="image-map-pro-653" class="imp-initialized" data-image-map-id="653" data-image-map-name="JAMSIL">
+          <div class="imp-container imp-ui-light">
+            <div class="imp-ui-wrap">
+              <div class="imp-ui"></div>
+              <div class="imp-canvas-wrap">
+                <div class="imp-canvas">
+                  <div class="imp-translate">
+                    <div class="imp-scale">
+                      <img src="https://myseatcheck.com/wp-content/uploads/2024/06/완성세로-1.jpg" class="imp-image">
+                      <div class="imp-objects">
+                        ${JAMSIL_SVG_HTML}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
       `;
+      container.innerHTML = mapContent;
 
-      container.innerHTML = svgContent;
+      const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+
+      // Find allowed blocks if filtering by zone
+      let allowedBlocks = null;
+      if (detailedZoneName) {
+        allowedBlocks = new Set(this.getBlocksForZone(stadium, detailedZoneName).map(b => b.id));
+      }
+
+      // Bind events and classes to the imported SVG objects
+      const elements = container.querySelectorAll('.imp-object');
+      elements.forEach(el => {
+        const polyId = el.getAttribute('data-object-id');
+        const blockId = JAMSIL_MAP_MAPPING[polyId];
+        if (blockId) {
+          el.setAttribute('data-block-id', blockId);
+          const block = stadium.blocks.find(b => b.id === blockId);
+          if (block) {
+            el.setAttribute('data-grade', block.grade);
+          }
+
+          // Apply zone filter if provided
+          if (allowedBlocks && !allowedBlocks.has(blockId)) {
+            el.style.opacity = "0.05";
+            el.style.pointerEvents = "none";
+          } else {
+            el.classList.add('stadium-sector');
+            // Add click listener
+            el.addEventListener('click', () => {
+              this.selectStadiumBlock(blockId);
+            });
+            // Add hover class
+            el.addEventListener('mouseenter', () => {
+              if (block && block.color_code) {
+                el.style.setProperty('--hover-fill', `${block.color_code}66`);
+                el.style.setProperty('--hover-stroke', block.color_code);
+                el.style.setProperty('--hover-stroke-width', '2px');
+              } else {
+                el.style.removeProperty('--hover-fill');
+                el.style.removeProperty('--hover-stroke');
+                el.style.removeProperty('--hover-stroke-width');
+              }
+              el.classList.add('imp-object-highlighted');
+            });
+            el.addEventListener('mouseleave', () => {
+              el.classList.remove('imp-object-highlighted');
+            });
+          }
+        }
+      });
     } else {
       // General fall-back SVG
       container.innerHTML = `
@@ -1316,6 +1220,8 @@ class SeatViewApp {
     document.getElementById("stadium-overall-map-view").style.display = "none";
     document.getElementById("stadium-detailed-blocks-view").style.display = "block";
     document.getElementById("block-seats-section").style.display = "none";
+    const tabMapContainer = document.getElementById("tab-content-map");
+    if (tabMapContainer) tabMapContainer.classList.remove("detailed-active");
 
     // Set header title
     const titleEl = document.getElementById("header-title");
@@ -1427,6 +1333,8 @@ class SeatViewApp {
     // Hide Overall map, show Seating Grid
     document.getElementById("stadium-overall-map-view").style.display = "none";
     document.getElementById("block-seats-section").style.display = "block";
+    const tabMapContainer = document.getElementById("tab-content-map");
+    if (tabMapContainer) tabMapContainer.classList.add("detailed-active");
 
     // Set header title
     const titleEl = document.getElementById("header-title");
@@ -1446,7 +1354,7 @@ class SeatViewApp {
     this.showToast("ℹ️", `📷 [${stadiumName} - ${blockName} ${seatName}] 최초 시야 사진 제보 및 등록 기능은 정식 오픈 시 지원 예정입니다. 첫 제보자가 되어 보세요!`);
   }
 
-  renderSeatingGrid(blockId) {
+  async renderSeatingGrid(blockId) {
     const wrapper = document.getElementById("seat-grid-wrapper");
     const container = document.getElementById("seat-rows-container");
     if (!wrapper || !container) return;
@@ -1474,6 +1382,82 @@ class SeatViewApp {
       indicator.style.letterSpacing = "2px";
       indicator.textContent = directionText;
       container.appendChild(indicator);
+    }
+
+    // Fetch and render seats from Supabase if available
+    const block = state.selectedStadium ? state.selectedStadium.blocks.find(b => b.id === blockId) : null;
+    if (supabaseClient && block && block.db_id) {
+      try {
+        const { data: seats, error } = await supabaseClient
+          .from('baseball_seats')
+          .select('*')
+          .eq('block_id', block.db_id)
+          .order('row_num', { ascending: true })
+          .order('grid_y', { ascending: true })
+          .order('grid_x', { ascending: true });
+
+        if (!error && seats && seats.length > 0) {
+          const rowsMap = {};
+          seats.forEach(seat => {
+            if (!rowsMap[seat.row_num]) {
+              rowsMap[seat.row_num] = [];
+            }
+            rowsMap[seat.row_num].push(seat);
+          });
+
+          const maxRows = Math.max(...Object.keys(rowsMap).map(Number));
+          for (let r = 1; r <= maxRows; r++) {
+            const rowSeats = rowsMap[r];
+            if (!rowSeats) continue;
+
+            const rowDiv = document.createElement("div");
+            rowDiv.className = "seat-row";
+
+            const label = document.createElement("span");
+            label.className = "row-num";
+            label.textContent = `${r}열`;
+            rowDiv.appendChild(label);
+
+            const seatsDiv = document.createElement("div");
+            seatsDiv.className = "row-seats";
+
+            rowSeats.forEach(seat => {
+              if (seat.status === "WALKWAY" || seat.seat_num === null) {
+                const gapBtn = document.createElement("button");
+                gapBtn.className = "seat-item gap";
+                seatsDiv.appendChild(gapBtn);
+              } else {
+                const seatBtn = document.createElement("button");
+                seatBtn.className = "seat-item";
+                seatBtn.textContent = seat.seat_num;
+
+                if (seat.offset_type === "half") {
+                  seatBtn.style.marginLeft = "12px";
+                }
+
+                if (seat.status === "PHOTO_EXISTS") {
+                  seatBtn.classList.add("has-camera");
+                  seatBtn.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
+                  seatBtn.style.borderColor = "var(--danger)";
+                  seatBtn.style.color = "#ef4444";
+                  
+                  const dbKey = seat.id;
+                  seatBtn.onclick = () => this.openSeatDetail(dbKey);
+                } else {
+                  seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${r}열 ${seat.seat_num}번`);
+                }
+                seatsDiv.appendChild(seatBtn);
+              }
+            });
+
+            rowDiv.appendChild(seatsDiv);
+            container.appendChild(rowDiv);
+          }
+          return; // Render completed from database
+        }
+      } catch (e) {
+        console.error("Supabase seats fetch failed, falling back to local layouts:", e);
+      }
     }
 
     const isJamsil103 = (blockId === "b103" && state.selectedStadium && state.selectedStadium.id === "jamsil");

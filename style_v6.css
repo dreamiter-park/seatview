@@ -839,14 +839,31 @@ body {
   display: block;
 }
 
+#tab-content-map.active {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 12px;
+}
+
+#tab-content-map.active.detailed-active {
+  display: block;
+  padding-bottom: 0;
+}
+
 /* 10. Seating Map & Amenity Toggle UI */
 .stadium-map-wrapper {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 24px;
-  padding: 16px;
-  margin-bottom: 20px;
+  padding: 12px; /* reduced padding to fit */
+  margin: 8px auto 12px auto; /* centered horizontally, reduced bottom margin */
+  width: 94%; /* bounds checking to prevent side clipping */
+  max-width: 94%;
   position: relative;
+  box-sizing: border-box;
 }
 
 .map-label {
@@ -867,7 +884,7 @@ body {
   position: relative;
 }
 
-.stadium-svg-container svg {
+.stadium-svg-container > svg {
   width: 100%;
   height: 100%;
 }
@@ -2447,5 +2464,98 @@ body {
 
 .stadium-sector.dimmed {
   opacity: 0.18;
+}
+
+/* Image Map Pro Container styles */
+#image-map-pro-653 {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+#image-map-pro-653 .imp-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#image-map-pro-653 .imp-ui-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#image-map-pro-653 .imp-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#image-map-pro-653 .imp-canvas {
+  position: relative !important;
+  width: 100% !important;
+  aspect-ratio: 1230 / 1486.73 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+#image-map-pro-653 .imp-translate,
+#image-map-pro-653 .imp-scale {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+#image-map-pro-653 .imp-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+#image-map-pro-653 .imp-objects {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+#image-map-pro-653 .imp-object {
+  position: absolute;
+  display: block;
+  cursor: pointer;
+  transition: fill 0.2s, opacity 0.2s, filter 0.2s;
+  pointer-events: auto;
+}
+
+/* Dimming/filtering state for image map */
+#image-map-pro-653 .imp-object.dimmed {
+  opacity: 0.15 !important;
+  pointer-events: none;
+}
+
+/* Override aspect-ratio when Jamsil image map is loaded to prevent layout overlap */
+.stadium-svg-container:has(#image-map-pro-653) {
+  aspect-ratio: 1230 / 1486.73;
+}
+
+/* Dynamic hover overrides via CSS variables */
+#image-map-pro-653 .imp-object-highlighted {
+  fill: var(--hover-fill, rgba(255, 255, 255, 0.4)) !important;
+  stroke: var(--hover-stroke, rgba(255, 255, 255, 0.75)) !important;
+  stroke-width: var(--hover-stroke-width, 0px) !important;
 }
 
