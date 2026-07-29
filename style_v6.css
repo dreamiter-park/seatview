@@ -4,7 +4,7 @@
 
 /* 1. Global Reset & Theme Variables */
 :root {
-  /* Color Palette (HSL based for fine tuning) */
+  /* Color Palette (HSL based for fine tuning) - Default Dark Mode */
   --bg-app: #080a0f;
   --bg-card: #121620;
   --bg-card-hover: #1b212f;
@@ -33,6 +33,12 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  /* Seat background variables for dark mode */
+  --bg-seat-default: #1e293b;
+  --border-seat-default: rgba(255, 255, 255, 0.05);
+  --bg-seat-blocked: #1e293b;
+  --text-seat-blocked: #4b5563;
 
   --font-display: 'Outfit', 'Noto Sans KR', sans-serif;
   --font-body: 'Noto Sans KR', sans-serif;
@@ -519,12 +525,24 @@ body {
   z-index: 3;
 }
 
-.category-tag.danger {
+.category-tag.red {
   background-color: var(--danger);
 }
 
-.category-tag.secondary {
+.category-tag.green {
+  background-color: var(--success);
+}
+
+.category-tag.blue {
+  background-color: var(--accent-blue);
+}
+
+.category-tag.gray {
   background-color: var(--text-muted);
+}
+
+.category-tag.yellow {
+  background-color: var(--warning);
 }
 
 .category-name {
@@ -855,10 +873,9 @@ body {
 
 /* 10. Seating Map & Amenity Toggle UI */
 .stadium-map-wrapper {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  padding: 12px; /* reduced padding to fit */
+  background-color: transparent;
+  border: none;
+  padding: 0;
   margin: 8px auto 12px auto; /* centered horizontally, reduced bottom margin */
   width: 94%; /* bounds checking to prevent side clipping */
   max-width: 94%;
@@ -1000,12 +1017,8 @@ body {
 .amenity-pill.active[data-amenity="exit"] { background-color: var(--danger); border-color: var(--danger); }
 .amenity-pill.active[data-amenity="medical"] { background-color: var(--accent-blue); border-color: var(--accent-blue); }
 
-/* 11. Seat Row Grid UI */
 .block-seats-section {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  padding: 20px;
+  /* Styled by .step-card */
 }
 
 .block-info-header {
@@ -1032,8 +1045,9 @@ body {
 }
 
 .seat-grid-container {
-  overflow-x: hidden;
-  padding-bottom: 4px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  width: 100%;
 }
 
 .seat-grid-legend {
@@ -1077,34 +1091,35 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 100%;
+  width: max-content;
 }
 
 .seat-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .row-num {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-muted);
-  width: 32px;
+  width: 30px;
 }
 
 .row-seats {
   display: flex;
   gap: 3px;
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
 }
 
 .seat-item {
-  flex: 1;
+  flex: 0 0 calc((100% - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14));
   aspect-ratio: 1;
   min-width: 0;
-  background-color: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--bg-seat-default);
+  border: 1px solid var(--border-seat-default);
   border-radius: 4px;
   display: flex;
   justify-content: center;
@@ -1124,22 +1139,26 @@ body {
 }
 
 .seat-item.has-camera {
-  background-color: rgba(59, 130, 246, 0.15);
-  border: 1px solid var(--accent-blue);
-  color: var(--accent-blue);
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
+  background-color: var(--accent-blue) !important;
+  border: 1px solid var(--accent-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  font-weight: 700;
 }
 
 .seat-item.has-camera:hover {
-  background-color: var(--accent-blue);
-  color: white;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+  background-color: var(--accent-purple) !important;
+  border-color: var(--accent-purple) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transform: scale(1.15);
+  z-index: 10;
 }
 
 .seat-item.blocked {
-  background-color: #2e3b4e !important;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  color: #4b5563;
+  background-color: var(--bg-seat-blocked) !important;
+  border: 1px solid var(--border-color);
+  color: var(--text-seat-blocked);
   cursor: not-allowed;
   pointer-events: none;
   opacity: 0.7;
@@ -2338,31 +2357,38 @@ body {
    Light / Dark Mode switching system
    ========================================================================== */
 :root[data-theme="light"] {
-  --bg-app: #f9fafb;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f3f4f6;
-  --bg-input: #f3f4f6;
-  --bg-header: rgba(249, 250, 251, 0.85);
+  --bg-app: #f1f5f9; /* Slate 100 - soft off-white background */
+  --bg-card: #ffffff; /* Pure white cards */
+  --bg-card-hover: #f8fafc; /* Slate 50 */
+  --bg-input: #f8fafc;
+  --bg-header: rgba(255, 255, 255, 0.9);
   
-  --border-color: rgba(0, 0, 0, 0.08);
-  --border-focus: rgba(59, 130, 246, 0.5);
+  --border-color: #cbd5e1; /* Slate 300 - clear borders */
+  --border-focus: rgba(37, 99, 235, 0.5);
 
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-primary: #0f172a; /* Slate 900 */
+  --text-secondary: #475569; /* Slate 600 */
+  --text-muted: #94a3b8; /* Slate 400 */
 
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+
+  /* Seat background variables for light mode */
+  --bg-seat-default: #e2e8f0;
+  --border-seat-default: #cbd5e1;
+  --bg-seat-blocked: #f1f5f9;
+  --text-seat-blocked: #cbd5e1;
 }
 
 :root[data-theme="light"] .app-container {
-  background: radial-gradient(circle at 80% 20%, #f3f4f6 0%, #e5e7eb 100%);
+  background: radial-gradient(circle at 80% 20%, #e2e8f0 0%, #cbd5e1 100%);
 }
 
 :root[data-theme="light"] .phone-frame {
-  border-color: #e5e7eb;
+  border-color: #cbd5e1;
   box-shadow: var(--shadow-lg), 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
 }
 
 /* Ensure high text contrast in specific elements with background images or dark gradient overlays */
@@ -2383,22 +2409,31 @@ body {
    Seat Grade Filter Bar & Precise SVG Sector Highlight
    ========================================================================== */
 .grade-filter-container {
-  margin: 14px 0 10px 0;
-  padding: 0 4px;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-.grade-filter-title {
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+.grade-filter-container::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, rgba(255,255,255,0), var(--bg-card));
+  pointer-events: none;
+  z-index: 2;
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .grade-filter-bar {
   display: flex;
+  flex-wrap: nowrap !important;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 8px 2px;
+  padding: 4px 24px 8px 4px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
@@ -2414,8 +2449,86 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Step Cards style */
+.step-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+  max-height: 1000px;
+}
+.step-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-focus);
+}
+
+.step-card.disabled-step {
+  opacity: 0.35;
+  pointer-events: none;
+  max-height: 52px;
+}
+
+.step-card.disabled-step .step-title {
+  border-bottom-color: transparent;
+  margin-bottom: 0;
+}
+
+.step-card.disabled-step > *:not(.step-title) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Special adjustments for sub components inside step-card */
+.step-card.map-guide-card {
+  padding: 12px;
+}
+.step-card.grade-filter-card {
+  padding: 16px 0 16px 16px; /* give space for fade effect and left padding */
+}
+.step-card.grade-filter-card .step-title {
+  padding-right: 16px;
+}
+
+.step-card.block-selector-wrapper {
+  margin-bottom: 16px;
+}
+
+.step-card.block-seats-section {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+/* Step Titles */
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+.step-number {
+  background: var(--accent-gradient);
+  color: #ffffff !important;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+.step-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .grade-pill {
   flex-shrink: 0;
+  white-space: nowrap;
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
@@ -2558,4 +2671,161 @@ body {
   stroke: var(--hover-stroke, rgba(255, 255, 255, 0.75)) !important;
   stroke-width: var(--hover-stroke-width, 0px) !important;
 }
+
+/* --- Redesigned Single-Page Layout Styles --- */
+.map-collapse-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.map-collapse-btn:hover {
+  background-color: var(--border-color);
+}
+
+.map-collapse-btn .collapse-icon {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.3s ease;
+}
+
+.map-collapse-btn.expanded .collapse-icon {
+  transform: rotate(180deg);
+}
+
+.stadium-static-map-wrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto 16px auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  background-color: transparent;
+  border: 1.5px solid var(--border-color);
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, margin-bottom 0.35s ease, border-width 0.35s ease;
+  max-height: 400px;
+  opacity: 1;
+}
+
+.stadium-static-map-wrapper.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  border-width: 0px;
+  box-shadow: none;
+}
+
+.stadium-static-map {
+  width: 100%;
+  max-height: 380px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.block-selector-wrapper {
+  margin: 16px auto;
+}
+
+.block-selector-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.block-selector-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+/* Group sections inside block selector (1B, 3B, outfield etc.) */
+.block-selector-group {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.block-selector-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.block-selector-group-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.block-selector-group-list.has-long-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.block-selector-group-list.has-long-labels .block-pill-btn {
+  width: auto;
+  flex: 1 1 calc(50% - 6px);
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.block-pill-btn {
+  padding: 5px 4px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1.5px solid var(--border-color);
+  background-color: var(--bg-body);
+  color: var(--text-secondary);
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.block-pill-btn:hover {
+  background-color: var(--border-color);
+  transform: translateY(-1px);
+}
+
+.block-pill-btn.active {
+  background-color: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px var(--accent-blue);
+  transform: scale(1.03);
+}
+
+/* Grade-based border accents for inactive block pills */
+.block-pill-btn[data-grade="premium"] { border-left: 3.5px solid #a3e635; }
+.block-pill-btn[data-grade="table"] { border-left: 3.5px solid #db2777; }
+.block-pill-btn[data-grade="exciting"] { border-left: 3.5px solid #eab308; }
+.block-pill-btn[data-grade="blue"] { border-left: 3.5px solid #2563eb; }
+.block-pill-btn[data-grade="orange"] { border-left: 3.5px solid #ea580c; }
+.block-pill-btn[data-grade="red"] { border-left: 3.5px solid #dc2626; }
+.block-pill-btn[data-grade="navy"] { border-left: 3.5px solid #1e3a8a; }
+.block-pill-btn[data-grade="green"] { border-left: 3.5px solid #16a34a; }
+.block-pill-btn[data-grade="wheelchair"] { border-left: 3.5px solid #64748b; }
+
 

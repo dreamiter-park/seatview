@@ -43,7 +43,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css">
+  <link rel="stylesheet" href="style_v6.css?v=3.7">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -101,7 +101,7 @@
             <div class="category-grid" id="category-grid-container">
               <div class="category-card" onclick="app.navigateTo('stadiums')">
                 <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
-                <div class="category-tag">MAX TRAFFIC</div>
+                <div class="category-tag blue">MAX TRAFFIC</div>
                 <div class="category-info">
                   <h3 class="category-name">⚾ 프로야구장</h3>
                   <p class="category-sub">10개 구단 홈구장</p>
@@ -109,14 +109,15 @@
               </div>
               <div class="category-card" onclick="app.showMusicalComingSoon()">
                 <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
-                <div class="category-tag danger">HOT</div>
+                <div class="category-tag red">HOT</div>
                 <div class="category-info">
                   <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
                   <p class="category-sub">주요 대형 아트센터</p>
                 </div>
               </div>
-              <div class="category-card disabled">
-                <div class="category-tag secondary">SOON</div>
+              <div class="category-card" onclick="app.showFlightComingSoon()">
+                <div class="card-bg-overlay" style="background-image: url('assets/flight_cinema.jpg');"></div>
+                <div class="category-tag green">NEW</div>
                 <div class="category-info">
                   <h3 class="category-name">✈️ 항공 / 영화관</h3>
                   <p class="category-sub">스페셜관 & 인기 기종</p>
@@ -125,16 +126,7 @@
             </div>
           </div>
 
-          <!-- Quick Trend Stats / Banner -->
-          <div class="banner-card">
-            <div class="banner-content">
-              <h4>🔥 실시간 인기 좌석 시야</h4>
-              <p>이번 주 예매 전쟁의 핫 플레이스, 잠실 1루 레드석 102블록 4열!</p>
-            </div>
-            <button class="banner-btn" onclick="app.loadJamsilDetail()">
-              시야 보기 <i data-lucide="chevron-right"></i>
-            </button>
-          </div>
+
 
           <!-- Campaign / Points Promo -->
           <div class="promo-card">
@@ -184,71 +176,75 @@
           <div id="tab-content-map" class="tab-pane active">
             <!-- Depth 3: Overall Map View -->
             <div id="stadium-overall-map-view" class="stadium-map-wrapper">
-              <div class="map-label">📍 원하는 등급이나 좌석 구역을 직접 선택하세요</div>
               
-              <!-- Seat Grade Filter Bar (NEW) -->
-              <div class="grade-filter-container">
-                <div class="grade-filter-title">등급 선택 필터:</div>
+              <!-- Collapsible Stadium Map Accordion -->
+              <div class="map-guide-card" style="margin-bottom: 16px;">
+                <button class="map-collapse-btn" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
+                  <span>🗺️ 경기장 이미지 펼치기</span>
+                  <i data-lucide="chevron-down" class="collapse-icon" id="map-collapse-icon"></i>
+                </button>
+
+                <div class="stadium-static-map-wrapper collapsed" id="stadium-static-map-wrapper">
+                  <img id="stadium-static-map-img" src="" alt="구장 전체 안내도" class="stadium-static-map">
+                </div>
+              </div>
+
+              <!-- STEP 1: Seat Grade Filter Bar (Card) -->
+              <div class="step-card grade-filter-card">
+                <div class="step-title">
+                  <span class="step-number">STEP 1</span>
+                  <span class="step-text">좌석등급 선택</span>
+                </div>
                 <div class="grade-filter-bar" id="grade-filter-bar">
-                  <button class="grade-pill active" onclick="app.filterMapByGrade('all')">전체</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('premium')" style="border-left: 3px solid #a3e635;">프리미엄석</button>
-                  <button class="grade-pill" onclick="app.filterMapByGrade('table')" style="border-left: 3px solid #db2777;">테이블석</button>
+                  <button class="grade-pill active" onclick="app.filterMapByGrade('table')" style="border-left: 3px solid #db2777;">테이블석</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('exciting')" style="border-left: 3px solid #eab308;">익사이팅석</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('blue')" style="border-left: 3px solid #2563eb;">블루석</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('orange')" style="border-left: 3px solid #ea580c;">오렌지석(응원)</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('red')" style="border-left: 3px solid #dc2626;">레드석</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('navy')" style="border-left: 3px solid #1e3a8a;">네이비석</button>
                   <button class="grade-pill" onclick="app.filterMapByGrade('green')" style="border-left: 3px solid #16a34a;">외야그린석</button>
-                  <button class="grade-pill" onclick="app.filterMapByGrade('wheelchair')" style="border-left: 3px solid #64748b;">휠체어석</button>
                 </div>
               </div>
 
-              <div class="stadium-svg-container" id="stadium-map-container">
-                <!-- SVG map will be injected here dynamically -->
-              </div>
-              
-              <!-- Amenities Overlays Toggle -->
-              <div class="amenity-bar">
-                <span class="amenity-title">주변 편의시설 필터:</span>
-                <div class="amenity-pills">
-                  <button class="amenity-pill" data-amenity="toilet" onclick="app.toggleAmenity('toilet')">
-                    <i data-lucide="smile"></i> 화장실
-                  </button>
-                  <button class="amenity-pill" data-amenity="snack" onclick="app.toggleAmenity('snack')">
-                    <i data-lucide="utensils"></i> 매점
-                  </button>
-                  <button class="amenity-pill" data-amenity="exit" onclick="app.toggleAmenity('exit')">
-                    <i data-lucide="log-out"></i> 출구
-                  </button>
-                  <button class="amenity-pill" data-amenity="medical" onclick="app.toggleAmenity('medical')">
-                    <i data-lucide="activity"></i> 의무실
-                  </button>
+              <!-- STEP 2: Block Selector Grid (Card) -->
+              <div class="step-card block-selector-wrapper">
+                <div class="step-title">
+                  <span class="step-number">STEP 2</span>
+                  <span class="step-text">구역 선택</span>
+                </div>
+                <div class="block-selector-container" id="block-selector-container">
+                  <!-- Grouped block badges will be rendered here dynamically -->
                 </div>
               </div>
 
-            </div>
+              <!-- STEP 3: Depth 5: Row Grid & Seat selection (Card) -->
+              <div class="step-card block-seats-section" id="block-seats-section">
+                <div class="step-title">
+                  <span class="step-number">STEP 3</span>
+                  <span class="step-text">좌석 선택</span>
+                </div>
+                <div class="block-info-header">
+                  <div>
+                    <span class="block-badge" id="selected-block-badge">구역 미선택</span>
+                    <h4 class="block-name" id="selected-block-title">원하는 구역을 먼저 지도에서 선택해 주세요</h4>
+                  </div>
+                </div>
 
-            <!-- Depth 5: Row Grid & Seat selection -->
-            <div class="block-seats-section" id="block-seats-section" style="display: none;">
-              <div class="block-info-header">
-                <div>
-                  <span class="block-badge" id="selected-block-badge">구역 미선택</span>
-                  <h4 class="block-name" id="selected-block-title">원하는 구역을 먼저 지도에서 선택해 주세요</h4>
+                <!-- Detailed Seat Grid container -->
+                <div class="seat-grid-container" id="seat-grid-wrapper">
+                  <div class="seat-grid-legend">
+                    <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
+                    <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                  </div>
+
+                  <!-- Seat row grids -->
+                  <div class="seat-rows" id="seat-rows-container">
+                    <!-- Row 1, 2, 3... -->
+                  </div>
                 </div>
               </div>
 
-              <!-- Detailed Seat Grid container -->
-              <div class="seat-grid-container" id="seat-grid-wrapper">
-                <div class="seat-grid-legend">
-                  <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
-                  <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
-                </div>
-
-                <!-- Seat row grids -->
-                <div class="seat-rows" id="seat-rows-container">
-                  <!-- Row 1, 2, 3... -->
-                </div>
-              </div>
             </div>
           </div>
 
@@ -557,7 +553,7 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="stadiums/jamsil.js?v=2.5"></script>
-  <script src="app_v6.js"></script>
+  <script src="stadiums/jamsil.js?v=3.7"></script>
+  <script src="app_v6.js?v=3.7"></script>
 </body>
 </html>

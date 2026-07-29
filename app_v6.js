@@ -563,7 +563,7 @@ class SeatViewApp {
             // Determine CSS background image based on category ID
             let bgImage = "assets/jamsil_stadium.png";
             if (cat.id === "musical") bgImage = "assets/musical_stage.png";
-            else if (cat.id === "aviation") bgImage = "assets/aviation_bg.jpg"; // fallback
+            else if (cat.id === "plane") bgImage = "assets/flight_cinema.jpg";
 
             // Set card status
             const isClickable = cat.is_active;
@@ -582,8 +582,8 @@ class SeatViewApp {
             // Badge HTML
             let badgeHtml = "";
             if (cat.badge_text) {
-              const styleClass = cat.badge_style === "danger" ? "danger" : (cat.badge_style === "secondary" ? "secondary" : "");
-              badgeHtml = `<div class="category-tag ${styleClass}">${cat.badge_text}</div>`;
+              const badgeColor = cat.badge_color || "blue";
+              badgeHtml = `<div class="category-tag ${badgeColor}">${cat.badge_text}</div>`;
             }
 
             card.innerHTML = `
@@ -607,7 +607,7 @@ class SeatViewApp {
     container.innerHTML = `
       <div class="category-card" onclick="app.navigateTo('stadiums')">
         <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
-        <div class="category-tag">MAX TRAFFIC</div>
+        <div class="category-tag blue">MAX TRAFFIC</div>
         <div class="category-info">
           <h3 class="category-name">⚾ 프로야구장</h3>
           <p class="category-sub">10개 구단 홈구장</p>
@@ -615,14 +615,15 @@ class SeatViewApp {
       </div>
       <div class="category-card" onclick="app.showMusicalComingSoon()">
         <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
-        <div class="category-tag danger">HOT</div>
+        <div class="category-tag red">HOT</div>
         <div class="category-info">
           <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
           <p class="category-sub">주요 대형 아트센터</p>
         </div>
       </div>
-      <div class="category-card disabled">
-        <div class="category-tag secondary">SOON</div>
+      <div class="category-card" onclick="app.showFlightComingSoon()">
+        <div class="card-bg-overlay" style="background-image: url('assets/flight_cinema.jpg');"></div>
+        <div class="category-tag green">NEW</div>
         <div class="category-info">
           <h3 class="category-name">✈️ 항공 / 영화관</h3>
           <p class="category-sub">스페셜관 & 인기 기종</p>
@@ -658,7 +659,7 @@ class SeatViewApp {
 
             if (mockStadium) {
               mockStadium.name = dbStadium.name;
-              mockStadium.fullname = dbStadium.stadium_title || dbStadium.name;
+              mockStadium.fullname = dbStadium.name;
               mockStadium.team = dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "";
               mockStadium.location = dbStadium.address || dbStadium.location_district;
               if (dbStadium.bg_image_url) {
@@ -677,7 +678,7 @@ class SeatViewApp {
               const newStadium = {
                 id: newId,
                 name: dbStadium.name,
-                fullname: dbStadium.stadium_title || dbStadium.name,
+                fullname: dbStadium.name,
                 team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
                 location: dbStadium.address || dbStadium.location_district,
                 bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
@@ -830,22 +831,8 @@ class SeatViewApp {
 
   handleHeaderBack() {
     if (state.currentView === "stadium-detail") {
-      if (state.selectedBlock) {
-        // Back to Stadium overall map view
-        state.selectedBlock = null;
-        document.getElementById("block-seats-section").style.display = "none";
-        document.getElementById("stadium-overall-map-view").style.display = "block";
-        const tabMapContainer = document.getElementById("tab-content-map");
-        if (tabMapContainer) tabMapContainer.classList.remove("detailed-active");
-        
-        const titleEl = document.getElementById("header-title");
-        if (titleEl && state.selectedStadium) {
-          titleEl.textContent = state.selectedStadium.name;
-        }
-      } else {
-        // Back to Stadiums list
-        this.navigateTo("stadiums");
-      }
+      state.selectedBlock = null;
+      this.navigateTo("stadiums");
     } else if (state.currentView === "stadiums") {
       this.navigateTo("main");
     } else {
@@ -939,24 +926,24 @@ class SeatViewApp {
             .eq('stadium_id', dbId);
 
           if (!error && blocks && blocks.length > 0) {
-            const gradeMapping = {
-              "프리미엄석": "premium",
-              "테이블석": "table",
-              "익사이팅석": "exciting",
-              "블루석": "blue",
-              "오렌지석": "orange",
-              "오렌지석(응원)": "orange",
-              "레드석": "red",
-              "네이비석": "navy",
-              "외야그린석": "green",
-              "외야석": "green",
-              "휠체어석": "wheelchair"
+            const getEngGrade = (sg) => {
+              if (!sg) return "navy";
+              if (sg.includes("프리미엄")) return "premium";
+              if (sg.includes("테이블")) return "table";
+              if (sg.includes("익사이팅")) return "exciting";
+              if (sg.includes("블루")) return "blue";
+              if (sg.includes("오렌지")) return "orange";
+              if (sg.includes("레드")) return "red";
+              if (sg.includes("네이비")) return "navy";
+              if (sg.includes("외야") || sg.includes("그린")) return "green";
+              if (sg.includes("휠체어")) return "wheelchair";
+              return "navy";
             };
 
             stadium.blocks = blocks.map(b => {
-              let engGrade = gradeMapping[b.seat_grade] || "navy";
+              let engGrade = getEngGrade(b.seat_grade);
               return {
-                id: `b${b.block_code}`, // Match JAMSIL_MAP_MAPPING format
+                id: String(b.id), // Match JAMSIL_MAP_MAPPING database ID format
                 db_id: b.id,
                 block_code: b.block_code,
                 name: b.full_name || `${b.block_code}블록`,
@@ -964,7 +951,8 @@ class SeatViewApp {
                 category: b.seat_grade,
                 color_code: b.color_code,
                 total_rows: b.total_rows,
-                max_seats: b.max_seats
+                max_seats: b.max_seats,
+                location_type: b.location_type
               };
             });
             console.log(`Loaded ${blocks.length} blocks from Supabase for ${stadiumId}.`);
@@ -975,20 +963,52 @@ class SeatViewApp {
       }
     }
 
-    // Inject Stadium SVG Map
-    this.injectStadiumMap(stadiumId);
+    // Load static stadium map image
+    const mapWrapper = document.getElementById("stadium-static-map-wrapper");
+    if (mapWrapper) {
+      const srcPath = stadiumId === "jamsil" ? "stadiums/stadium_01.png" : stadium.bg;
+      mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${srcPath}" class="stadium-static-map" alt="구장 전체 안내도">`;
+    }
 
-    // Reset display divs
-    document.getElementById("stadium-overall-map-view").style.display = "block";
-    document.getElementById("block-seats-section").style.display = "none";
-    const tabMapContainer = document.getElementById("tab-content-map");
-    if (tabMapContainer) tabMapContainer.classList.remove("detailed-active");
+    // Set title on header
+    const titleEl = document.getElementById("header-title");
+    if (titleEl) {
+      titleEl.textContent = stadium.name;
+    }
+
+    // Make sure map and seats containers are displayed
+    const overallMap = document.getElementById("stadium-overall-map-view");
+    if (overallMap) overallMap.style.display = "block";
+    const seatsSec = document.getElementById("block-seats-section");
+    if (seatsSec) seatsSec.style.display = "block";
 
     // Switch default tab
     this.switchDetailTab("map");
 
-    // Render detailed blocks list for '전체' by default
-    this.renderDetailedBlocks("전체");
+    // Clear previous choices and start with collapsed steps
+    state.selectedGradeFilter = null;
+    state.selectedBlock = null;
+
+    // Reset active grade pills class
+    document.querySelectorAll(".grade-pill").forEach(p => p.classList.remove("active"));
+    
+    // Clear block selector container
+    const blockContainer = document.getElementById("block-selector-container");
+    if (blockContainer) {
+      blockContainer.innerHTML = `<div style="padding: 16px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">좌석등급을 선택해 주세요.</div>`;
+    }
+
+    // Reset map dimming (all bright initially)
+    const sectors = document.querySelectorAll(".stadium-sector");
+    sectors.forEach(p => {
+      p.classList.remove("dimmed");
+      p.classList.remove("active-sector");
+      p.style.opacity = "1";
+      p.style.stroke = "none";
+      p.style.fillOpacity = "0.5";
+    });
+
+    this.updateStepVisibility();
 
     // Set info tab content from DB values
     const foodEl = document.getElementById("info-food");
@@ -1113,7 +1133,7 @@ class SeatViewApp {
   }
 
   // Filter map sectors by clicked grade
-  filterMapByGrade(gradeName) {
+  filterMapByGrade(gradeName, shouldScroll = true) {
     // 1. Update active class on filter pills
     document.querySelectorAll(".grade-pill").forEach(pill => {
       pill.classList.remove("active");
@@ -1128,23 +1148,44 @@ class SeatViewApp {
     }
 
     state.selectedGradeFilter = gradeName;
+    state.selectedBlock = null; // Clear selected block when changing grade filter
 
-    // 2. Dim non-matching sectors on the SVG map
-    const sectors = document.querySelectorAll(".stadium-sector");
-    sectors.forEach(sec => {
-      const secGrade = sec.getAttribute("data-grade");
-      if (gradeName === "all" || secGrade === gradeName || secGrade === "scoreboard" || secGrade === "wheelchair") {
-        sec.classList.remove("dimmed");
-      } else {
-        sec.classList.add("dimmed");
+    // Auto-select block if there is only 1 block for the grade
+    if (state.selectedStadium && state.selectedStadium.blocks) {
+      const blocks = state.selectedStadium.blocks;
+      const filteredBlocks = gradeName === "all" ? blocks : blocks.filter(b => b.grade === gradeName);
+      if (filteredBlocks.length === 1) {
+        this.renderBlockSelector(gradeName);
+        this.selectStadiumBlock(filteredBlocks[0].id);
+        const gradeLabels = {
+          premium: "프리미엄석",
+          table: "테이블석",
+          exciting: "익사이팅석",
+          blue: "블루석",
+          orange: "오렌지석(응원)",
+          red: "레드석",
+          navy: "네이비석",
+          green: "외야그린석"
+        };
+        this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} (단일 구역 자동 선택) 필터가 적용되었습니다.`);
+        return;
       }
-    });
+    }
 
-    // 3. Update the blocks grid below dynamically
-    this.renderDetailedBlocks(state.selectedZone || "전체");
+    this.renderBlockSelector(gradeName);
+    this.updateStepVisibility();
+
+    // Smooth scroll to STEP 2
+    if (shouldScroll) {
+      const step2 = document.querySelector(".step-card.block-selector-wrapper");
+      if (step2) {
+        setTimeout(() => {
+          step2.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+      }
+    }
 
     const gradeLabels = {
-      all: "전체 구역",
       premium: "프리미엄석",
       table: "테이블석",
       exciting: "익사이팅석",
@@ -1152,10 +1193,30 @@ class SeatViewApp {
       orange: "오렌지석(응원)",
       red: "레드석",
       navy: "네이비석",
-      green: "외야그린석",
-      wheelchair: "휠체어석"
+      green: "외야그린석"
     };
     this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} 필터가 적용되었습니다.`);
+  }
+
+  updateStepVisibility() {
+    const step2 = document.querySelector(".step-card.block-selector-wrapper");
+    const step3 = document.getElementById("block-seats-section");
+
+    if (step2) {
+      if (state.selectedGradeFilter) {
+        step2.classList.remove("disabled-step");
+      } else {
+        step2.classList.add("disabled-step");
+      }
+    }
+
+    if (step3) {
+      if (state.selectedBlock) {
+        step3.classList.remove("disabled-step");
+      } else {
+        step3.classList.add("disabled-step");
+      }
+    }
   }
 
   // --- Amenities Toggling & Drawing Markers ---
@@ -1318,6 +1379,81 @@ class SeatViewApp {
     lucide.createIcons();
   }
 
+  renderBlockSelector(gradeFilter = "all") {
+    if (!state.selectedStadium) return;
+    const blocks = state.selectedStadium.blocks || [];
+    const filteredBlocks = gradeFilter === "all" ? blocks : blocks.filter(b => b.grade === gradeFilter);
+
+    const groups = {};
+
+    filteredBlocks.forEach(b => {
+      let locType = b.location_type;
+      if (!locType) {
+        // Fallback matching logic for local mock datasets
+        const name = b.name || "";
+        const code = b.block_code || "";
+        if (name.includes("1루") || code.startsWith("10") || code.startsWith("110") || code.startsWith("111") || code.startsWith("20") || code.startsWith("21") || code.startsWith("30") || code.startsWith("31")) {
+          locType = "1루측 (HOME)";
+        } else if (name.includes("3루") || code.startsWith("11") || code.startsWith("12") || code.startsWith("22") || code.startsWith("32") || code.startsWith("33")) {
+          locType = "3루측 (AWAY)";
+        } else {
+          locType = "중앙/기타";
+        }
+      }
+
+      if (!groups[locType]) {
+        groups[locType] = [];
+      }
+      groups[locType].push(b);
+    });
+
+    const sortFunc = (a, b) => a.block_code.localeCompare(b.block_code, undefined, {numeric: true, sensitivity: 'base'});
+    const groupOrder = ["1루측 (HOME)", "3루측 (AWAY)", "중앙/기타"];
+    let html = "";
+
+    const groupKeys = Object.keys(groups).sort((a, b) => {
+      const idxA = groupOrder.indexOf(a);
+      const idxB = groupOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    groupKeys.forEach(groupName => {
+      const groupBlocks = groups[groupName];
+      if (groupBlocks.length === 0) return;
+      groupBlocks.sort(sortFunc);
+
+      html += `
+        <div class="block-selector-group">
+          <div class="block-selector-group-title">
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i>
+            <span>${groupName}</span>
+          </div>
+          <div class="block-selector-group-list ${groupBlocks.some(b => b.block_code.length > 3) ? 'has-long-labels' : ''}">
+            ${groupBlocks.map(b => {
+              const isActive = state.selectedBlock && state.selectedBlock.id === b.id;
+              return `
+                <button class="block-pill-btn ${isActive ? 'active' : ''}" 
+                        data-grade="${b.grade}"
+                        onclick="app.selectStadiumBlock('${b.id}')">
+                  ${b.block_code}
+                </button>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    const container = document.getElementById("block-selector-container");
+    if (container) {
+      container.innerHTML = html || `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">선택한 등급에 해당하는 구역이 없습니다.</div>`;
+      lucide.createIcons();
+    }
+  }
+
   selectStadiumBlock(blockId) {
     if (blockId === "scoreboard") {
       this.showToast("ℹ️", "🏟️ 전광판 영역입니다. 경기 정보가 실시간 표기됩니다.");
@@ -1330,22 +1466,70 @@ class SeatViewApp {
 
     state.selectedBlock = block;
 
-    // Hide Overall map, show Seating Grid
-    document.getElementById("stadium-overall-map-view").style.display = "none";
-    document.getElementById("block-seats-section").style.display = "block";
-    const tabMapContainer = document.getElementById("tab-content-map");
-    if (tabMapContainer) tabMapContainer.classList.add("detailed-active");
-
-    // Set header title
-    const titleEl = document.getElementById("header-title");
-    if (titleEl) {
-      titleEl.textContent = block.name;
+    // Update active grade filter to match the selected block's grade
+    if (block.grade && block.grade !== state.selectedGradeFilter) {
+      state.selectedGradeFilter = block.grade;
+      document.querySelectorAll(".grade-pill").forEach(pill => {
+        pill.classList.remove("active");
+      });
+      const activePill = Array.from(document.querySelectorAll(".grade-pill")).find(pill => 
+        pill.getAttribute("onclick").includes(`'${block.grade}'`)
+      );
+      if (activePill) {
+        activePill.classList.add("active");
+      }
     }
+
+    // Refresh block selector buttons active highlight
+    this.renderBlockSelector(state.selectedGradeFilter || "all");
+
+    // Set header title (keep stadium name constant)
+    const titleEl = document.getElementById("header-title");
+    if (titleEl && state.selectedStadium) {
+      titleEl.textContent = state.selectedStadium.name;
+    }
+
+    // Highlight matching SVG path and update dimming based on current grade filter
+    const paths = document.querySelectorAll(".stadium-sector");
+    paths.forEach(p => {
+      const pBlockId = p.getAttribute("data-block-id");
+      const pGrade = p.getAttribute("data-grade");
+      const matchesFilter = (state.selectedGradeFilter === "all" || pGrade === state.selectedGradeFilter);
+
+      if (pBlockId === String(blockId)) {
+        p.classList.add("active-sector");
+        p.classList.remove("dimmed");
+        p.style.stroke = "#ffffff";
+        p.style.strokeWidth = "3.5px";
+        p.style.fillOpacity = "0.9";
+        p.style.opacity = "1";
+      } else {
+        p.classList.remove("active-sector");
+        p.style.stroke = "none";
+        p.style.fillOpacity = "0.5";
+        if (matchesFilter) {
+          p.classList.remove("dimmed");
+          p.style.opacity = "1";
+        } else {
+          p.classList.add("dimmed");
+          p.style.opacity = "0.18";
+        }
+      }
+    });
 
     // Render seating grid
     document.getElementById("selected-block-badge").textContent = block.category;
     document.getElementById("selected-block-title").textContent = block.name;
     this.renderSeatingGrid(blockId);
+    this.updateStepVisibility();
+
+    // Smooth scroll to STEP 3
+    const step3 = document.getElementById("block-seats-section");
+    if (step3) {
+      setTimeout(() => {
+        step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    }
   }
 
   handleNoPhotoSeatClick(blockName, seatName) {
@@ -1405,6 +1589,16 @@ class SeatViewApp {
             rowsMap[seat.row_num].push(seat);
           });
 
+          // Calculate max columns in this block
+          let maxCols = 0;
+          Object.keys(rowsMap).forEach(r => {
+            if (rowsMap[r].length > maxCols) {
+              maxCols = rowsMap[r].length;
+            }
+          });
+          const visibleSeats = Math.min(maxCols, 14);
+          container.style.setProperty('--visible-seats', visibleSeats);
+
           const maxRows = Math.max(...Object.keys(rowsMap).map(Number));
           for (let r = 1; r <= maxRows; r++) {
             const rowSeats = rowsMap[r];
@@ -1422,7 +1616,10 @@ class SeatViewApp {
             seatsDiv.className = "row-seats";
 
             rowSeats.forEach(seat => {
-              if (seat.status === "WALKWAY" || seat.seat_num === null) {
+              const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY" || seat.seat_num === null);
+              const isPhotoExists = (seat.status == 2 || seat.status === "2" || seat.status === "PHOTO_EXISTS");
+
+              if (isWalkway) {
                 const gapBtn = document.createElement("button");
                 gapBtn.className = "seat-item gap";
                 seatsDiv.appendChild(gapBtn);
@@ -1435,11 +1632,8 @@ class SeatViewApp {
                   seatBtn.style.marginLeft = "12px";
                 }
 
-                if (seat.status === "PHOTO_EXISTS") {
+                if (isPhotoExists) {
                   seatBtn.classList.add("has-camera");
-                  seatBtn.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
-                  seatBtn.style.borderColor = "var(--danger)";
-                  seatBtn.style.color = "#ef4444";
                   
                   const dbKey = seat.id;
                   seatBtn.onclick = () => this.openSeatDetail(dbKey);
@@ -1460,9 +1654,9 @@ class SeatViewApp {
       }
     }
 
-    const isJamsil103 = (blockId === "b103" && state.selectedStadium && state.selectedStadium.id === "jamsil");
-    const isJamsil118 = (blockId === "b118" && state.selectedStadium && state.selectedStadium.id === "jamsil");
-    const isJamsil219 = (blockId === "b219" && state.selectedStadium && state.selectedStadium.id === "jamsil");
+    const isJamsil103 = ((blockId === "b103" || blockId === "7") && state.selectedStadium && state.selectedStadium.id === "jamsil");
+    const isJamsil118 = ((blockId === "b118" || blockId === "21") && state.selectedStadium && state.selectedStadium.id === "jamsil");
+    const isJamsil219 = ((blockId === "b219" || blockId === "44") && state.selectedStadium && state.selectedStadium.id === "jamsil");
 
     if (isJamsil103 || isJamsil118 || isJamsil219) {
       let layout, occupied, blocked;
@@ -1548,6 +1742,16 @@ class SeatViewApp {
         blocked = [];
       }
 
+      // Calculate max columns in this mock layout
+      let maxCols = 0;
+      Object.keys(layout).forEach(r => {
+        if (layout[r].length > maxCols) {
+          maxCols = layout[r].length;
+        }
+      });
+      const visibleSeats = Math.min(maxCols, 14);
+      container.style.setProperty('--visible-seats', visibleSeats);
+
       const maxRows = Math.max(...Object.keys(layout).map(Number));
       for (let r = 1; r <= maxRows; r++) {
         const rowDiv = document.createElement("div");
@@ -1595,9 +1799,6 @@ class SeatViewApp {
             
             if (occupied.includes(seatKey)) {
               seatBtn.classList.add("has-camera");
-              seatBtn.style.backgroundColor = "rgba(239, 68, 68, 0.25)";
-              seatBtn.style.borderColor = "var(--danger)";
-              seatBtn.style.color = "#ef4444";
               
               // Seed view key mapping (we'll reuse jamsil_b103 for demo detail visual comparison)
               const dbKey = isJamsil103 ? `jamsil_b103_${r}_${sVal}` : `jamsil_b103_1_1`;
@@ -1622,6 +1823,9 @@ class SeatViewApp {
       const maxRows = 5;
       const maxSeats = 8;
 
+      const visibleSeats = Math.min(maxSeats, 14);
+      container.style.setProperty('--visible-seats', visibleSeats);
+
       for (let r = 1; r <= maxRows; r++) {
         const rowDiv = document.createElement("div");
         rowDiv.className = "seat-row";
@@ -1644,13 +1848,11 @@ class SeatViewApp {
 
           if (hasPhoto) {
             seatBtn.classList.add("has-camera");
-            seatBtn.innerHTML = "📷";
             seatBtn.onclick = () => this.openSeatDetail(dbKey);
           } else {
             const isMockPhoto = (r + s) % 7 === 0;
             if (isMockPhoto) {
               seatBtn.classList.add("has-camera");
-              seatBtn.innerHTML = "📷";
               seatBtn.onclick = () => this.openMockSeatDetail(r, s);
             } else {
               seatBtn.onclick = () => this.handleNoPhotoSeatClick(state.selectedBlock.name.split(" ")[1] || "구역", `${r}열 ${s}번`);
@@ -2364,11 +2566,35 @@ class SeatViewApp {
     this.showToast("🎭", "뮤지컬/대형공연장 시야 정보는 초기 서비스 안정화 후 곧 오픈될 예정입니다. 야구장 데이터를 먼저 체험해 보세요!");
   }
 
+  showFlightComingSoon() {
+    this.showToast("✈️", "항공/영화관 시야 정보는 초기 서비스 안정화 후 곧 오픈될 예정입니다. 야구장 데이터를 먼저 체험해 보세요!");
+  }
+
+  toggleMapCollapse() {
+    const wrapper = document.getElementById("stadium-static-map-wrapper");
+    const btn = document.getElementById("map-collapse-btn");
+    if (!wrapper || !btn) return;
+    
+    const isCollapsed = wrapper.classList.toggle("collapsed");
+    if (isCollapsed) {
+      btn.classList.remove("expanded");
+      btn.querySelector("span").textContent = "🗺️ 경기장 이미지 펼치기";
+    } else {
+      btn.classList.add("expanded");
+      btn.querySelector("span").textContent = "🗺️ 경기장 이미지 접기";
+    }
+  }
+
   loadJamsilDetail() {
     this.loadStadiumDetail("jamsil");
     // Trigger block 102 view
     setTimeout(() => {
-      this.handleZoneClick("b102");
+      if (state.selectedStadium && state.selectedStadium.blocks) {
+        const b102 = state.selectedStadium.blocks.find(b => b.block_code === "102" || b.id === "b102" || b.id === "5");
+        if (b102) {
+          this.selectStadiumBlock(b102.id);
+        }
+      }
     }, 200);
   }
 

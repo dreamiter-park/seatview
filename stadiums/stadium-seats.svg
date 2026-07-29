@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="stadium-seats">
+<rect id="stadium_transparent 1" width="1024" height="1024" fill="url(#pattern0_1_13)"/>
+<path id="section-101" d="M810 453.5L796 475.5L856 485V461.5L850.5 435L810 453.5Z" fill="#833740" fill-opacity="0.5"/>
+<path id="section-102" d="M791 486L780.5 506L841.5 534.5L852.5 500L791 486Z" fill="#833740" fill-opacity="0.5"/>
+<path id="section-209" d="M754 677L732 698L775.5 732.5L798 707.5L754 677Z" fill="#396382" fill-opacity="0.5"/>
+<path id="section-213" d="M636.5 791.5C628.333 800.333 611 818 607 818L626.5 823L652.5 818L636.5 791.5Z" fill="#7E4676" fill-opacity="0.5"/>
+<path id="section-center" d="M450.5 814L466 760L515.5 768L567.5 760L580.5 814L535 825H494.5L450.5 814Z" fill="#58200C" fill-opacity="0.5"/>
+<path id="section-exciting2" d="M312.5 573L233.5 451.5L259.5 456.5L312.5 547V573Z" fill="#675B56" fill-opacity="0.5"/>
+<path id="section-417" d="M191.5 233L164 261.5L222 300L241.5 280.5L191.5 233Z" fill="#779365" fill-opacity="0.5"/>
+</g>
+<defs>
+<pattern id="pattern0_1_13" patternContentUnits="objectBoundingBox" width="1" height="1">
+<use xlink:href="#image0_1_13" transform="scale(0.000976562)"/>
+</pattern>
+<image id="image0_1_13" data-name="stadium_01.png" width="1024" height="1024" preserveAspectRatio="none" xlink:href="stadiums/stadium_01.png"/>
+</defs>
+</svg>
