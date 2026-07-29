@@ -1045,9 +1045,32 @@ body {
 }
 
 .seat-grid-container {
+  container-type: inline-size;
   overflow-x: auto;
   padding-bottom: 8px;
   width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) rgba(30, 41, 59, 0.4);
+}
+
+/* Custom Scrollbar for Seat Grid Container */
+.seat-grid-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.seat-grid-container::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.4);
+  border-radius: 10px;
+}
+
+.seat-grid-container::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.4);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.seat-grid-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple);
 }
 
 .seat-grid-legend {
@@ -1115,7 +1138,7 @@ body {
 }
 
 .seat-item {
-  flex: 0 0 calc((100% - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14));
+  flex: 0 0 calc((100cqw - 36px - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14));
   aspect-ratio: 1;
   min-width: 0;
   background-color: var(--bg-seat-default);
@@ -2759,13 +2782,19 @@ body {
 }
 
 .block-selector-group-title {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8; /* unified soft slate-400 */
+  margin-top: 10px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  letter-spacing: 0.03em;
+}
+
+.block-selector-group-title i {
+  color: #64748b; /* slate-500 for subtle icon visibility */
 }
 
 .block-selector-group-list {

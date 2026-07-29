@@ -43,7 +43,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=3.7">
+  <link rel="stylesheet" href="style_v6.css?v=4.1">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -179,12 +179,12 @@
               
               <!-- Collapsible Stadium Map Accordion -->
               <div class="map-guide-card" style="margin-bottom: 16px;">
-                <button class="map-collapse-btn" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
-                  <span>🗺️ 경기장 이미지 펼치기</span>
+                <button class="map-collapse-btn expanded" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
+                  <span>🗺️ 경기장 이미지 접기</span>
                   <i data-lucide="chevron-down" class="collapse-icon" id="map-collapse-icon"></i>
                 </button>
 
-                <div class="stadium-static-map-wrapper collapsed" id="stadium-static-map-wrapper">
+                <div class="stadium-static-map-wrapper" id="stadium-static-map-wrapper">
                   <img id="stadium-static-map-img" src="" alt="구장 전체 안내도" class="stadium-static-map">
                 </div>
               </div>
@@ -553,7 +553,7 @@
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="stadiums/jamsil.js?v=3.7"></script>
-  <script src="app_v6.js?v=3.7"></script>
+  <script src="stadiums/jamsil.js?v=4.4"></script>
+  <script src="app_v6.js?v=4.4"></script>
 </body>
 </html>

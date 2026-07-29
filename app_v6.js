@@ -1041,19 +1041,33 @@ class SeatViewApp {
     const allPill = Array.from(document.querySelectorAll(".grade-pill")).find(p => p.textContent.includes("전체"));
     if (allPill) allPill.classList.add("active");
 
-    if (stadiumId === "jamsil") {
-      let mapContent = `
-        <div id="image-map-pro-653" class="imp-initialized" data-image-map-id="653" data-image-map-name="JAMSIL">
-          <div class="imp-container imp-ui-light">
-            <div class="imp-ui-wrap">
-              <div class="imp-ui"></div>
-              <div class="imp-canvas-wrap">
-                <div class="imp-canvas">
-                  <div class="imp-translate">
-                    <div class="imp-scale">
-                      <img src="https://myseatcheck.com/wp-content/uploads/2024/06/완성세로-1.jpg" class="imp-image">
-                      <div class="imp-objects">
-                        ${JAMSIL_SVG_HTML}
+    const stadiumObj = state.selectedStadium;
+    const hasDbMap = stadiumObj && stadiumObj.map_image_url;
+
+    if (stadiumId === "jamsil" || hasDbMap) {
+      let mapContent = "";
+      if (stadiumId !== "jamsil" && hasDbMap) {
+        // Render dynamic flat PNG stadium map image
+        mapContent = `
+          <div class="flat-map-container" style="position: relative; width: 100%; text-align: center; padding: 8px 0;">
+            <img src="${stadiumObj.map_image_url}" style="width: 100%; max-width: 480px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md);">
+          </div>
+        `;
+      } else {
+        // Fallback to Jamsil interactive SVG map
+        mapContent = `
+          <div id="image-map-pro-653" class="imp-initialized" data-image-map-id="653" data-image-map-name="JAMSIL">
+            <div class="imp-container imp-ui-light">
+              <div class="imp-ui-wrap">
+                <div class="imp-ui"></div>
+                <div class="imp-canvas-wrap">
+                  <div class="imp-canvas">
+                    <div class="imp-translate">
+                      <div class="imp-scale">
+                        <img src="https://myseatcheck.com/wp-content/uploads/2024/06/완성세로-1.jpg" class="imp-image">
+                        <div class="imp-objects">
+                          ${JAMSIL_SVG_HTML}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1061,9 +1075,9 @@ class SeatViewApp {
               </div>
             </div>
           </div>
-        </div>
-        <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
-      `;
+          <div id="amenities-marker-wrapper" style="position: absolute; inset: 0; pointer-events: none; margin: 16px;"></div>
+        `;
+      }
       container.innerHTML = mapContent;
 
       const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
@@ -1425,10 +1439,20 @@ class SeatViewApp {
       if (groupBlocks.length === 0) return;
       groupBlocks.sort(sortFunc);
 
+      let groupClass = "other";
+      let groupIcon = "map-pin";
+      if (groupName.includes("1루") || groupName.includes("HOME")) {
+        groupClass = "home";
+        groupIcon = "home";
+      } else if (groupName.includes("3루") || groupName.includes("AWAY")) {
+        groupClass = "away";
+        groupIcon = "flag";
+      }
+
       html += `
         <div class="block-selector-group">
-          <div class="block-selector-group-title">
-            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i>
+          <div class="block-selector-group-title ${groupClass}">
+            <i data-lucide="${groupIcon}" style="width: 12px; height: 12px;"></i>
             <span>${groupName}</span>
           </div>
           <div class="block-selector-group-list ${groupBlocks.some(b => b.block_code.length > 3) ? 'has-long-labels' : ''}">
@@ -1636,6 +1660,21 @@ class SeatViewApp {
                   seatBtn.classList.add("has-camera");
                   
                   const dbKey = seat.id;
+                  if (!SEAT_VIEWS_DB[dbKey]) {
+                    SEAT_VIEWS_DB[dbKey] = {
+                      stadiumName: state.selectedStadium.name,
+                      blockName: state.selectedBlock.name,
+                      seatName: `${r}열 ${seat.seat_num}번`,
+                      image: "assets/seat_view_clean.png",
+                      uploader: "@anonymous",
+                      uploaderBadge: "일반 제보자",
+                      upvotes: 0,
+                      downvotes: 0,
+                      userVoted: null,
+                      tags: ["✅ 일반 시야"],
+                      comment: "데이터베이스에 등록된 시야 사진입니다."
+                    };
+                  }
                   seatBtn.onclick = () => this.openSeatDetail(dbKey);
                 } else {
                   seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${r}열 ${seat.seat_num}번`);
