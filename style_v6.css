@@ -2855,6 +2855,7 @@ body {
 .block-pill-btn[data-grade="red"] { border-left: 3.5px solid #dc2626; }
 .block-pill-btn[data-grade="navy"] { border-left: 3.5px solid #1e3a8a; }
 .block-pill-btn[data-grade="green"] { border-left: 3.5px solid #16a34a; }
+.block-pill-btn[data-grade="outfield_cheer"] { border-left: 3.5px solid #059669; }
 .block-pill-btn[data-grade="wheelchair"] { border-left: 3.5px solid #64748b; }
 
 

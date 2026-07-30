@@ -935,6 +935,7 @@ class SeatViewApp {
               if (sg.includes("오렌지")) return "orange";
               if (sg.includes("레드")) return "red";
               if (sg.includes("네이비")) return "navy";
+              if (sg.includes("외야응원") || sg.includes("외야 응원")) return "outfield_cheer";
               if (sg.includes("외야") || sg.includes("그린")) return "green";
               if (sg.includes("휠체어")) return "wheelchair";
               return "navy";
@@ -1179,7 +1180,8 @@ class SeatViewApp {
           orange: "오렌지석(응원)",
           red: "레드석",
           navy: "네이비석",
-          green: "외야그린석"
+          green: "외야그린석",
+          outfield_cheer: "외야응원석"
         };
         this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} (단일 구역 자동 선택) 필터가 적용되었습니다.`);
         return;
@@ -1207,7 +1209,8 @@ class SeatViewApp {
       orange: "오렌지석(응원)",
       red: "레드석",
       navy: "네이비석",
-      green: "외야그린석"
+      green: "외야그린석",
+      outfield_cheer: "외야응원석"
     };
     this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} 필터가 적용되었습니다.`);
   }
