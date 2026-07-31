@@ -1610,17 +1610,21 @@ class SeatViewApp {
         if (!error && seats && seats.length > 0) {
           const rowsMap = {};
           seats.forEach(seat => {
-            if (!rowsMap[seat.row_num]) {
-              rowsMap[seat.row_num] = [];
+            const rowKey = seat.grid_y || 1;
+            if (!rowsMap[rowKey]) {
+              rowsMap[rowKey] = {
+                label: seat.row_num || String(seat.grid_y),
+                seats: []
+              };
             }
-            rowsMap[seat.row_num].push(seat);
+            rowsMap[rowKey].seats.push(seat);
           });
 
           // Calculate max columns in this block
           let maxCols = 0;
           Object.keys(rowsMap).forEach(r => {
-            if (rowsMap[r].length > maxCols) {
-              maxCols = rowsMap[r].length;
+            if (rowsMap[r].seats.length > maxCols) {
+              maxCols = rowsMap[r].seats.length;
             }
           });
           const visibleSeats = Math.min(maxCols, 14);
@@ -1628,15 +1632,18 @@ class SeatViewApp {
 
           const maxRows = Math.max(...Object.keys(rowsMap).map(Number));
           for (let r = 1; r <= maxRows; r++) {
-            const rowSeats = rowsMap[r];
-            if (!rowSeats) continue;
+            const rowData = rowsMap[r];
+            if (!rowData) continue;
+
+            const rowSeats = rowData.seats;
 
             const rowDiv = document.createElement("div");
             rowDiv.className = "seat-row";
 
             const label = document.createElement("span");
             label.className = "row-num";
-            label.textContent = `${r}열`;
+            const dispLabel = String(rowData.label).endsWith("열") ? rowData.label : `${rowData.label}열`;
+            label.textContent = dispLabel;
             rowDiv.appendChild(label);
 
             const seatsDiv = document.createElement("div");
@@ -1656,7 +1663,7 @@ class SeatViewApp {
                 seatBtn.textContent = seat.seat_num;
 
                 if (seat.offset_type === "half") {
-                  seatBtn.style.marginLeft = "12px";
+                   seatBtn.style.marginLeft = "12px";
                 }
 
                 if (isPhotoExists) {
@@ -1667,7 +1674,7 @@ class SeatViewApp {
                     SEAT_VIEWS_DB[dbKey] = {
                       stadiumName: state.selectedStadium.name,
                       blockName: state.selectedBlock.name,
-                      seatName: `${r}열 ${seat.seat_num}번`,
+                      seatName: `${seat.row_num}열 ${seat.seat_num}번`,
                       image: "assets/seat_view_clean.png",
                       uploader: "@anonymous",
                       uploaderBadge: "일반 제보자",
@@ -1680,7 +1687,7 @@ class SeatViewApp {
                   }
                   seatBtn.onclick = () => this.openSeatDetail(dbKey);
                 } else {
-                  seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${r}열 ${seat.seat_num}번`);
+                  seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${seat.row_num}열 ${seat.seat_num}번`);
                 }
                 seatsDiv.appendChild(seatBtn);
               }

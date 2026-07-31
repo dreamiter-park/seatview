@@ -767,9 +767,9 @@
 
           if (error) throw error;
 
-          // Populate cache map
+          // Populate cache map using grid_y as the integer row coordinate key
           seats.forEach(s => {
-            const key = `${s.row_num}_${s.grid_x}`;
+            const key = `${s.grid_y}_${s.grid_x}`;
             this.seatsCache[key] = s;
             
             const isWalkway = (s.status == 3 || s.status === "3" || s.status === "WALKWAY");
@@ -849,7 +849,7 @@
           rowTh.innerHTML = `
             <div class="row-chk-wrap">
               <input type="checkbox" id="row-chk-${r}" onchange="app.toggleRowAvailability(${r}, this.checked)">
-              <span>${r}행</span>
+              <span>${this.getRowLabel(r)}행</span>
             </div>
           `;
           tr.appendChild(rowTh);
@@ -906,7 +906,7 @@
           // Row header
           const rowTh = document.createElement("th");
           rowTh.className = "row-header";
-          rowTh.textContent = `${r}행`;
+          rowTh.textContent = `${this.getRowLabel(r)}행`;
           tr.appendChild(rowTh);
 
           // Row cells
@@ -1234,6 +1234,19 @@
         this.showToast("초기화", "모든 좌석 번호가 일괄 초기화되었습니다. 저장하려면 [좌석번호 저장]을 클릭하세요.", "warning");
       }
 
+      getRowLabel(r) {
+        if (this.selectedStadium && this.selectedStadium.name.includes("고척")) {
+          let label = "";
+          let temp = r - 1;
+          while (temp >= 0) {
+            label = String.fromCharCode(65 + (temp % 26)) + label;
+            temp = Math.floor(temp / 26) - 1;
+          }
+          return label;
+        }
+        return String(r);
+      }
+
       // Tab switching
       switchTab(tabName) {
         this.activeTab = tabName;
@@ -1276,7 +1289,7 @@
               // Build row payload
               const record = {
                 block_id: blockId,
-                row_num: r,
+                row_num: this.getRowLabel(r),
                 grid_x: c,
                 grid_y: r,
                 status: String(status),
@@ -1353,7 +1366,7 @@
 
               const record = {
                 block_id: blockId,
-                row_num: r,
+                row_num: this.getRowLabel(r),
                 grid_x: c,
                 grid_y: r,
                 status: String(status),
