@@ -19,7 +19,8 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 }
 
 // --- 1. Seed & Mock Database ---
-const STADIUMS_DB = [
+let STADIUMS_DB = [];
+const MOCK_STADIUMS_DB = [
   {
     id: "jamsil",
     name: "잠실 야구장",
@@ -148,58 +149,58 @@ const STADIUMS_DB = [
     bg: "assets/jamsil_stadium.png",
     gradient: "linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(15, 23, 42, 0.75))",
     blocks: [
-      { id: "b101", name: "블루존 3-1구역", category: "응원" },
-      { id: "b102", name: "3루 내야지정석", category: "내야" }
+      { id: "b101", name: "VIP석 1블록", category: "프리미엄" },
+      { id: "b102", name: "블루존 (응원단상)", category: "응원" }
     ],
     amenities: {
-      toilet: [{ name: "블루존 뒤 화장실", x: 30, y: 70 }],
-      snack: [{ name: "라이온즈파크 납작만두", x: 35, y: 65 }],
-      exit: [{ name: "정문 출구", x: 50, y: 80 }],
-      medical: [{ name: "라팍 의무실", x: 50, y: 60 }]
+      toilet: [{ name: "1루 복도 화장실", x: 65, y: 70 }],
+      snack: [{ name: "대구 명물 납작만두", x: 60, y: 65 }],
+      exit: [{ name: "메인 게이트", x: 50, y: 80 }],
+      medical: [{ name: "라이온즈 의무실", x: 55, y: 55 }]
     }
   },
   {
     id: "gwangju",
-    name: "광주-기아 챔피언스 필드",
-    fullname: "광주-기아 챔피언스 필드",
+    name: "광주 기아 챔피언스 필드",
+    fullname: "광주 기아 챔피언스 필드",
     team: "KIA 타이거즈",
     location: "광주 북구 서림로 10",
     bg: "assets/jamsil_stadium.png",
-    gradient: "linear-gradient(135deg, rgba(185, 28, 28, 0.95), rgba(28, 25, 23, 0.75))",
+    gradient: "linear-gradient(135deg, rgba(185, 28, 28, 0.95), rgba(9, 9, 11, 0.75))",
     blocks: [
-      { id: "b101", name: "3루 K9구역", category: "내야" },
-      { id: "b102", name: "서서피크닉석", category: "외야" }
+      { id: "b101", name: "챔피언석 (백넷 뒤)", category: "프리미엄" },
+      { id: "b102", name: "3루 서프라이즈존", category: "내야" }
     ],
     amenities: {
-      toilet: [{ name: "3루 내야 복도 화장실", x: 35, y: 70 }],
-      snack: [{ name: "광주 챔필 마왕족발", x: 40, y: 65 }],
-      exit: [{ name: "메인 게이트", x: 50, y: 80 }],
-      medical: [{ name: "타이거즈 의무실", x: 50, y: 55 }]
+      toilet: [{ name: "3루 지정석 화장실", x: 35, y: 70 }],
+      snack: [{ name: "챔필 마왕족발/광주홈런볼", x: 40, y: 65 }],
+      exit: [{ name: "중앙 출입구", x: 50, y: 80 }],
+      medical: [{ name: "타이거즈 의무실", x: 45, y: 55 }]
     }
   },
   {
     id: "daejeon",
-    name: "한화생명 이글스파크",
+    name: "대전 한화생명 이글스파크",
     fullname: "대전 한화생명 이글스파크",
     team: "한화 이글스",
     location: "대전 중구 대종로 373",
     bg: "assets/jamsil_stadium.png",
-    gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(39, 39, 42, 0.75))",
+    gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(24, 24, 27, 0.75))",
     blocks: [
-      { id: "b101", name: "1루 내야탁자석", category: "내야" },
-      { id: "b102", name: "외야 자유석", category: "외야" }
+      { id: "b101", name: "1루 내야탁자석", category: "테이블" },
+      { id: "b102", name: "1루 응원지정석", category: "응원" }
     ],
     amenities: {
-      toilet: [{ name: "1루 화장실", x: 65, y: 70 }],
-      snack: [{ name: "농심 가락 떡볶이", x: 60, y: 65 }],
-      exit: [{ name: "주 게이트", x: 50, y: 80 }],
-      medical: [{ name: "이글스 의무실", x: 55, y: 50 }]
+      toilet: [{ name: "1루 출입구 쪽 화장실", x: 70, y: 75 }],
+      snack: [{ name: "농심 가락국수 야구장점", x: 60, y: 70 }],
+      exit: [{ name: "1루 매표소 방향 게이트", x: 50, y: 85 }],
+      medical: [{ name: "이글스 의무대", x: 45, y: 60 }]
     }
   },
   {
     id: "busan",
-    name: "사직 야구장",
-    fullname: "사직 야구장",
+    name: "부산 사직 야구장",
+    fullname: "부산 사직 야구장",
     team: "롯데 자이언츠",
     location: "부산 동래구 사직로 45",
     bg: "assets/jamsil_stadium.png",
@@ -517,12 +518,29 @@ class SeatViewApp {
     this.renderStadiumList();
     this.loadStadiums().then(() => {
       this.renderStadiumList();
+      this.checkUserSession();
     });
     this.loadCategories();
     this.updateCompareBadge();
 
     // Setup Event Listeners
     this.setupListeners();
+
+    // Initialize profile values from localStorage
+    const savedStadium = localStorage.getItem("seatview_favorite_stadium") || "jamsil";
+    const savedTeam = localStorage.getItem("seatview_cheering_team") || "LG \uD2B8\uC708\uC2A4";
+    const savedNickname = localStorage.getItem("seatview_nickname") || "@\uC57C\uAD6C\uB7EC\uBC84";
+    state.favoriteStadiumId = savedStadium;
+    state.cheeringTeam = savedTeam;
+    state.userNickname = savedNickname;
+
+    const profileStadiumEl = document.getElementById("my-profile-stadium");
+    const profileTeamEl = document.getElementById("my-profile-team");
+    const profileNicknameEl = document.getElementById("my-profile-nickname");
+    const favStadiumObj = STADIUMS_DB.find(s => s.id === savedStadium);
+    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
+    if (profileTeamEl) profileTeamEl.textContent = savedTeam;
+    if (profileNicknameEl) profileNicknameEl.textContent = savedNickname;
 
     // Initialize Theme
     const savedTheme = localStorage.getItem("seatview_theme") || "dark";
@@ -534,10 +552,10 @@ class SeatViewApp {
     if (themeIcon && themeText) {
       if (savedTheme === "light") {
         themeIcon.setAttribute("data-lucide", "moon");
-        themeText.textContent = "다크 모드로 전환";
+        themeText.textContent = "\uB2E4\uD06C \uBAA8\uB4DC\uB85C \uC804\uD658";
       } else {
         themeIcon.setAttribute("data-lucide", "sun");
-        themeText.textContent = "라이트 모드로 전환";
+        themeText.textContent = "\uB77C\uC774\uD2B8 \uBAA8\uB4DC\uB85C \uC804\uD658";
       }
     }
 
@@ -641,6 +659,8 @@ class SeatViewApp {
           .order('display_order', { ascending: true });
 
         if (!error && data && data.length > 0) {
+          STADIUMS_DB = []; // Reset STADIUMS_DB to strictly use DB values
+          
           const idMap = {
             1: "jamsil",
             2: "gocheok",
@@ -653,50 +673,98 @@ class SeatViewApp {
             9: "busan"
           };
 
+          const amenitiesFallback = {
+            jamsil: {
+              toilet: [
+                { name: "1루 화장실", x: 70, y: 71 },
+                { name: "3루 화장실", x: 30, y: 71 },
+                { name: "외야 중앙 화장실", x: 50, y: 13 }
+              ],
+              snack: [
+                { name: "삼겹살 광장 매점", x: 79, y: 66 },
+                { name: "원조 김말이 떡볶이", x: 61, y: 73.5 },
+                { name: "3루 백미당/스테프핫도그", x: 21, y: 66 }
+              ],
+              exit: [
+                { name: "1루 내야 출입구", x: 87, y: 82 },
+                { name: "3루 내야 출입구", x: 13, y: 82 },
+                { name: "외야 매표소 게이트", x: 50, y: 5 }
+              ],
+              medical: [
+                { name: "의무실 (1루 복도 안쪽)", x: 63, y: 55 }
+              ]
+            },
+            gocheok: {
+              toilet: [
+                { name: "내야 화장실 1", x: 45, y: 65 },
+                { name: "외야 화장실 1", x: 50, y: 20 }
+              ],
+              snack: [
+                { name: "고척 크림새우 맛집", x: 55, y: 70 }
+              ],
+              exit: [
+                { name: "A 게이트", x: 50, y: 85 }
+              ],
+              medical: [
+                { name: "돔 의무소", x: 50, y: 50 }
+              ]
+            },
+            suwon: {
+              toilet: [{ name: "지정석 복도 화장실", x: 60, y: 75 }],
+              snack: [{ name: "진미통닭 위즈파크점", x: 65, y: 60 }],
+              exit: [{ name: "주 게이트", x: 50, y: 80 }],
+              medical: [{ name: "위즈 의무대", x: 40, y: 55 }]
+            },
+            incheon: {
+              toilet: [{ name: "1루 복도 화장실", x: 70, y: 70 }],
+              snack: [{ name: "스타벅스 랜더스필드점", x: 55, y: 40 }],
+              exit: [{ name: "게이트 1", x: 50, y: 85 }],
+              medical: [{ name: "랜더스 의무실", x: 45, y: 60 }]
+            },
+            busan: {
+              toilet: [{ name: "1루 복도 화장실", x: 65, y: 70 }],
+              snack: [{ name: "사직 운동장 자이언츠 만두", x: 70, y: 65 }],
+              exit: [{ name: "중앙 게이트", x: 50, y: 80 }],
+              medical: [{ name: "자이언츠 의무실", x: 50, y: 55 }]
+            },
+            changwon: {
+              toilet: [{ name: "1루 에스컬레이터 옆 화장실", x: 65, y: 70 }],
+              snack: [{ name: "알통떡강정 파크점", x: 60, y: 65 }],
+              exit: [{ name: "메인 진입 광장", x: 50, y: 85 }],
+              medical: [{ name: "NC 의무실", x: 55, y: 60 }]
+            }
+          };
+
           data.forEach(dbStadium => {
             const mappedId = idMap[dbStadium.id] || dbStadium.id;
-            const mockStadium = STADIUMS_DB.find(st => st.id === mappedId);
-
-            if (mockStadium) {
-              mockStadium.name = dbStadium.name;
-              mockStadium.fullname = dbStadium.name;
-              mockStadium.team = dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "";
-              mockStadium.location = dbStadium.address || dbStadium.location_district;
-              if (dbStadium.bg_image_url) {
-                mockStadium.bg = dbStadium.bg_image_url;
-              }
-              if (dbStadium.primary_color) {
-                const secColor = dbStadium.secondary_color || '#1e293b';
-                mockStadium.gradient = `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)`;
-              }
-              mockStadium.food_info = dbStadium.food_info;
-              mockStadium.parking_info = dbStadium.parking_info;
-              mockStadium.sunlight_info = dbStadium.sunlight_info;
-            } else {
-              const newId = dbStadium.name.replace(/\s+/g, "_").toLowerCase();
-              const secColor = dbStadium.secondary_color || '#1e293b';
-              const newStadium = {
-                id: newId,
-                name: dbStadium.name,
-                fullname: dbStadium.name,
-                team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
-                location: dbStadium.address || dbStadium.location_district,
-                bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
-                gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
-                blocks: [],
-                amenities: { toilet: [], snack: [], exit: [], medical: [] },
-                food_info: dbStadium.food_info,
-                parking_info: dbStadium.parking_info,
-                sunlight_info: dbStadium.sunlight_info
-              };
-              STADIUMS_DB.push(newStadium);
-            }
+            const secColor = dbStadium.secondary_color || '#1e293b';
+            const newStadium = {
+              id: mappedId,
+              db_id: dbStadium.id,
+              display_order: dbStadium.display_order,
+              name: dbStadium.name,
+              fullname: dbStadium.name,
+              team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
+              location: dbStadium.address || dbStadium.location_district,
+              bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
+              gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
+              blocks: [],
+              amenities: amenitiesFallback[mappedId] || { toilet: [], snack: [], exit: [], medical: [] },
+              food_info: dbStadium.food_info,
+              parking_info: dbStadium.parking_info,
+              sunlight_info: dbStadium.sunlight_info
+            };
+            STADIUMS_DB.push(newStadium);
           });
+          console.log("Dynamically loaded stadiums from database:", STADIUMS_DB);
+          return;
         }
       } catch (e) {
         console.error("Supabase 야구장 로딩 에러, 임시 데이터 대체 작동:", e);
       }
     }
+    // Fallback if Supabase is offline or failed
+    STADIUMS_DB = JSON.parse(JSON.stringify(MOCK_STADIUMS_DB));
   }
 
   updateClock() {
@@ -765,6 +833,12 @@ class SeatViewApp {
 
   // --- Router ---
   navigateTo(viewId) {
+    if (viewId === "ticketbook" && !state.isLoggedIn) {
+      this.navigateTo("main");
+      this.loginWithKakao();
+      return;
+    }
+
     // Hide all views
     document.querySelectorAll(".view").forEach(view => {
       view.classList.remove("active");
@@ -841,7 +915,219 @@ class SeatViewApp {
   }
 
   openMenuModal() {
+    this.renderMenu();
     this.openModal("modal-menu");
+  }
+
+  renderMenu() {
+    const container = document.getElementById("hamburger-menu-content");
+    if (!container) return;
+
+    const defaultAvatar = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    const avatarUrl = state.userAvatarUrl || defaultAvatar;
+
+    let profileHtml = "";
+    if (state.isLoggedIn) {
+      profileHtml = `
+        <div class="menu-profile-card" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+          <img src="${avatarUrl}" alt="Profile" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple);" onerror="this.src='${defaultAvatar}'">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">${state.userNickname}</span>
+          </div>
+        </div>
+      `;
+    } else {
+      profileHtml = `
+        <div class="menu-profile-card" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px; text-align: center; align-items: center;">
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">\uB85C\uADF8\uC778 \uD6C4 \uC2DC\uC57C \uC81C\uBCF4\uC5D0 \uC9C0\uC5B4\uD574 \uBCF4\uC138\uC694!</span>
+          <button class="btn" onclick="app.closeModal('modal-menu'); app.loginWithKakao();" style="width: 100%; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer;">
+            <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> \uCE74\uCE74\uC624 \uB85C\uADF8\uC778
+          </button>
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      ${profileHtml}
+      <ul class="menu-list" style="list-style: none; display: flex; flex-direction: column; gap: 16px; padding: 10px 0;">
+        <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="home" style="width: 18px; height: 18px;"></i> \uD648 \uD654\uBA74</li>
+        <li onclick="app.closeModal('modal-menu'); app.navigateTo('stadiums')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="compass" style="width: 18px; height: 18px;"></i> \uC57C\uAD6C\uC7A5 \uC2DC\uC57C \uD0D0\uC0C9</li>
+        <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="columns" style="width: 18px; height: 18px;"></i> 1:1 \uC2DC\uC57C \uBE44\uAD50</li>
+        <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="user" style="width: 18px; height: 18px;"></i> \uB9C8\uC774\uD398\uC774\uC9C0</li>
+        
+        ${state.isLoggedIn ? `
+          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
+          <li onclick="app.closeModal('modal-menu'); app.logout();" style="font-size: 0.95rem; color: var(--accent-red); font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;">
+            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i> \uB85C\uADF8\uC544\uC6C3
+          </li>
+        ` : ""}
+      </ul>
+    `;
+    lucide.createIcons();
+  }
+
+  async loginWithKakao() {
+    if (!supabaseClient) {
+      this.showToast("\u26A0\uFE0F", "Supabase \uD0AC\uB77C\uC774\uC5B8\uD2B8\uAC00 \uC124\uC815\uB418\uC9C0 \uC5A8\uC2B5\uB2C8\uB2E4.");
+      return;
+    }
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname,
+        queryParams: {
+          prompt: 'login'
+        }
+      }
+    });
+    if (error) {
+      console.error("Kakao login error:", error);
+      this.showToast("\u274C", "\uB85C\uADF8\uC778 \uC2DC\uB3C4 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.");
+    }
+  }
+
+  async logout() {
+    const confirmLogout = confirm("\uB85C\uADF8\uC544\uC6C3 \uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?");
+    if (!confirmLogout) return;
+
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
+    }
+    state.isLoggedIn = false;
+    state.userId = null;
+    state.userNickname = "@\uC57C\uAD6C\uB7EC\uBC84";
+    state.userAvatarUrl = "";
+    state.userEmail = "";
+    
+    localStorage.removeItem("seatview_nickname");
+    localStorage.removeItem("seatview_favorite_stadium");
+    localStorage.removeItem("seatview_cheering_team");
+
+    // Clean up Supabase tokens
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("sb-") || key.includes("supabase"))) {
+        localStorage.removeItem(key);
+      }
+    }
+    
+    const profileEmailEl = document.getElementById("my-profile-email");
+    const profileAvatarEl = document.getElementById("my-profile-avatar");
+    if (profileEmailEl) profileEmailEl.textContent = "(\uC774\uBA54\uC77C \uC815\uBCF4 \uC81C\uAC70)";
+    if (profileAvatarEl) profileAvatarEl.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+
+    this.renderTicketbook();
+    this.showToast("\uD83D\uDD13", "\uB85C\uADF8\uC544\uC6C3 \uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    this.checkUserSession();
+  }
+
+  async checkUserSession() {
+    if (!supabaseClient) return;
+    try {
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (session && session.user) {
+        state.isLoggedIn = true;
+        state.userId = session.user.id;
+
+        const { data: profile, error: profileErr } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        state.userEmail = session.user.email || "";
+
+        if (!profileErr && profile) {
+          state.userNickname = profile.nickname || "@\uC57C\uAD6C\uB7EC\uBC84";
+          state.favoriteStadiumId = profile.favorite_stadium_id || "jamsil";
+          state.cheeringTeam = profile.cheering_team || "LG \uD2B8\uC708\uC2A4";
+          state.userAvatarUrl = profile.profile_image_url || "";
+          state.userCouponsCount = profile.coupons_count || 0;
+        } else {
+          const meta = session.user.user_metadata || {};
+          state.userNickname = meta.name || meta.full_name || "@\uC57C\uAD6C\uB7EC\uBC84";
+          state.userAvatarUrl = meta.avatar_url || "";
+          state.userCouponsCount = 0;
+        }
+
+        const profileStadiumEl = document.getElementById("my-profile-stadium");
+        const profileTeamEl = document.getElementById("my-profile-team");
+        const profileNicknameEl = document.getElementById("my-profile-nickname");
+        const profileEmailEl = document.getElementById("my-profile-email");
+        const profileAvatarEl = document.getElementById("my-profile-avatar");
+        const favStadiumObj = STADIUMS_DB.find(s => s.id === state.favoriteStadiumId);
+
+        if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
+        if (profileTeamEl) profileTeamEl.textContent = state.cheeringTeam;
+        if (profileNicknameEl) profileNicknameEl.textContent = state.userNickname;
+        if (profileEmailEl) profileEmailEl.textContent = state.userEmail;
+        if (profileAvatarEl) {
+          profileAvatarEl.src = state.userAvatarUrl || "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+        }
+        
+        const profileCouponsEl = document.getElementById("my-profile-coupons");
+        if (profileCouponsEl) profileCouponsEl.textContent = `${state.userCouponsCount || 0}\uC7A5 \uD83C\uDFAB`;
+
+        // Restore pending login state if exists
+        const pendingJson = sessionStorage.getItem("seatview_pending_login_state");
+        if (pendingJson) {
+          try {
+            const pending = JSON.parse(pendingJson);
+            sessionStorage.removeItem("seatview_pending_login_state");
+
+            // Restore stadium/block selection state
+            if (pending.stadiumId) {
+              state.selectedStadium = STADIUMS_DB.find(st => st.id === pending.stadiumId);
+              if (state.selectedStadium && pending.blockId) {
+                state.selectedBlock = state.selectedStadium.blocks.find(b => b.id === pending.blockId);
+              }
+            }
+
+            // Restore view
+            if (pending.view) {
+              this.navigateTo(pending.view);
+            }
+
+            // Re-render blocks/seats if they were viewing stadiums page
+            if (pending.view === "stadiums" && pending.stadiumId) {
+              this.loadStadiumDetail(pending.stadiumId);
+              if (pending.blockId) {
+                const blockObj = state.selectedStadium ? state.selectedStadium.blocks.find(b => b.id === pending.blockId) : null;
+                if (blockObj) {
+                  state.selectedBlock = blockObj;
+                  setTimeout(() => {
+                    this.renderSeatingGrid(pending.blockId);
+                  }, 400);
+                }
+              }
+            }
+
+            // Resume action
+            if (pending.action && pending.action.type === "add_seat_photo") {
+              state.activeModalSeatKey = pending.action.seatKey;
+              setTimeout(() => {
+                this.addCurrentSeatToTicketbook();
+              }, 600);
+            }
+          } catch (e) {
+            console.warn("Restore pending login state error:", e);
+          }
+        }
+
+        const footer = document.getElementById("my-page-footer");
+        if (footer) footer.style.display = "block";
+      } else {
+        state.isLoggedIn = false;
+        const footer = document.getElementById("my-page-footer");
+        if (footer) footer.style.display = "none";
+      }
+    } catch (e) {
+      console.warn("Session check fail:", e);
+      state.isLoggedIn = false;
+      const footer = document.getElementById("my-page-footer");
+      if (footer) footer.style.display = "none";
+    }
+    this.renderTicketbook();
   }
 
   // --- Stadiums Selection View ---
@@ -850,7 +1136,13 @@ class SeatViewApp {
     if (!container) return;
 
     container.innerHTML = "";
-    STADIUMS_DB.forEach(st => {
+    const sortedStadiums = [...STADIUMS_DB].sort((a, b) => {
+      const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 999;
+      const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 999;
+      return orderA - orderB;
+    });
+
+    sortedStadiums.forEach(st => {
       const card = document.createElement("div");
       card.className = "stadium-card";
       // Apply gradient overlay + background image photo
@@ -905,6 +1197,7 @@ class SeatViewApp {
     }
 
     // Fetch blocks dynamically from Supabase
+    let hasBlocks = false;
     if (supabaseClient) {
       try {
         const reverseIdMap = {
@@ -926,6 +1219,7 @@ class SeatViewApp {
             .eq('stadium_id', dbId);
 
           if (!error && blocks && blocks.length > 0) {
+            hasBlocks = true;
             const getEngGrade = (sg) => {
               if (!sg) return "navy";
               if (sg.includes("프리미엄")) return "premium";
@@ -938,6 +1232,9 @@ class SeatViewApp {
               if (sg.includes("외야응원") || sg.includes("외야 응원")) return "outfield_cheer";
               if (sg.includes("외야") || sg.includes("그린")) return "green";
               if (sg.includes("휠체어")) return "wheelchair";
+              if (sg.includes("버건디")) return "burgundy";
+              if (sg.includes("다이아몬드") || sg.includes("로얄")) return "premium";
+              if (sg.includes("스카이블루")) return "skyblue";
               return "navy";
             };
 
@@ -964,6 +1261,19 @@ class SeatViewApp {
       }
     }
 
+    // 구역 데이터가 정의되지 않은 구장은 상세화면 이동을 차단하고 팝업 노출
+    if (!hasBlocks) {
+      const modalTitle = document.getElementById("coming-soon-title");
+      if (modalTitle) {
+        modalTitle.textContent = `${stadium.name} 준비 중`;
+      }
+      this.openModal("modal-coming-soon");
+      return;
+    }
+
+    // Render grade filter pills dynamically based on loaded blocks
+    this.renderGradeFilterBar(stadium.blocks);
+
     // Load static stadium map image
     const mapWrapper = document.getElementById("stadium-static-map-wrapper");
     if (mapWrapper) {
@@ -986,7 +1296,7 @@ class SeatViewApp {
     // Switch default tab
     this.switchDetailTab("map");
 
-    // Clear previous choices and start with collapsed steps
+    // Clear previous choices
     state.selectedGradeFilter = null;
     state.selectedBlock = null;
 
@@ -1022,6 +1332,82 @@ class SeatViewApp {
 
     // Navigate to Detail view
     this.navigateTo("stadium-detail");
+  }
+
+  // Dynamically render seat grade filter pills based on block categories
+  renderGradeFilterBar(blocks) {
+    const bar = document.getElementById("grade-filter-bar");
+    if (!bar) return;
+    bar.innerHTML = "";
+
+    if (!blocks || blocks.length === 0) {
+      bar.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">등록된 좌석 등급이 없습니다.</div>`;
+      return;
+    }
+
+    const uniqueCategories = [];
+    const blockColors = {};
+
+    blocks.forEach(b => {
+      const cat = b.category || "기타";
+      if (!uniqueCategories.includes(cat)) {
+        uniqueCategories.push(cat);
+      }
+      if (b.color_code) {
+        blockColors[cat] = b.color_code;
+      }
+    });
+
+    // Custom sort order to maintain Jamsil and general order logically if present
+    const categoryOrder = [
+      "프리미엄석", "프리미엄", "로얄다이아몬드클럽", 
+      "테이블석", "1층 테이블석", "2층 테이블석", 
+      "익사이팅석", "블루석", "오렌지석(응원)", "오렌지석", 
+      "레드석", "네이비석", "외야그린석", "외야지정석", 
+      "외야응원석", "휠체어석", "버건디석", "스카이블루석"
+    ];
+    uniqueCategories.sort((a, b) => {
+      const idxA = categoryOrder.indexOf(a);
+      const idxB = categoryOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    uniqueCategories.forEach((cat, idx) => {
+      const gradeColors = {
+        "프리미엄석": "#DAA520",
+        "테이블석": "#8B0000",
+        "블루석": "#1E90FF",
+        "오렌지석": "#FF8C00",
+        "레드석": "#E60012",
+        "네이비석": "#1B365D",
+        "외야 그린석": "#2E8B57",
+        "외야 응원석": "#2E8B57",
+        "익사이팅존": "#1B365D"
+      };
+      const color = gradeColors[cat] || blockColors[cat] || "#64748b";
+
+      const btn = document.createElement("button");
+      btn.className = "grade-pill";
+      btn.setAttribute("data-grade", cat);
+      btn.style.borderLeft = `3px solid ${color}`;
+      btn.textContent = cat;
+
+      if (idx === 0) {
+        btn.classList.add("active");
+        state.selectedGradeFilter = cat;
+      }
+
+      btn.onclick = () => this.filterMapByGrade(cat);
+      bar.appendChild(btn);
+    });
+
+    // Auto-filter blocks for the default active grade
+    if (uniqueCategories.length > 0) {
+      this.renderBlockSelector(state.selectedGradeFilter);
+    }
   }
 
   // Inject beautiful customizable SVG for Seating layout
@@ -1154,10 +1540,8 @@ class SeatViewApp {
       pill.classList.remove("active");
     });
     
-    // Find clicked pill
-    const clickedPill = Array.from(document.querySelectorAll(".grade-pill")).find(pill => 
-      pill.getAttribute("onclick").includes(`'${gradeName}'`)
-    );
+    // Find clicked pill by data-grade attribute
+    const clickedPill = document.querySelector(`.grade-pill[data-grade="${gradeName}"]`);
     if (clickedPill) {
       clickedPill.classList.add("active");
     }
@@ -1168,22 +1552,11 @@ class SeatViewApp {
     // Auto-select block if there is only 1 block for the grade
     if (state.selectedStadium && state.selectedStadium.blocks) {
       const blocks = state.selectedStadium.blocks;
-      const filteredBlocks = gradeName === "all" ? blocks : blocks.filter(b => b.grade === gradeName);
+      const filteredBlocks = gradeName === "all" ? blocks : blocks.filter(b => b.category === gradeName);
       if (filteredBlocks.length === 1) {
         this.renderBlockSelector(gradeName);
         this.selectStadiumBlock(filteredBlocks[0].id);
-        const gradeLabels = {
-          premium: "프리미엄석",
-          table: "테이블석",
-          exciting: "익사이팅석",
-          blue: "블루석",
-          orange: "오렌지석(응원)",
-          red: "레드석",
-          navy: "네이비석",
-          green: "외야그린석",
-          outfield_cheer: "외야응원석"
-        };
-        this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} (단일 구역 자동 선택) 필터가 적용되었습니다.`);
+        this.showToast("🔍", `${gradeName} (단일 구역 자동 선택) 필터가 적용되었습니다.`);
         return;
       }
     }
@@ -1201,18 +1574,7 @@ class SeatViewApp {
       }
     }
 
-    const gradeLabels = {
-      premium: "프리미엄석",
-      table: "테이블석",
-      exciting: "익사이팅석",
-      blue: "블루석",
-      orange: "오렌지석(응원)",
-      red: "레드석",
-      navy: "네이비석",
-      green: "외야그린석",
-      outfield_cheer: "외야응원석"
-    };
-    this.showToast("🔍", `${gradeLabels[gradeName] || gradeName} 필터가 적용되었습니다.`);
+    this.showToast("🔍", `${gradeName} 필터가 적용되었습니다.`);
   }
 
   updateStepVisibility() {
@@ -1339,7 +1701,7 @@ class SeatViewApp {
     
     // Filter blocks by selected grade filter if active
     if (state.selectedGradeFilter && state.selectedGradeFilter !== "all") {
-      blocks = blocks.filter(b => b.grade === state.selectedGradeFilter);
+      blocks = blocks.filter(b => b.category === state.selectedGradeFilter);
     }
 
     const isCheerZone = zoneName.includes("응원") || blocks.some(b => b.category === "응원");
@@ -1371,13 +1733,10 @@ class SeatViewApp {
       <div class="blocks-grid">
         ${blocks.length > 0 ? blocks.map(b => {
           let catClass = "general";
-          if (b.category === "응원") catClass = "cheer";
-          if (b.category === "프리미엄") catClass = "premium";
-          if (b.category === "외야") catClass = "outfield";
 
           return `
-            <div class="block-card ${catClass}" onclick="app.selectStadiumBlock('${b.id}')">
-              <span class="block-card-category">${b.category}</span>
+            <div class="block-card ${catClass}" style="${b.color_code ? `--block-color: ${b.color_code};` : ''}" onclick="app.selectStadiumBlock('${b.id}')">
+              <span class="block-card-category" style="${b.color_code ? `color: ${b.color_code}; background: ${b.color_code}1A;` : ''}">${b.category}</span>
               <h4 class="block-card-name">${b.name}</h4>
               <div class="block-card-action">
                 <span>시야 확인</span>
@@ -1399,7 +1758,7 @@ class SeatViewApp {
   renderBlockSelector(gradeFilter = "all") {
     if (!state.selectedStadium) return;
     const blocks = state.selectedStadium.blocks || [];
-    const filteredBlocks = gradeFilter === "all" ? blocks : blocks.filter(b => b.grade === gradeFilter);
+    const filteredBlocks = gradeFilter === "all" ? blocks : blocks.filter(b => b.category === gradeFilter);
 
     const groups = {};
 
@@ -1429,12 +1788,13 @@ class SeatViewApp {
     let html = "";
 
     const groupKeys = Object.keys(groups).sort((a, b) => {
-      const idxA = groupOrder.indexOf(a);
-      const idxB = groupOrder.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.localeCompare(b);
+      const getOrderScore = (name) => {
+        if (name.includes("1루")) return 1;
+        if (name.includes("3루")) return 2;
+        if (name.includes("중앙") || name.includes("기타")) return 3;
+        return 4;
+      };
+      return getOrderScore(a) - getOrderScore(b);
     });
 
     groupKeys.forEach(groupName => {
@@ -1461,9 +1821,23 @@ class SeatViewApp {
           <div class="block-selector-group-list ${groupBlocks.some(b => b.block_code.length > 3) ? 'has-long-labels' : ''}">
             ${groupBlocks.map(b => {
               const isActive = state.selectedBlock && state.selectedBlock.id === b.id;
+              const gradeColors = {
+                "프리미엄석": "#DAA520",
+                "테이블석": "#8B0000",
+                "블루석": "#1E90FF",
+                "오렌지석": "#FF8C00",
+                "레드석": "#E60012",
+                "네이비석": "#1B365D",
+                "외야 그린석": "#2E8B57",
+                "외야 응원석": "#2E8B57",
+                "익사이팅존": "#1B365D"
+              };
+              const pillColor = gradeColors[b.category] || b.color_code || "#64748b";
+              const colorStyle = `border-left: 3.5px solid ${pillColor}; ${isActive ? `background-color: ${pillColor} !important; border-color: ${pillColor} !important; box-shadow: 0 0 8px ${pillColor}80;` : ''}`;
               return `
                 <button class="block-pill-btn ${isActive ? 'active' : ''}" 
                         data-grade="${b.grade}"
+                        style="${colorStyle}"
                         onclick="app.selectStadiumBlock('${b.id}')">
                   ${b.block_code}
                 </button>
@@ -1493,14 +1867,14 @@ class SeatViewApp {
 
     state.selectedBlock = block;
 
-    // Update active grade filter to match the selected block's grade
-    if (block.grade && block.grade !== state.selectedGradeFilter) {
-      state.selectedGradeFilter = block.grade;
+    // Update active grade filter to match the selected block's category
+    if (block.category && block.category !== state.selectedGradeFilter) {
+      state.selectedGradeFilter = block.category;
       document.querySelectorAll(".grade-pill").forEach(pill => {
         pill.classList.remove("active");
       });
       const activePill = Array.from(document.querySelectorAll(".grade-pill")).find(pill => 
-        pill.getAttribute("onclick").includes(`'${block.grade}'`)
+        pill.getAttribute("data-grade") === block.category
       );
       if (activePill) {
         activePill.classList.add("active");
@@ -1520,8 +1894,8 @@ class SeatViewApp {
     const paths = document.querySelectorAll(".stadium-sector");
     paths.forEach(p => {
       const pBlockId = p.getAttribute("data-block-id");
-      const pGrade = p.getAttribute("data-grade");
-      const matchesFilter = (state.selectedGradeFilter === "all" || pGrade === state.selectedGradeFilter);
+      const matchedBlock = state.selectedStadium.blocks.find(b => String(b.id) === pBlockId);
+      const matchesFilter = (state.selectedGradeFilter === "all" || (matchedBlock && matchedBlock.category === state.selectedGradeFilter));
 
       if (pBlockId === String(blockId)) {
         p.classList.add("active-sector");
@@ -1603,100 +1977,139 @@ class SeatViewApp {
           .from('baseball_seats')
           .select('*')
           .eq('block_id', block.db_id)
-          .order('row_num', { ascending: true })
           .order('grid_y', { ascending: true })
           .order('grid_x', { ascending: true });
 
-        if (!error && seats && seats.length > 0) {
-          const rowsMap = {};
-          seats.forEach(seat => {
-            const rowKey = seat.grid_y || 1;
-            if (!rowsMap[rowKey]) {
-              rowsMap[rowKey] = {
-                label: seat.row_num || String(seat.grid_y),
-                seats: []
-              };
-            }
-            rowsMap[rowKey].seats.push(seat);
-          });
+        if (!error) {
+          const seatIds = (seats || []).map(s => s.id);
+          const seatsWithPhotos = new Set();
+          if (seatIds.length > 0) {
+            const { data: reviews, error: revErr } = await supabaseClient
+              .from('seat_reviews')
+              .select('baseball_seat_id, image_urls')
+              .in('baseball_seat_id', seatIds);
 
-          // Calculate max columns in this block
-          let maxCols = 0;
-          Object.keys(rowsMap).forEach(r => {
-            if (rowsMap[r].seats.length > maxCols) {
-              maxCols = rowsMap[r].seats.length;
+            if (!revErr && reviews) {
+              reviews.forEach(rev => {
+                const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+                if (urls.length > 0) {
+                  seatsWithPhotos.add(rev.baseball_seat_id);
+                }
+              });
             }
-          });
+          }
+
+          // Build rowsMap where coordinates map to seat objects: rowsMap[y][x] = seat
+          const rowsMap = {};
+          if (seats) {
+            seats.forEach(seat => {
+              const y = seat.grid_y || 1;
+              const x = seat.grid_x || 1;
+              if (!rowsMap[y]) {
+                rowsMap[y] = {};
+              }
+              rowsMap[y][x] = seat;
+            });
+          }
+
+          // Read grid dimensions from database blocks table fields
+          const maxRows = block.total_rows || (seats && seats.length > 0 ? Math.max(...seats.map(s => s.grid_y || 1)) : 0);
+          const maxCols = block.max_seats || (seats && seats.length > 0 ? Math.max(...seats.map(s => s.grid_x || 1)) : 0);
+
+          if (maxRows === 0 || maxCols === 0) {
+            container.innerHTML = `
+              <div style="padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; width: 100%;">
+                🏟️ 해당 구역은 현재 좌석 배치 정보 준비 중입니다.
+              </div>
+            `;
+            return;
+          }
+
           const visibleSeats = Math.min(maxCols, 14);
           container.style.setProperty('--visible-seats', visibleSeats);
 
-          const maxRows = Math.max(...Object.keys(rowsMap).map(Number));
+          // Iterate row by row (1 to maxRows)
           for (let r = 1; r <= maxRows; r++) {
-            const rowData = rowsMap[r];
-            if (!rowData) continue;
-
-            const rowSeats = rowData.seats;
-
             const rowDiv = document.createElement("div");
             rowDiv.className = "seat-row";
 
+            // Row Label: e.g. "1열", "2열"
+            // If row has seat data, extract row_num, else fallback to index r
+            let rowLabel = String(r);
+            if (rowsMap[r]) {
+              const firstSeatKey = Object.keys(rowsMap[r])[0];
+              if (firstSeatKey && rowsMap[r][firstSeatKey].row_num) {
+                rowLabel = rowsMap[r][firstSeatKey].row_num;
+              }
+            }
+            const dispLabel = String(rowLabel).endsWith("열") ? rowLabel : `${rowLabel}열`;
+
             const label = document.createElement("span");
             label.className = "row-num";
-            const dispLabel = String(rowData.label).endsWith("열") ? rowData.label : `${rowData.label}열`;
             label.textContent = dispLabel;
             rowDiv.appendChild(label);
 
             const seatsDiv = document.createElement("div");
             seatsDiv.className = "row-seats";
 
-            rowSeats.forEach(seat => {
-              const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY" || seat.seat_num === null);
-              const isPhotoExists = (seat.status == 2 || seat.status === "2" || seat.status === "PHOTO_EXISTS");
+            // Loop columns from 1 to maxCols
+            for (let c = 1; c <= maxCols; c++) {
+              const seat = rowsMap[r] ? rowsMap[r][c] : null;
 
-              if (isWalkway) {
+              if (!seat) {
+                // If there's no database seat at this grid coordinate, render as walkway gap
                 const gapBtn = document.createElement("button");
                 gapBtn.className = "seat-item gap";
                 seatsDiv.appendChild(gapBtn);
               } else {
-                const seatBtn = document.createElement("button");
-                seatBtn.className = "seat-item";
-                seatBtn.textContent = seat.seat_num;
+                const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY");
+                const isPhotoExists = seatsWithPhotos.has(seat.id);
 
-                if (seat.offset_type === "half") {
-                   seatBtn.style.marginLeft = "12px";
-                }
-
-                if (isPhotoExists) {
-                  seatBtn.classList.add("has-camera");
-                  
-                  const dbKey = seat.id;
-                  if (!SEAT_VIEWS_DB[dbKey]) {
-                    SEAT_VIEWS_DB[dbKey] = {
-                      stadiumName: state.selectedStadium.name,
-                      blockName: state.selectedBlock.name,
-                      seatName: `${seat.row_num}열 ${seat.seat_num}번`,
-                      image: "assets/seat_view_clean.png",
-                      uploader: "@anonymous",
-                      uploaderBadge: "일반 제보자",
-                      upvotes: 0,
-                      downvotes: 0,
-                      userVoted: null,
-                      tags: ["✅ 일반 시야"],
-                      comment: "데이터베이스에 등록된 시야 사진입니다."
-                    };
-                  }
-                  seatBtn.onclick = () => this.openSeatDetail(dbKey);
+                if (isWalkway) {
+                  const gapBtn = document.createElement("button");
+                  gapBtn.className = "seat-item gap";
+                  seatsDiv.appendChild(gapBtn);
                 } else {
-                  seatBtn.onclick = () => this.handleNoPhotoSeatClick(block.name, `${seat.row_num}열 ${seat.seat_num}번`);
+                  const seatBtn = document.createElement("button");
+                  seatBtn.className = "seat-item";
+                  seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
+
+                  if (seat.offset_type === "half") {
+                    seatBtn.style.marginLeft = "12px";
+                  }
+
+                  const dbKey = seat.id;
+                  if (isPhotoExists) {
+                    seatBtn.classList.add("has-camera");
+                    
+                    if (!SEAT_VIEWS_DB[dbKey]) {
+                      SEAT_VIEWS_DB[dbKey] = {
+                        stadiumName: state.selectedStadium.name,
+                        blockName: state.selectedBlock.name,
+                        seatName: `${seat.row_num || r}열 ${seat.seat_num}번`,
+                        image: "assets/seat_view_clean.png",
+                        uploader: "@anonymous",
+                        uploaderBadge: "일반 제보자",
+                        upvotes: 0,
+                        downvotes: 0,
+                        userVoted: null,
+                        tags: ["✅ 일반 시야"],
+                        comment: "데이터베이스에 등록된 시야 사진입니다."
+                      };
+                    }
+                    seatBtn.onclick = () => this.openSeatDetail(dbKey);
+                  } else {
+                    seatBtn.onclick = () => this.openSeatDetail(dbKey);
+                  }
+                  seatsDiv.appendChild(seatBtn);
                 }
-                seatsDiv.appendChild(seatBtn);
               }
-            });
+            }
 
             rowDiv.appendChild(seatsDiv);
             container.appendChild(rowDiv);
           }
-          return; // Render completed from database
+          return;
         }
       } catch (e) {
         console.error("Supabase seats fetch failed, falling back to local layouts:", e);
@@ -1856,10 +2269,9 @@ class SeatViewApp {
               seatBtn.classList.add("blocked");
               seatBtn.disabled = true;
             } else {
-              let blockName = "103블록";
-              if (isJamsil118) blockName = "118블록";
-              else if (isJamsil219) blockName = "219블록";
-              seatBtn.onclick = () => this.handleNoPhotoSeatClick(blockName, `${r}열 ${sVal}번`);
+              const bNum = blockId.replace(/[^0-9]/g, "");
+              const dbKey = `${state.selectedStadium.id}_b${bNum}_${r}_${sVal}`;
+              seatBtn.onclick = () => this.openSeatDetail(dbKey);
             }
             seatsDiv.appendChild(seatBtn);
           }
@@ -1904,7 +2316,7 @@ class SeatViewApp {
               seatBtn.classList.add("has-camera");
               seatBtn.onclick = () => this.openMockSeatDetail(r, s);
             } else {
-              seatBtn.onclick = () => this.handleNoPhotoSeatClick(state.selectedBlock.name.split(" ")[1] || "구역", `${r}열 ${s}번`);
+              seatBtn.onclick = () => this.openSeatDetail(dbKey);
             }
           }
           seatsDiv.appendChild(seatBtn);
@@ -1916,75 +2328,270 @@ class SeatViewApp {
   }
 
   // --- Seat Detail Modal ---
-  openSeatDetail(dbKey) {
-    const seatInfo = SEAT_VIEWS_DB[dbKey];
-    if (!seatInfo) return;
+  // --- Seat Detail Modal (Dynamic Carousel / Thumbnails) ---
+  async openSeatDetail(dbKey) {
+    const dbKeyStr = String(dbKey);
+    const parts = dbKeyStr.split("_");
+    const stadiumId = parts[0];
+    const blockId = parts[1] || "";
+    const r = parts[2] || "1";
+    const s = parts[3] || "1";
+    const dbSeatId = parts[4]; // Present if database seat
 
-    state.activeModalSeatKey = dbKey;
+    // Match demo seat by checking if it ends with "22567" or matches Gocheok Burgundy block 101, row D, seat 2
+    const isDemoSeat = dbKeyStr.endsWith("22567") || (stadiumId === "gocheok" && blockId === "b101" && (r === "D" || r === "D\uC5F4") && (s === "2" || s === "2\uBC88"));
+    const seatInfo = isDemoSeat ? SEAT_VIEWS_DB["22567"] : SEAT_VIEWS_DB[dbKeyStr];
+    
+    state.activeModalSeatKey = isDemoSeat ? "22567" : dbKeyStr;
 
-    document.getElementById("modal-seat-stadium").textContent = seatInfo.stadiumName;
-    document.getElementById("modal-seat-title").textContent = `${seatInfo.blockName} ${seatInfo.seatName}`;
-    document.getElementById("modal-seat-img").src = seatInfo.image;
-    document.getElementById("modal-seat-uploader").textContent = seatInfo.uploader;
-    document.getElementById("modal-seat-description").textContent = seatInfo.comment;
+    let images = [];
+    let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
 
-    // Upvotes / Downvotes / Badge details
-    document.getElementById("modal-seat-upvotes").textContent = seatInfo.upvotes || 0;
-    document.getElementById("modal-seat-downvotes").textContent = seatInfo.downvotes || 0;
-    document.getElementById("modal-seat-badge").textContent = seatInfo.uploaderBadge || "일반 제보자";
+    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+    const stadiumName = stadium ? stadium.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
+    let blockName = blockId;
+    if (blockId.startsWith("b")) {
+      blockName = blockId.substring(1) + "\uC5D0\uB85C";
+    } else if (state.selectedBlock) {
+      blockName = state.selectedBlock.name;
+    }
+    const seatName = `${r}\uC5F4 ${s}\uBC88`;
 
-    const upvoteBtn = document.querySelector(".vote-btn.upvote");
-    const downvoteBtn = document.querySelector(".vote-btn.downvote");
-    if (upvoteBtn && downvoteBtn) {
-      upvoteBtn.classList.remove("active");
-      downvoteBtn.classList.remove("active");
-      if (seatInfo.userVoted === "up") {
-        upvoteBtn.classList.add("active");
-      } else if (seatInfo.userVoted === "down") {
-        downvoteBtn.classList.add("active");
+    if (seatInfo) {
+      document.getElementById("modal-seat-stadium").textContent = seatInfo.stadiumName;
+      document.getElementById("modal-seat-title").textContent = `${seatInfo.blockName} ${seatInfo.seatName}`;
+      
+      const imageUrls = Array.isArray(seatInfo.images) 
+        ? seatInfo.images 
+        : (seatInfo.image ? [seatInfo.image] : ["assets/seat_view_clean.png"]);
+      
+      const directions = Array.isArray(seatInfo.directions)
+        ? seatInfo.directions
+        : [seatInfo.view_direction || "\uC815\uBA74"];
+
+      imageUrls.forEach((url, i) => {
+        let commentText = seatInfo.comment || "\uB370\uC774\uD130\uBCA0\uC774\uC2A4\uC5D0 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC785\uB2C8\uB2E4.";
+        let uploaderName = seatInfo.uploader || "@\uC81C\uBCF4\uC790";
+        if (Array.isArray(seatInfo.uploaders) && seatInfo.uploaders[i]) {
+          uploaderName = seatInfo.uploaders[i];
+        }
+
+        if (seatInfo.is_anonymous || uploaderName === "\uC775\uBA85") {
+          uploaderName = "\uC775\uBA85";
+        } else if (uploaderName === "@\uB098\uC758\uAE30\uB85D" || uploaderName.startsWith("@")) {
+          uploaderName = state.userNickname;
+        }
+
+        let uploaderBadge = seatInfo.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
+        let uploaderDate = seatInfo.matchDate || seatInfo.ins_dtm || "2026-08-01";
+        let viewDir = directions[i] || "\uC815\uBA74";
+
+        if (isDemoSeat) {
+          if (i === 0) {
+            commentText = "\uACE0\uCC99\uB3D4 \uBC84\uAC74\uB514 101\uAD6C\uC5ED D\uC5F4 2\uBC88 \uC2DC\uC57C \uC608\uC220\uC785\uB2C8\uB2E4! \uD0C0\uC11D\uC7B5\uC5D0\uC11C \uC815\uB9D0 \uAC00\uCCA5\uACE0, \uB192\uC774\uB3C4 \uC801\uB2F9\uD574\uC11C \uD22C\uC218 \uACF5 \uADA4\uC801\uC774 \uC815\uBA74\uC73C\uB85C \uBCF4\uC5EC\uC694. \uACE0\uCC99\uB3D4 \uAC00\uC2EC \uB54C \uBB34\uC870\uAC74 \uAC15\uCD94\uD558\uB294 \uBA85\uB2F9 \uC790\uB9AC\uC785\uB2C8\uB2E4!";
+            uploaderName = "@\uC57C\uAD6C\uB7EC\uBC84";
+            uploaderBadge = "\uCCAB \uC81C\uBCF4\uC790";
+            uploaderDate = "2026-08-01";
+            viewDir = "home";
+          } else {
+            commentText = "\uAC19\uC740 \uC790\uB9AC\uC5D0\uC11C \uC57D\uAC04 \uC77C\uC5B4\uC11C\uC11C \uCC0D\uC740 \uC2DC\uC57C\uC785\uB2C8\uB2E4. \uC804\uAD11\uD310\uACFC \uC6B0\uCE21 \uC678\uC57C \uD39C\uC2A4\uAE4C\uC9C0 \uC544\uC8FC \uC2DC\uC6D0\uC2DC\uC6D0\uD558\uAC8C \uBCF4\uC785\uB2C8\uB2E4!";
+            uploaderName = "@\uACE0\uCC99\uB3D4\uB2E8\uACE8";
+            uploaderBadge = "\uACE8\uB4DC \uC81C\uBCF4\uC790";
+            uploaderDate = "2026-08-02";
+            viewDir = "center";
+          }
+        }
+
+        images.push({
+          url: url,
+          direction: viewDir,
+          comment: commentText,
+          uploader: uploaderName,
+          uploaderBadge: uploaderBadge,
+          date: uploaderDate.split('T')[0]
+        });
+      });
+      comment = seatInfo.comment || comment;
+    } else {
+      document.getElementById("modal-seat-stadium").textContent = stadiumName;
+      document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
+    }
+
+    if (supabaseClient && dbKey) {
+      try {
+        const { data: reviews, error } = await supabaseClient
+          .from('seat_reviews')
+          .select('*, profiles(*)')
+          .eq('baseball_seat_id', dbKey)
+          .eq('is_blocked', false)
+          .order('ins_dtm', { ascending: false });
+
+        if (!error && reviews && reviews.length > 0) {
+          const dbImages = [];
+          reviews.forEach(rev => {
+            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+            const dir = rev.view_direction || "\uC815\uBA74";
+            const uploaderName = rev.is_anonymous ? "\uC775\uBA85" : (rev.profiles?.nickname || "@\uC81C\uBCF4\uC790");
+            const uploaderBadge = rev.is_anonymous ? "\uC77C\uBC18 \uC81C\uBCF4\uC790" : "\uACE8\uB4DC \uC81C\uBCF4\uC790";
+            const uploaderDate = rev.ins_dtm || "2026-08-01";
+            urls.forEach(u => {
+              dbImages.push({
+                url: u,
+                direction: dir,
+                comment: rev.content || "\uB4F1\uB85D\uB41C \uC2DC\uC57C \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
+                uploader: uploaderName,
+                uploaderBadge: uploaderBadge,
+                date: uploaderDate.split('T')[0]
+              });
+            });
+          });
+          if (dbImages.length > 0) {
+            images = dbImages;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load database seat reviews:", e);
       }
     }
 
-    // Populate tags
-    const tagsContainer = document.getElementById("modal-seat-tags");
-    tagsContainer.innerHTML = "";
-    seatInfo.tags.forEach(tag => {
-      const span = document.createElement("span");
-      span.className = "badge-tag";
-      if (tag.startsWith("⚠️") || tag.startsWith("☀️") || tag.startsWith("🔊")) {
-        span.classList.add("highlight-warn");
-      } else if (tag.startsWith("✅")) {
-        span.classList.add("highlight-ok");
+    const hasPhotos = (images.length > 0);
+    state.activeModalHasPhotos = hasPhotos;
+
+    const placeholderEl = document.getElementById("modal-seat-placeholder");
+    const carouselEl = document.querySelector(".modal-image-carousel-container");
+    const uploaderRowEl = document.querySelector(".modal-uploader-row");
+    const descBoxEl = document.querySelector(".modal-desc-box");
+    const btnCompare = document.getElementById("btn-detail-compare");
+
+    if (!hasPhotos) {
+      if (placeholderEl) placeholderEl.style.display = "flex";
+      if (carouselEl) carouselEl.style.display = "none";
+      if (uploaderRowEl) uploaderRowEl.style.display = "none";
+      if (descBoxEl) descBoxEl.style.display = "none";
+      
+      if (btnCompare) {
+        btnCompare.disabled = true;
+        btnCompare.style.opacity = "0.5";
+        btnCompare.style.pointerEvents = "none";
       }
-      span.textContent = tag;
-      tagsContainer.appendChild(span);
-    });
+      
+      this.modalImages = [];
+    } else {
+      if (placeholderEl) placeholderEl.style.display = "none";
+      if (carouselEl) carouselEl.style.display = "block";
+      if (uploaderRowEl) uploaderRowEl.style.display = "flex";
+      if (descBoxEl) descBoxEl.style.display = "block";
+      
+      if (btnCompare) {
+        btnCompare.disabled = false;
+        btnCompare.style.opacity = "1";
+        btnCompare.style.pointerEvents = "auto";
+      }
+      
+      this.modalImages = images;
+      this.currentImageIndex = 0;
+      this.updateModalImage();
+    }
 
     this.openModal("modal-seat-detail");
+  }
+
+  updateModalImage() {
+    const imgEl = document.getElementById("modal-seat-img");
+    const dirEl = document.getElementById("modal-seat-direction");
+    const descEl = document.getElementById("modal-seat-description");
+    const thumbContainer = document.getElementById("modal-seat-thumbnails");
+
+    const avatarEl = document.getElementById("modal-seat-avatar");
+    const uploaderEl = document.getElementById("modal-seat-uploader");
+    const badgeEl = document.getElementById("modal-seat-badge");
+    const dateEl = document.getElementById("modal-seat-date");
+
+    if (!this.modalImages || this.modalImages.length === 0) return;
+
+    const curImg = this.modalImages[this.currentImageIndex];
+    if (imgEl) imgEl.src = curImg.url;
+    const dirMap = {
+      'home': '\uD648/\uD0C0\uC11D',
+      'center': '\uE5E0\uB77C\uC6B4\uB4DC \uC815\uBA74',
+      'outfield': '\uC678\uC57C/\uC804\uAD11\uD310'
+    };
+    const displayDir = dirMap[curImg.direction] || curImg.direction;
+    if (dirEl) {
+      dirEl.style.display = "flex";
+      dirEl.innerHTML = `\uD83D\uDCF8 ${displayDir}`;
+    }
+    if (descEl) descEl.textContent = curImg.comment || "\uB4F1\uB85D\uB41C \uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
+
+    const defaultAvatar = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
+    if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
+    if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
+    if (dateEl) dateEl.textContent = curImg.date || "2026-08-01";
+
+    const prevBtn = document.getElementById("btn-carousel-prev");
+    const nextBtn = document.getElementById("btn-carousel-next");
+    if (prevBtn && nextBtn) {
+      if (this.modalImages.length > 1) {
+        prevBtn.style.display = "flex";
+        nextBtn.style.display = "flex";
+      } else {
+        prevBtn.style.display = "none";
+        nextBtn.style.display = "none";
+      }
+    }
+
+    if (thumbContainer) {
+      thumbContainer.innerHTML = "";
+      if (this.modalImages.length > 1) {
+        this.modalImages.forEach((img, idx) => {
+          const thumb = document.createElement("div");
+          thumb.className = `thumb-item ${idx === this.currentImageIndex ? 'active' : ''}`;
+          thumb.innerHTML = `<img src="${img.url}" alt="\uC378\uB124\uC77C ${idx + 1}">`;
+          thumb.onclick = () => this.setSeatImageIndex(idx);
+          thumbContainer.appendChild(thumb);
+        });
+      }
+    }
+  }
+
+  prevSeatImage() {
+    if (!this.modalImages || this.modalImages.length <= 1) return;
+    this.currentImageIndex = (this.currentImageIndex - 1 + this.modalImages.length) % this.modalImages.length;
+    this.updateModalImage();
+  }
+
+  nextSeatImage() {
+    if (!this.modalImages || this.modalImages.length <= 1) return;
+    this.currentImageIndex = (this.currentImageIndex + 1) % this.modalImages.length;
+    this.updateModalImage();
+  }
+
+  setSeatImageIndex(idx) {
+    if (idx < 0 || idx >= this.modalImages.length) return;
+    this.currentImageIndex = idx;
+    this.updateModalImage();
   }
 
   openMockSeatDetail(row, seat) {
     if (!state.selectedStadium || !state.selectedBlock) return;
     
-    // Create custom mock on-the-fly to ensure every photo button works with high quality
     const stId = state.selectedStadium.id;
     const bId = state.selectedBlock.id;
     const dbKey = `${stId}_${bId}_${row}_${seat}`;
 
-    // Add to runtime DB if not exists
     if (!SEAT_VIEWS_DB[dbKey]) {
       const isGoodSeat = (row + seat) % 2 === 0;
       SEAT_VIEWS_DB[dbKey] = {
         stadiumName: state.selectedStadium.name,
         blockName: state.selectedBlock.name,
         seatName: `${row}열 ${seat}번`,
-        image: isGoodSeat ? "assets/seat_view_clean.png" : "assets/seat_view_blocked.png",
-        uploader: `@user_n${row}${seat}`,
-        uploaderBadge: isGoodSeat ? "골드 제보자" : "일반 제보자",
-        upvotes: isGoodSeat ? Math.floor(Math.random() * 20) + 5 : Math.floor(Math.random() * 5),
-        downvotes: isGoodSeat ? Math.floor(Math.random() * 2) : Math.floor(Math.random() * 15) + 3,
-        userVoted: null,
-        tags: isGoodSeat ? ["✅ 양호한 시야", "✅ 이동 편리"] : ["⚠️ 앞 가림막 시야간섭", "🔊 스피커 가까움"],
+        images: isGoodSeat 
+          ? ["assets/seat_view_clean.png", "assets/jamsil_stadium.png", "assets/seat_view_blocked.png"]
+          : ["assets/seat_view_blocked.png", "assets/seat_view_clean.png"],
+        directions: isGoodSeat 
+          ? ["home", "center", "outfield"]
+          : ["home", "center"],
         comment: isGoodSeat 
           ? "전반적으로 쾌적하고 관람하기 좋은 시야입니다. 가성비 좋은 명당 블록 중 하나예요!"
           : "펜스가 다소 시야를 차단해서 아쉽지만 경기 집중엔 큰 방해는 안 됩니다. 앰프가 가까운 편입니다."
@@ -2176,25 +2783,40 @@ class SeatViewApp {
 
     archiveContainer.innerHTML = "";
 
-    // Sort by date descending
-    const sortedTickets = [...state.tickets].sort((a, b) => new Date(b.matchDate) - new Date(a.matchDate));
-
-    // Stats calculations
+    const sortedTickets = [...state.tickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
     const total = sortedTickets.length;
-    const wins = sortedTickets.filter(t => t.result === "승리").length;
-    const losses = sortedTickets.filter(t => t.result === "패배").length;
-    const draws = total - wins - losses;
-    const winRate = total > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
 
     // Update Stats Display
-    document.getElementById("win-rate-text").textContent = total > 0 ? `${winRate}%` : "0%";
-    document.getElementById("ticketbook-summary-desc").textContent = `총 ${total}회 직관 | ${wins}승 ${draws > 0 ? draws + '무 ' : ''}${losses}패`;
+    const winRateTextEl = document.getElementById("win-rate-text");
+    if (winRateTextEl) {
+      winRateTextEl.textContent = `${total}\uD68C`;
+    }
+    
+    const summaryDescEl = document.getElementById("ticketbook-summary-desc");
+    if (summaryDescEl) {
+      summaryDescEl.textContent = `\uCD1D ${total}\uD68C \uC2DC\uC57C \uC81C\uBCF4 \uB4F1\uB85D`;
+    }
 
-    // Render Stats Progress Circle
     const circle = document.getElementById("win-rate-circle");
     if (circle) {
-      // conic gradient background matching win percentage
-      circle.style.background = `radial-gradient(closest-side, var(--bg-card) 79%, transparent 80% 100%), conic-gradient(var(--accent-purple) ${winRate}%, var(--bg-input) 0)`;
+      circle.style.background = `radial-gradient(closest-side, var(--bg-card) 79%, transparent 80% 100%), conic-gradient(var(--accent-purple) 100%, var(--bg-input) 0)`;
+    }
+
+    const eventWidget = document.getElementById("ticketbook-event-widget");
+    if (eventWidget) {
+      const now = new Date();
+      const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthlySubmissions = sortedTickets.filter(t => t.ins_dtm && t.ins_dtm.startsWith(currentYearMonth)).length;
+      
+      eventWidget.innerHTML = `
+        <div class="ticketbook-event-icon">
+          <i data-lucide="gift"></i>
+        </div>
+        <div class="ticketbook-event-content">
+          <h4>\uD83C\uDF81 \uC774\uB2EC\uC758 \uC9C1\uAD00 \uC774\uBCA4\uD2B8 \uC751\uBAA8 \uD624\uD669</h4>
+          <p>\uC774\uBC88 \uB2EC \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4 <span class="highlight">${monthlySubmissions}\uD68C</span>\uB85C \uACBD\uAE30\uAD00\uB78C\uAD8C \uCD94\uCCA8\uAD8C <span class="highlight">${monthlySubmissions}\uC7A5</span> \uC790\uB5D9 \uC801\uB9BD \uC644\uB8CC!</p>
+        </div>
+      `;
     }
 
     if (sortedTickets.length === 0) {
@@ -2203,8 +2825,8 @@ class SeatViewApp {
           <div class="compare-empty-icon">
             <i data-lucide="book-open"></i>
           </div>
-          <h3>등록된 티켓 기록이 없습니다</h3>
-          <p>상단의 '직관 등록' 버튼을 눌러 소중한 직관 추억과 명당 시야를 나만의 티켓북에 담아보세요!</p>
+          <h3>\uB4F1\uB85D\uB41C \uD2F0\uCE65 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
+          <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4\uB9B4 \uD1B5\uD574 \uB098\uB9CC\uC758 \uC2DC\uC57C \uB370\uC774\uD130\uB9BC \uC313\uC544\uAC00 \uBCF4\uC138\uC694!</p>
         </div>
       `;
       lucide.createIcons();
@@ -2215,37 +2837,65 @@ class SeatViewApp {
       const card = document.createElement("div");
       card.className = "ticket-card";
       
-      let badgeClass = "win";
-      if (ticket.result === "패배") badgeClass = "lose";
-      if (ticket.result === "무승부") badgeClass = "draw";
+      const createdTime = new Date(ticket.ins_dtm);
+      const diffTime = Math.abs(new Date() - createdTime);
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      const isDeletable = diffDays <= 3;
 
       card.innerHTML = `
-        <button class="delete-ticket-btn" onclick="app.deleteTicket('${ticket.id}')" aria-label="Delete ticket">
-          <i data-lucide="trash-2"></i>
+        <button class="delete-ticket-btn ${!isDeletable ? 'disabled' : ''}" 
+                onclick="app.deleteTicket('${ticket.id}')" 
+                title="${isDeletable ? '\uAE30\uB85D \uC0AD\uC81C' : '\uB4F1\uB85D \uD6C4 3\uC77C \uACBD\uACFC\uB85C \uC774\uBA54\uC77C \uC0AD\uC81C \uC694\uCCAD \uD544\uC694'}"
+                aria-label="Delete ticket">
+          <i data-lucide="${isDeletable ? 'trash-2' : 'lock'}"></i>
         </button>
         <div class="ticket-img-header">
-          <img src="${ticket.image}" alt="관전 좌석 시야">
-          <span class="ticket-result-badge ${badgeClass}">${ticket.result} ${ticket.result === '승리' ? '🎉' : '😢'}</span>
+          <img src="${ticket.image}" alt="\uAD00\uC804 \uC2DC\uC57C \uC0AC\uC9C4">
         </div>
         <div class="ticket-body">
-          <div class="ticket-meta-info">
-            <span class="ticket-match-date">${ticket.matchDate}</span>
-            ${ticket.score ? `<span class="ticket-score">${ticket.score}</span>` : ""}
+          <div class="ticket-meta-info" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="ticket-match-date" style="font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">${ticket.stadiumName}</span>
           </div>
-          <div class="ticket-stadium">${ticket.stadiumName}</div>
-          <h4 class="ticket-seat-name">${ticket.blockName} ${ticket.seatName}</h4>
-          ${ticket.comment ? `<p class="ticket-comment">${ticket.comment}</p>` : ""}
+          <h4 style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 6px 0;">${ticket.blockName} ${ticket.seatName}</h4>
+          <p style="margin: 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
         </div>
       `;
       archiveContainer.appendChild(card);
     });
-
     lucide.createIcons();
   }
 
   // --- Add to Ticketbook flow ---
   openAddTicketModal() {
-    this.showToast("ℹ️", "📷 시야 사진 제보 및 직관 등록 기능은 정식 서비스 오픈 시 제공 예정입니다.");
+    // Populate stadium dropdown list first
+    const stadiumSelect = document.getElementById("form-stadium");
+    if (stadiumSelect) {
+      stadiumSelect.innerHTML = `<option value="">경기장을 선택하세요</option>` + 
+        STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+    }
+
+    // Reset form fields
+    document.getElementById("add-ticket-form").reset();
+    state.currentUploadedPhotoBase64 = null;
+
+    // Reset previews
+    const previewImg = document.getElementById("ticket-photo-preview");
+    const placeholder = document.getElementById("upload-placeholder-content");
+    if (previewImg) previewImg.style.display = "none";
+    if (placeholder) placeholder.style.display = "flex";
+
+    const ocrPreviewImg = document.getElementById("ticket-ocr-preview");
+    const ocrPlaceholder = document.getElementById("ocr-placeholder-content");
+    if (ocrPreviewImg) ocrPreviewImg.style.display = "none";
+    if (ocrPlaceholder) ocrPlaceholder.style.display = "flex";
+
+    // Show OCR scan simulation step since they are registering from My Page
+    const ocrFormGroup = document.getElementById("ticket-ocr-box").closest(".form-group");
+    if (ocrFormGroup) {
+      ocrFormGroup.style.display = "block";
+    }
+
+    this.openModal("modal-add-ticket");
   }
 
   handleTicketOCRSelect(e) {
@@ -2353,20 +3003,33 @@ class SeatViewApp {
   saveNewTicket(e) {
     e.preventDefault();
 
+    // Photo upload is mandatory (supports both tempUploadedPhotos and currentUploadedPhotoBase64)
+    const hasPhotos = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0;
+    if (!hasPhotos && !state.currentUploadedPhotoBase64) {
+      this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
+      alert("📸 시야 사진 제보 및 직관 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
+      return;
+    }
+
     const stadiumId = document.getElementById("form-stadium").value;
     const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
     const blockVal = document.getElementById("form-block").value.trim();
     const seatVal = document.getElementById("form-seat").value.trim();
-    const dateVal = document.getElementById("form-match-date").value;
-    const resultVal = document.getElementById("form-result").value || "승리 🎉";
-    const scoreVal = document.getElementById("form-score").value.trim();
+    const dateEl = document.getElementById("form-match-date");
+    const resultEl = document.getElementById("form-result");
+    const scoreEl = document.getElementById("form-score");
+    const dateVal = dateEl ? dateEl.value : "";
+    const resultVal = resultEl ? resultEl.value : "\uC2B9\uB9AC \uD83C\uDF89";
+    const scoreVal = scoreEl ? scoreEl.value.trim() : "";
     const commentVal = document.getElementById("form-comment").value.trim();
+    const isAnonymous = document.getElementById("form-is-anonymous") ? document.getElementById("form-is-anonymous").checked : false;
 
-    // Default image if user didn't upload any
-    const finalImage = state.currentUploadedPhotoBase64 || "assets/seat_view_clean.png";
+    const finalImage = state.currentUploadedPhotoBase64 || (state.tempUploadedPhotos ? state.tempUploadedPhotos[0] : null);
+    const finalImagesList = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0 ? state.tempUploadedPhotos : [finalImage];
 
     const newTicket = {
       id: "ticket_" + Date.now(),
+      ins_dtm: new Date().toISOString(), // store creation time for the 3-day policy
       stadiumId: stadiumId,
       stadiumName: stadium ? stadium.name : "기타 구장",
       blockName: blockVal,
@@ -2375,7 +3038,8 @@ class SeatViewApp {
       result: resultVal,
       score: scoreVal,
       comment: commentVal,
-      image: finalImage
+      image: finalImage,
+      images: finalImagesList
     };
 
     // Save to LocalStorage
@@ -2383,7 +3047,6 @@ class SeatViewApp {
     localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
 
     // Seed database with new custom seat view so it shows up in explorer if chosen!
-    // Strip block and seat info down for key mapping
     const bIdNormalized = "b_" + blockVal.replace(/[^0-9]/g, "");
     const rNum = parseInt(seatVal.replace(/[^0-9]/g, "").slice(0,1)) || 1;
     const sNum = parseInt(seatVal.replace(/[^0-9]/g, "").slice(1,2)) || 1;
@@ -2395,8 +3058,9 @@ class SeatViewApp {
         blockName: blockVal,
         seatName: seatVal,
         image: finalImage,
-        uploader: "@나의기록",
-        uploaderBadge: "골드 제보자",
+        images: finalImagesList,
+        uploader: isAnonymous ? "익명" : state.userNickname,
+        uploaderBadge: isAnonymous ? "일반 제보자" : "골드 제보자",
         upvotes: 0,
         downvotes: 0,
         userVoted: null,
@@ -2405,7 +3069,25 @@ class SeatViewApp {
       };
     }
 
+    // Save to Supabase seat_reviews table
+    if (supabaseClient && state.userId) {
+      supabaseClient
+        .from('seat_reviews')
+        .insert({
+          baseball_seat_id: dbKey,
+          user_id: state.userId,
+          image_urls: finalImagesList,
+          content: commentVal,
+          is_anonymous: isAnonymous,
+          view_direction: "정면"
+        })
+        .then(({ error }) => {
+          if (error) console.warn("Supabase review insert warning:", error);
+        });
+    }
+
     this.closeModal("modal-add-ticket");
+    this.renderTicketbook();
     this.navigateTo("ticketbook");
     this.showToast("🎉", "새로운 직관 기록과 시야 정보가 등록되었습니다!");
   }
@@ -2416,6 +3098,19 @@ class SeatViewApp {
   }
 
   deleteTicket(id) {
+    const ticket = state.tickets.find(t => t.id === id);
+    if (ticket) {
+      // 3-day deletion window check
+      const createdTime = new Date(ticket.ins_dtm || ticket.matchDate);
+      const diffTime = Math.abs(new Date() - createdTime);
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      if (diffDays > 3) {
+        this.showToast("⚠️", "등록 후 3일이 경과한 기록은 이메일로 삭제 요청해주세요.");
+        alert("⚠️ 등록 후 3일이 경과한 직관 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+        return;
+      }
+    }
+
     if (!confirm("정말 이 직관 티켓 기록을 삭제하시겠습니까?")) return;
 
     state.tickets = state.tickets.filter(t => t.id !== id);
@@ -2425,32 +3120,66 @@ class SeatViewApp {
   }
 
   addCurrentSeatToTicketbook() {
+    if (!state.isLoggedIn) {
+      this.openModal("modal-login-confirm");
+      return;
+    }
+
     if (!state.activeModalSeatKey) return;
     
-    const seatInfo = SEAT_VIEWS_DB[state.activeModalSeatKey];
-    if (!seatInfo) return;
+    const isDemoSeat = state.activeModalSeatKey.endsWith("22567");
+    const seatInfo = isDemoSeat ? SEAT_VIEWS_DB["22567"] : SEAT_VIEWS_DB[state.activeModalSeatKey];
 
-    // Prefill modal form with current seat details
-    this.closeModal("modal-seat-detail");
-    this.openAddTicketModal();
-
-    // Map keys to prepopulate form
-    // Key parts: stadiumId_blockId_rowNum_seatNum
     const parts = state.activeModalSeatKey.split("_");
     const stadiumId = parts[0];
-    
-    document.getElementById("form-stadium").value = stadiumId;
-    document.getElementById("form-block").value = seatInfo.blockName;
-    document.getElementById("form-seat").value = seatInfo.seatName;
+    const blockId = parts[1] || "";
+    const r = parts[2] || "1";
+    const s = parts[3] || "1";
 
-    // Use current seat view image
-    state.currentUploadedPhotoBase64 = seatInfo.image;
-    const previewImg = document.getElementById("ticket-photo-preview");
-    const placeholder = document.getElementById("upload-placeholder-content");
-    
-    previewImg.src = seatInfo.image;
-    previewImg.style.display = "block";
-    placeholder.style.display = "none";
+    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+    const stadiumName = stadium ? stadium.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
+
+    let blockName = blockId;
+    if (blockId.startsWith("b")) {
+      blockName = blockId.substring(1) + "\uC5D0\uB85C";
+    } else if (state.selectedBlock) {
+      blockName = state.selectedBlock.name;
+    }
+    const seatName = `${r}\uC5F4 ${s}\uBC88`;
+
+    this.closeModal("modal-seat-detail");
+
+    // Reset form fields first before setting prepopulated values
+    document.getElementById("add-ticket-form").reset();
+    const commentEl = document.getElementById("form-comment");
+    if (commentEl) {
+      commentEl.style.height = "auto";
+    }
+
+    const stadiumSelect = document.getElementById("form-stadium");
+    if (stadiumSelect) {
+      stadiumSelect.innerHTML = STADIUMS_DB.map(st => `<option value="${st.id}">${st.name}</option>`).join("");
+    }
+
+    document.getElementById("form-stadium").value = stadiumId;
+    document.getElementById("form-block").value = seatInfo ? seatInfo.blockName : blockName;
+    document.getElementById("form-seat").value = seatInfo ? seatInfo.seatName : seatName;
+
+    const labelEl = document.getElementById("form-seat-info-label");
+    if (labelEl) {
+      labelEl.innerHTML = `${stadiumName}<br>${seatInfo ? seatInfo.blockName : blockName} ${seatInfo ? seatInfo.seatName : seatName}`;
+    }
+
+    state.tempUploadedPhotos = [];
+    this.renderUploadedPhotosThumbnails();
+
+    this.openModal("modal-add-ticket");
+  }
+
+  confirmGoToLogin() {
+    this.closeModal("modal-login-confirm");
+    this.closeModal("modal-seat-detail");
+    this.loginWithKakao();
   }
 
   // --- Modal Helpers ---
@@ -2552,6 +3281,204 @@ class SeatViewApp {
     this.showToast("🔒", "로그아웃 되었습니다.");
   }
 
+  openEditProfileModal() {
+    const nickInput = document.getElementById("profile-nickname-input");
+    const stadiumSelect = document.getElementById("profile-stadium-select");
+    const teamSelect = document.getElementById("profile-team-select");
+
+    if (nickInput) nickInput.value = state.userNickname || "";
+    if (stadiumSelect) {
+      stadiumSelect.innerHTML = STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      stadiumSelect.value = state.favoriteStadiumId || "jamsil";
+    }
+    if (teamSelect) teamSelect.value = state.cheeringTeam || "LG Twins";
+
+    this.openModal("modal-edit-profile");
+  }
+
+  saveProfileSettings(e) {
+    e.preventDefault();
+    const nickVal = document.getElementById("profile-nickname-input").value.trim();
+    const stadiumVal = document.getElementById("profile-stadium-select").value;
+    const teamVal = document.getElementById("profile-team-select").value;
+
+    if (!nickVal) return;
+
+    state.userNickname = nickVal;
+    state.favoriteStadiumId = stadiumVal;
+    state.cheeringTeam = teamVal;
+
+    localStorage.setItem("seatview_nickname", nickVal);
+    localStorage.setItem("seatview_favorite_stadium", stadiumVal);
+    localStorage.setItem("seatview_cheering_team", teamVal);
+
+    if (supabaseClient && state.userId) {
+      supabaseClient
+        .from('profiles')
+        .update({
+          nickname: nickVal,
+          favorite_stadium_id: stadiumVal,
+          cheering_team: teamVal,
+          mod_dtm: new Date().toISOString()
+        })
+        .eq('id', state.userId)
+        .then(({ error }) => {
+          if (error) console.warn("Supabase profile update warning:", error);
+        });
+
+      // Update auth user metadata to prevent stale session nickname fallback
+      supabaseClient.auth.updateUser({
+        data: {
+          name: nickVal,
+          full_name: nickVal
+        }
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase auth metadata update warning:", error);
+      });
+    }
+
+    // Refresh UI
+    const profileStadiumEl = document.getElementById("my-profile-stadium");
+    const profileTeamEl = document.getElementById("my-profile-team");
+    const profileNicknameEl = document.getElementById("my-profile-nickname");
+    const favStadiumObj = STADIUMS_DB.find(s => s.id === stadiumVal);
+
+    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
+    if (profileTeamEl) profileTeamEl.textContent = teamVal;
+    if (profileNicknameEl) profileNicknameEl.textContent = nickVal;
+
+    this.closeModal("modal-edit-profile");
+    this.showToast("\uD83C\uDF89", "\uD504\uB85C\uD544 \uC124\uC815\uC774 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  }
+
+  openWithdrawModal() {
+    this.openModal("modal-withdraw");
+  }
+
+  async confirmWithdrawal() {
+    if (supabaseClient && state.userId) {
+      try {
+        const { error } = await supabaseClient
+          .from('profiles')
+          .delete()
+          .eq('id', state.userId);
+          
+        if (error) throw error;
+        
+        await supabaseClient.auth.signOut();
+        
+        state.isLoggedIn = false;
+        state.userId = null;
+        state.userNickname = "@\uC57C\uAD6C\uB7EC\uBC84";
+        state.favoriteStadiumId = "jamsil";
+        state.cheeringTeam = "LG \uD2B8\uC708\uC2A4";
+        state.userEmail = "";
+        state.userAvatarUrl = "";
+        state.userCouponsCount = 0;
+
+        localStorage.removeItem("supabase.auth.token");
+        localStorage.removeItem("seatview_nickname");
+        localStorage.removeItem("seatview_favorite_stadium");
+        localStorage.removeItem("seatview_cheering_team");
+
+        // Clean up Supabase tokens
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith("sb-") || key.includes("supabase"))) {
+            localStorage.removeItem(key);
+          }
+        }
+
+        this.closeModal("modal-withdraw");
+        this.showToast("\uD83D\uDD13", "\uD68C\uC6D0 \uD0C8\uD1F4\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+        this.navigateTo("main");
+        this.checkUserSession();
+      } catch (e) {
+        console.warn("Withdraw error:", e);
+        alert("\uD68C\uC6D0 \uD0C8\uD1F4\uB97C \uC9C0\uC6D0\uD558\uAE30 \uC728\uD574 DB\uC5D0 \uD0C8\uD1F4 Policy\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.\n\n\uC548\uB0B4\uB4DC\uB9AC\uB294 SQL \uCFFC\uB9AC\uB97C SQL Editor\uC5D0 \uC2E4\uD589\uD574 \uC8FC\uC138\uC694!");
+      }
+    }
+  }
+
+  handleMultiplePhotosSelect(e) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (!state.tempUploadedPhotos) {
+      state.tempUploadedPhotos = [];
+    }
+
+    const remaining = 5 - state.tempUploadedPhotos.length;
+    const toUpload = Array.from(files).slice(0, remaining);
+
+    if (files.length > remaining) {
+      this.showToast("\u26A0\uFE0F", "\uCD5C\uB300 5\uC7A5\uAE4C\uC9C0\uB9CC \uB4F1\uB85D \uAC00\uB2A5\uD569\uB2C8\uB2E4.");
+    }
+
+    let loadedCount = 0;
+    toUpload.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        state.tempUploadedPhotos.push(event.target.result);
+        loadedCount++;
+        if (loadedCount === toUpload.length) {
+          this.renderUploadedPhotosThumbnails();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    e.target.value = "";
+  }
+
+  renderUploadedPhotosThumbnails() {
+    const container = document.getElementById("uploaded-photos-thumbnails-container");
+    const countLbl = document.getElementById("photos-count-lbl");
+    const triggerBtn = document.getElementById("btn-photo-upload-trigger");
+    if (!container) return;
+
+    container.innerHTML = "";
+    const photos = state.tempUploadedPhotos || [];
+
+    if (countLbl) {
+      countLbl.textContent = `${photos.length}/5`;
+    }
+
+    if (triggerBtn) {
+      if (photos.length >= 5) {
+        triggerBtn.style.display = "none";
+      } else {
+        triggerBtn.style.display = "flex";
+      }
+    }
+
+    photos.forEach((photo, index) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+      wrapper.style.width = "60px";
+      wrapper.style.height = "60px";
+      wrapper.style.borderRadius = "10px";
+      wrapper.style.overflow = "hidden";
+      wrapper.style.border = "1px solid var(--border-color)";
+
+      wrapper.innerHTML = `
+        <img src="${photo}" style="width: 100%; height: 100%; object-fit: cover;">
+        <button type="button" onclick="app.removeUploadedPhoto(${index})" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 8px; cursor: pointer; padding: 0;">
+          \u2715
+        </button>
+      `;
+      container.appendChild(wrapper);
+    });
+  }
+
+  removeUploadedPhoto(index) {
+    if (state.tempUploadedPhotos) {
+      state.tempUploadedPhotos.splice(index, 1);
+      this.renderUploadedPhotosThumbnails();
+    }
+  }
+
+
   voteCurrentSeat(type) {
     if (!state.isLoggedIn) {
       this.showToast("🔒", "로그인이 필요한 기능입니다. 우측 상단 프로필을 눌러 1초 로그인을 진행해 주세요!");
@@ -2612,11 +3539,23 @@ class SeatViewApp {
   }
 
   showMusicalComingSoon() {
-    this.showToast("🎭", "뮤지컬/대형공연장 시야 정보는 초기 서비스 안정화 후 곧 오픈될 예정입니다. 야구장 데이터를 먼저 체험해 보세요!");
+    const titleEl = document.getElementById("coming-soon-title");
+    const descEl = document.getElementById("coming-soon-desc");
+    if (titleEl) titleEl.textContent = "\uC11C\uBE44\uC2A4 \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4";
+    if (descEl) {
+      descEl.innerHTML = "\uACF5\uC530\uC7A5(\uBBA4\uC9C0\uCEEC/\uC5F0\uADF9) \uC2DC\uC57C \uC815\uBCF4\uB294<br>\uCD08\uAE30 \uC11C\uBE44\uC2A4 \uC548\uC815\uD654 \uD6C4 \uACE7 \uC624\uD540\uB420 \uC608\uC815\uC785\uB2C8\uB2E4.<br>\uC57C\uAD6C\uC7A5 \uB370\uC774\uD130\uB9AC\uD130 \uBA3C\uC800 \uCCB4\uD5D8\uD574 \uBCF4\uC138\uC694!";
+    }
+    this.openModal("modal-coming-soon");
   }
 
   showFlightComingSoon() {
-    this.showToast("✈️", "항공/영화관 시야 정보는 초기 서비스 안정화 후 곧 오픈될 예정입니다. 야구장 데이터를 먼저 체험해 보세요!");
+    const titleEl = document.getElementById("coming-soon-title");
+    const descEl = document.getElementById("coming-soon-desc");
+    if (titleEl) titleEl.textContent = "\uC11C\uBE44\uC2A4 \uC900\uBE44 \uC911\uC785\uB2C8\uB2E4";
+    if (descEl) {
+      descEl.innerHTML = "\uBE44\uD5E9\uAE30(\uD56D\uACF5) \uC2DC\uC57C \uC815\uBCF4\uB294<br>\uCD08\uAE30 \uC11C\uBE44\uC2A4 \uC548\uC815\uD654 \uD6C4 \uACE7 \uC624\uD540\uB420 \uC608\uC815\uC785\uB2C8\uB2E4.<br>\uC57C\uAD6C\uC7A5 \uB370\uC774\uD130\uB9AC\uD130 \uBA3C\uC800 \uCCB4\uD5D8\uD574 \uBCF4\uC138\uC694!";
+    }
+    this.openModal("modal-coming-soon");
   }
 
   toggleMapCollapse() {
@@ -2717,6 +3656,12 @@ class SeatViewApp {
     }
     
     this.showToast(newTheme === "light" ? "☀️" : "🌙", `${newTheme === "light" ? "라이트" : "다크"} 모드로 전환되었습니다.`);
+  }
+
+  autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
   }
 }
 

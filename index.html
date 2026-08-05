@@ -281,39 +281,52 @@
         <!-- 5. TICKETBOOK VIEW -->
         <section id="view-ticketbook" class="view">
           <div class="view-header">
-            <h2 class="view-title">나만의 직관 티켓북</h2>
-            <button class="add-ticket-btn" onclick="app.openAddTicketModal()">
-              <i data-lucide="plus"></i> 직관 등록
+            <h2 class="view-title">나의 시야 제보 내역</h2>
+            <button class="add-ticket-btn" onclick="app.navigateTo('stadiums')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; width: auto; height: auto;">
+              <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> 시야 제보하러 가기
             </button>
           </div>
 
           <!-- Stats Overview -->
           <div class="ticketbook-stats">
-            <div class="stat-main">
-              <div class="stat-progress-circle" id="win-rate-circle">
-                <span class="win-rate-val" id="win-rate-text">66%</span>
-                <span class="win-rate-lbl">승률</span>
+            <div class="stat-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+              <div class="stat-summary-text" style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                <img id="my-profile-avatar" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple); display: block;" alt="Profile Avatar" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
+                <div>
+                  <h3 id="my-profile-nickname" style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">@야구러버</h3>
+                  <span id="my-profile-email" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 2px;">(이메일 정보 없음)</span>
+                  <div style="display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 0.75rem; font-weight: 700; color: var(--text-primary);">
+                    <span style="color: var(--text-muted); font-weight: 500;">보유 응모권:</span>
+                    <span id="my-profile-coupons" style="color: #ffffff; font-weight: 700;">0장 🎟️</span>
+                  </div>
+                </div>
               </div>
-              <div class="stat-summary-text">
-                <h3>나의 직관 기록</h3>
-                <p id="ticketbook-summary-desc">총 6회 직관 | 4승 2패</p>
+              <div class="stat-progress-circle" id="win-rate-circle" style="margin-left: auto; flex-shrink: 0;">
+                <span class="win-rate-val" id="win-rate-text">0회</span>
+                <span class="win-rate-lbl">제보 수</span>
               </div>
             </div>
-            <div class="stat-details">
+            <div class="stat-details" style="position: relative; padding-right: 60px;">
               <div class="stat-sub">
                 <span class="stat-sub-label">최애 구장</span>
-                <span class="stat-sub-val">잠실 야구장</span>
+                <span class="stat-sub-val" id="my-profile-stadium">잠실 야구장</span>
               </div>
               <div class="stat-sub">
                 <span class="stat-sub-label">응원 구단</span>
-                <span class="stat-sub-val text-accent">LG Twins</span>
+                <span class="stat-sub-val" id="my-profile-team" style="color: #ffffff !important;">Lotte Giants</span>
               </div>
+              <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">변경</button>
             </div>
           </div>
 
           <!-- Ticket Archive Grid -->
           <div class="tickets-archive" id="tickets-archive-container">
             <!-- Loaded dynamically -->
+          </div>
+
+          <!-- My Page Footer (Only visible when logged in) -->
+          <div id="my-page-footer" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 20px;">
+            <button onclick="app.openWithdrawModal()" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer;">회원 탈퇴</button>
           </div>
         </section>
 
@@ -338,49 +351,56 @@
           </div>
 
           <div class="modal-body">
-            <!-- Seat View Image -->
-            <div class="modal-image-wrapper">
-              <img id="modal-seat-img" src="" alt="실제 좌석 시야">
+            <!-- Placeholder for Empty Seats -->
+            <div id="modal-seat-placeholder" style="display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; border: 2px dashed rgba(255, 255, 255, 0.08); border-radius: 20px; background: rgba(255, 255, 255, 0.01); text-align: center; margin-bottom: 24px; width: 100%;">
+              <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);">
+                <i data-lucide="camera-off" style="width: 32px; height: 32px;"></i>
+              </div>
+              <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">등록된 시야 사진이 없습니다</h4>
+              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 220px; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진을 제보하고 이벤트에 자동으로 응모해 보세요!</p>
             </div>
 
-            <!-- Uploader & Vote Bar -->
-            <div class="modal-vote-bar">
-              <div class="uploader-info">
-                <i data-lucide="user" class="uploader-icon"></i>
-                <span id="modal-seat-uploader">@twins_fan</span>
-                <span class="uploader-badge" id="modal-seat-badge">VIP 제보자</span>
-              </div>
-              <div class="vote-actions">
-                <button class="vote-btn upvote" onclick="app.voteCurrentSeat('up')" aria-label="Upvote">
-                  <i data-lucide="thumbs-up"></i> <span id="modal-seat-upvotes">0</span>
-                </button>
-                <button class="vote-btn downvote" onclick="app.voteCurrentSeat('down')" aria-label="Downvote">
-                  <i data-lucide="thumbs-down"></i> <span id="modal-seat-downvotes">0</span>
-                </button>
-              </div>
-            </div>
+            <!-- Seat View Image Carousel -->
+            <div class="modal-image-carousel-container">
+              <div class="modal-image-wrapper">
+                <img id="modal-seat-img" src="" alt="실제 좌석 시야">
 
-            <!-- Tags -->
-            <div class="modal-tags-container">
-              <span class="tag-label">좌석 특성 태그:</span>
-              <div class="tag-list" id="modal-seat-tags">
-                <!-- Javascript populates tags -->
+                
+                <!-- Image counter in bottom-right corner -->
+                <div id="modal-seat-counter" style="position: absolute; bottom: 12px; right: 12px; background: rgba(0, 0, 0, 0.55); color: rgba(255, 255, 255, 0.85); padding: 3px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; z-index: 5; backdrop-filter: blur(4px); pointer-events: none;">1 / 1</div>
+                
+                <button class="carousel-nav-btn prev" id="btn-carousel-prev" onclick="app.prevSeatImage()" aria-label="Previous Image">
+                  <i data-lucide="chevron-left"></i>
+                </button>
+                <button class="carousel-nav-btn next" id="btn-carousel-next" onclick="app.nextSeatImage()" aria-label="Next Image">
+                  <i data-lucide="chevron-right"></i>
+                </button>
+              </div>
+
+              <!-- Thumbnails row -->
+              <div class="modal-thumbnails-container" id="modal-seat-thumbnails">
+                <!-- Javascript will populate thumbnails here -->
               </div>
             </div>
 
             <!-- Description -->
             <div class="modal-desc-box">
-              <h4>💬 실제 관람객 평</h4>
-              <p id="modal-seat-description">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
+              <div class="modal-uploader-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <img id="modal-seat-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--accent-purple);" alt="Avatar" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
+                  <span id="modal-seat-uploader" style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary);">@야구러버</span>
+                </div>
+                <span id="modal-seat-date" style="font-size: 0.72rem; color: var(--text-muted);">2026-08-01</span>
+              </div>
+              <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary);">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
             </div>
 
-            <!-- Action buttons -->
             <div class="modal-actions">
-              <button class="btn btn-secondary" onclick="app.addCurrentSeatToCompare()">
+              <button class="btn btn-secondary" id="btn-detail-compare" onclick="app.addCurrentSeatToCompare()">
                 <i data-lucide="plus-square"></i> 1:1 비교함 담기
               </button>
               <button class="btn btn-primary" onclick="app.addCurrentSeatToTicketbook()">
-                <i data-lucide="book-open"></i> 내 티켓북 등록
+                <i data-lucide="camera"></i> 시야 사진 제보하기
               </button>
             </div>
           </div>
@@ -392,7 +412,7 @@
         <div class="modal-backdrop" onclick="app.closeModal('modal-add-ticket')"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3 class="modal-title">새 직관 기록 등록</h3>
+            <h3 class="modal-title">좌석 시야 사진 제보</h3>
             <button class="close-btn" onclick="app.closeModal('modal-add-ticket')" aria-label="Close">
               <i data-lucide="x"></i>
             </button>
@@ -400,101 +420,62 @@
           
           <div class="modal-body">
             <form id="add-ticket-form" onsubmit="app.saveNewTicket(event)">
-              <!-- Step 1: Ticket OCR Upload -->
-              <div class="form-group">
-                <label>🎫 1단계: 티켓 사진/영수증 업로드 (OCR 스캔 시뮬레이션)</label>
-                <div class="photo-upload-box" id="ticket-ocr-box" onclick="document.getElementById('ticket-ocr-input').click()">
-                  <input type="file" id="ticket-ocr-input" accept="image/*" style="display: none;" onchange="app.handleTicketOCRSelect(event)">
-                  <div class="upload-placeholder" id="ocr-placeholder-content">
-                    <i data-lucide="scan-line"></i>
-                    <span>티켓 등록 (날짜/좌석 정보 자동 스캔)</span>
-                  </div>
-                  <img id="ticket-ocr-preview" src="" alt="티켓 이미지 미리보기" style="display: none;">
-                  <div class="ocr-scanning-overlay" id="ocr-scanning-overlay" style="display: none;">
-                    <div class="scan-bar"></div>
-                    <span>티켓 글자를 판독하고 있습니다...</span>
-                  </div>
+              
+              <!-- 1. 제보 좌석 정보 헤더 배너 -->
+              <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
+                <div style="background: var(--accent-blue); color: #fff; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="map-pin" style="width: 20px; height: 20px;"></i>
+                </div>
+                <div>
+                  <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">제보 대상 좌석</span>
+                  <span id="form-seat-info-label" style="font-size: 0.92rem; font-weight: 800; color: var(--text-primary);">잠실 야구장 - 101블록 12열 3번</span>
                 </div>
               </div>
 
-              <!-- Step 2: Seat Photo Upload -->
-              <div class="form-group">
-                <label>📷 2단계: 실제 좌석 시야 사진 업로드</label>
-                <div class="photo-upload-box" id="ticket-photo-box" onclick="document.getElementById('ticket-photo-input').click()">
-                  <input type="file" id="ticket-photo-input" accept="image/*" style="display: none;" onchange="app.handleTicketPhotoSelect(event)">
-                  <div class="upload-placeholder" id="upload-placeholder-content">
-                    <i data-lucide="image-plus"></i>
-                    <span>실제 시야 사진 업로드</span>
+              <!-- Hidden fields to hold the selected seat key details -->
+              <input type="hidden" id="form-stadium">
+              <input type="hidden" id="form-block">
+              <input type="hidden" id="form-seat">
+
+              <!-- 2. 실제 좌석 시야 사진 업로드 (최대 5개, 삭제 X 버튼) -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label style="margin-bottom: 8px; font-weight: 700;">📷 실제 좌석 시야 사진 업로드 <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">(최대 5개)</span></label>
+                <div class="photos-upload-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                  <!-- Upload Trigger Box -->
+                  <div class="photo-upload-box-small" id="btn-photo-upload-trigger" onclick="document.getElementById('ticket-photos-input').click()" style="width: 60px; height: 60px; border: 1px dashed var(--border-color); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); background: var(--bg-input);">
+                    <i data-lucide="image-plus" style="width: 20px; height: 20px;"></i>
+                    <span style="font-size: 0.55rem; margin-top: 4px;" id="photos-count-lbl">0/5</span>
                   </div>
-                  <img id="ticket-photo-preview" src="" alt="시야 이미지 미리보기" style="display: none;">
+                  <input type="file" id="ticket-photos-input" accept="image/*" multiple style="display: none;" onchange="app.handleMultiplePhotosSelect(event)">
+                  
+                  <!-- Thumbnails Row -->
+                  <div id="uploaded-photos-thumbnails-container" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
                 </div>
               </div>
 
-              <!-- Step 3: Cheering Team -->
-              <div class="form-group">
-                <label for="form-cheering-team">응원 구단 선택</label>
-                <select id="form-cheering-team" required onchange="app.updateMatchResultAutomatically()">
-                  <option value="">응원팀을 선택하세요</option>
-                  <option value="LG">LG 트윈스</option>
-                  <option value="Doosan">두산 베어스</option>
-                  <option value="SSG">SSG 랜더스</option>
-                  <option value="Kiwoom">키움 히어로즈</option>
-                  <option value="KT">KT 위즈</option>
-                  <option value="Samsung">삼성 라이온즈</option>
-                  <option value="KIA">KIA 타이거즈</option>
-                  <option value="Hanwha">한화 이글스</option>
-                  <option value="Lotte">롯데 자이언츠</option>
-                  <option value="NC">NC 다이노스</option>
-                </select>
+              <!-- 3. 관람평 / 좌석 꿀팁 (자동 확장형 textarea) -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="form-comment" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; display: block; color: var(--text-primary);">📝 관람평 / 좌석 꿀팁</label>
+                <textarea id="form-comment" rows="2" oninput="app.autoResizeTextarea(this)" style="resize: none; overflow-y: hidden; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); line-height: 1.5; font-size: 0.78rem;" placeholder="이 좌석의 시야(방해물 여부), 햇빛 방향, 앰프 소음 등 다른 팬들에게 도움이 될 팁을 적어주세요."></textarea>
               </div>
 
-              <!-- OCR Auto-filled Fields Container -->
-              <div class="ocr-autofill-section" style="border: 1px solid rgba(59, 130, 246, 0.2); background-color: rgba(59, 130, 246, 0.02); border-radius: 16px; padding: 14px; margin-bottom: 16px;">
-                <span style="font-size: 0.72rem; font-weight: 700; color: var(--accent-blue); display: block; margin-bottom: 10px;">✨ 티켓 OCR 스캔 판독 정보 (자동 입력됨)</span>
-
-                <!-- Stadium Selection -->
-                <div class="form-group">
-                  <label for="form-stadium">경기장</label>
-                  <select id="form-stadium" required>
-                    <!-- Populated from stadiums list -->
-                  </select>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="form-block">구역/블록</label>
-                    <input type="text" id="form-block" placeholder="스캔 시 자동 입력" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="form-seat">상세 좌석</label>
-                    <input type="text" id="form-seat" placeholder="스캔 시 자동 입력" required>
-                  </div>
-                </div>
-
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="form-match-date">경기 일자</label>
-                    <input type="date" id="form-match-date" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="form-result">경기 결과</label>
-                    <input type="text" id="form-result" readonly placeholder="응원팀 선택 시 자동 계산" style="background-color: rgba(255,255,255,0.02); color: var(--text-secondary);">
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label for="form-score">경기 스코어</label>
-                  <input type="text" id="form-score" placeholder="스캔 시 자동 입력">
-                </div>
+              <!-- 3.5 익명 표기 여부 체크박스 -->
+              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="form-is-anonymous" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-purple);">
+                <label for="form-is-anonymous" style="font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">익명으로 표기 (제보 시 닉네임을 노출하지 않습니다)</label>
               </div>
 
-              <div class="form-group">
-                <label for="form-comment">관람평 / 꿀팁</label>
-                <textarea id="form-comment" rows="2" placeholder="이 자리에 대해 다른 관람객에게 알려줄 팁이 있나요? (예: 오후 4시 이후엔 햇빛 안들어옴!)"></textarea>
+              <!-- 4. 안내문구 영역 -->
+              <div class="policy-notice-banner" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.6;">
+                <div style="font-weight: 800; margin-bottom: 6px; color: var(--text-primary);">💡 시야 제보 및 데이터 보존 정책 안내</div>
+                <ul style="margin: 0; padding-left: 14px; list-style-type: disc;">
+                  <li style="margin-bottom: 4px;">시야 사진을 제보하면 3일 뒤 자동으로 이벤트 응모권이 지급됩니다.</li>
+                  <li>이벤트 참여 이후 및 <b>회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 야구팬들을 위해 삭제되지 않고 영구적으로 보존됩니다.</b></li>
+                </ul>
               </div>
 
-              <button type="submit" class="btn btn-primary btn-full-width">
-                <i data-lucide="check"></i> 티켓북에 등록 완료
+              <button type="submit" class="btn btn-primary btn-full-width" style="padding: 14px; font-weight: 800; font-size: 0.95rem; border-radius: 12px;">
+                <i data-lucide="check"></i> 시야 사진 제보 완료
               </button>
             </form>
           </div>
@@ -528,20 +509,106 @@
               <i data-lucide="x"></i>
             </button>
           </div>
-          <div class="modal-body">
-            <ul class="menu-list" style="list-style: none; display: flex; flex-direction: column; gap: 16px; padding: 10px 0;">
-              <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="home"></i> 홈 화면</li>
-              <li onclick="app.closeModal('modal-menu'); app.navigateTo('stadiums')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="compass"></i> 야구장 시야 탐색</li>
-              <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="columns"></i> 1:1 시야 비교</li>
-              <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;"><i data-lucide="user"></i> 마이페이지</li>
-              <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
-              <li onclick="app.toggleTheme()" style="font-size: 1.0rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 12px; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <i id="theme-icon" data-lucide="sun"></i>
-                  <span id="theme-text">라이트 모드로 전환</span>
-                </div>
-              </li>
-            </ul>
+          <div class="modal-body" id="hamburger-menu-content">
+            <!-- Dynamic content loaded from app.js based on login state -->
+          </div>
+        </div>
+      </div>
+
+      <!-- F. Coming Soon Modal (준비 중 안내 팝업) -->
+      <div class="modal modal-center" id="modal-coming-soon">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-coming-soon')"></div>
+        <div class="modal-content" style="max-width: 320px; text-align: center; padding: 32px 24px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); box-shadow: var(--shadow-lg);">
+          <div class="coming-soon-icon-wrapper" style="margin: 0 auto 20px auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center; color: var(--accent-blue);">
+            <i data-lucide="sparkles" style="width: 32px; height: 32px; animation: pulse 2s infinite;"></i>
+          </div>
+          <h3 class="modal-title" id="coming-soon-title" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">준비 중인 구장입니다</h3>
+          <p id="coming-soon-desc" style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+            선택하신 경기장의 구역 정보 및<br>시야 데이터를 열심히 준비하고 있습니다.<br>더 나은 서비스로 빠르게 찾아뵙겠습니다!
+          </p>
+          <button class="btn btn-primary" onclick="app.closeModal('modal-coming-soon')" style="width: 100%; padding: 12px; font-weight: 700; border-radius: 12px; font-size: 0.95rem; cursor: pointer; transition: var(--transition-normal);">확인</button>
+        </div>
+      </div>
+
+      <!-- G. Edit Profile Modal (최애구장/응원팀 변경 팝업) -->
+      <div class="modal modal-center" id="modal-edit-profile">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-edit-profile')"></div>
+        <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg);">
+          <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">프로필 설정 변경</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-edit-profile')" aria-label="Close" style="padding: 0; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;">
+              <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+            </button>
+          </div>
+          <div class="modal-body" style="padding: 0;">
+            <form onsubmit="app.saveProfileSettings(event)">
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label for="profile-nickname-input">닉네임</label>
+                <input type="text" id="profile-nickname-input" required maxlength="12" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+              </div>
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label for="profile-stadium-select">최애 구장</label>
+                <select id="profile-stadium-select" required style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                  <!-- Dynamic options -->
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="profile-team-select">응원 구단</label>
+                <select id="profile-team-select" required style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                  <option value="LG 트윈스">LG 트윈스</option>
+                  <option value="두산 베어스">두산 베어스</option>
+                  <option value="SSG 랜더스">SSG 랜더스</option>
+                  <option value="키움 히어로즈">키움 히어로즈</option>
+                  <option value="KT 위즈">KT 위즈</option>
+                  <option value="삼성 라이온즈">삼성 라이온즈</option>
+                  <option value="KIA 타이거즈">KIA 타이거즈</option>
+                  <option value="한화 이글스">한화 이글스</option>
+                  <option value="롯데 자이언츠">롯데 자이언츠</option>
+                  <option value="NC 다이노스">NC 다이노스</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full-width" style="padding: 10px; font-weight: 700; font-size: 0.88rem; border-radius: 10px; width: 100%; cursor: pointer;">
+                저장 완료
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- H. 회원탈퇴 확인 모달 -->
+      <div class="modal modal-center" id="modal-withdraw">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-withdraw')"></div>
+        <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color);">
+          <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--accent-red); display: flex; align-items: center; gap: 6px;"><i data-lucide="alert-triangle" style="width: 18px; height: 18px; color: var(--accent-red);"></i> 회원 탈퇴 안내</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-withdraw')" aria-label="Close" style="padding: 0; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;">
+              <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+            </button>
+          </div>
+          <div class="modal-body" style="padding: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+            <p style="margin-bottom: 16px;">
+              정말 탈퇴하시겠습니까? 탈퇴 시 프로필 및 설정 내역은 즉시 파기되지만, <b>작성해주신 시야 사진 및 관람평 데이터는 다른 야구팬들을 위해 삭제되지 않고 보존됩니다.</b>
+            </p>
+            <div style="display: flex; gap: 8px; margin-top: 20px;">
+              <button class="btn btn-secondary" onclick="app.closeModal('modal-withdraw')" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
+              <button class="btn" onclick="app.confirmWithdrawal()" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; background: var(--accent-red); color: white; border: none; cursor: pointer;">탈퇴하기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- H. Login Confirm Modal (커스텀 로그인 유도 팝업) -->
+      <div class="modal modal-center" id="modal-login-confirm">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-login-confirm')"></div>
+        <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); text-align: center; border: 1px solid var(--border-color);">
+          <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+            <i data-lucide="log-in" style="width: 28px; height: 28px;"></i>
+          </div>
+          <h3 class="modal-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">로그인이 필요합니다</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px;">시야 사진을 제보하려면 로그인이 필요합니다.<br>로그인 화면으로 이동하시겠습니까?</p>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="app.closeModal('modal-login-confirm')" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
+            <button class="btn btn-primary" onclick="app.confirmGoToLogin()" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">이동</button>
           </div>
         </div>
       </div>
