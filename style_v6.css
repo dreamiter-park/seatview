@@ -67,6 +67,10 @@ body {
   overflow: hidden; /* Prevent body scrolling, scroll inside phone container */
 }
 
+body.modal-open .app-content {
+  overflow-y: hidden !important;
+}
+
 /* 2. Desktop Outer Container & Phone Frame Simulator */
 .app-container {
   display: flex;
@@ -97,11 +101,13 @@ body {
 @media (max-width: 480px) {
   .app-container {
     padding: 0;
+    height: 100dvh;
   }
   .phone-frame {
     border-radius: 0;
     border: none;
-    max-height: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
   }
 }
 
@@ -344,8 +350,14 @@ body {
 
 .view {
   display: none;
-  padding: 20px;
+  padding: 16px 12px;
   animation: fadeIn var(--transition-normal) forwards;
+}
+
+@media (min-width: 400px) {
+  .view {
+    padding: 20px 16px;
+  }
 }
 
 .view.active {
@@ -400,7 +412,7 @@ body {
 
 .hero-title {
   font-family: var(--font-display);
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.25;
   margin-bottom: 8px;
@@ -443,8 +455,14 @@ body {
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 0.9rem;
+  line-height: 1;
   width: 100%;
   outline: none;
+}
+
+.search-bar-container input::placeholder {
+  font-size: 0.84rem;
+  line-height: 1;
 }
 
 .section-container {
@@ -1402,7 +1420,7 @@ body {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  border: 3.5px solid var(--accent-purple);
+  border: 1.5px solid var(--accent-purple);
   background: transparent;
   display: flex;
   flex-direction: column;

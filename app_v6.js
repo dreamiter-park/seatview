@@ -527,8 +527,8 @@ class SeatViewApp {
     this.setupListeners();
 
     // Initialize profile values from localStorage
-    const savedStadium = localStorage.getItem("seatview_favorite_stadium") || "jamsil";
-    const savedTeam = localStorage.getItem("seatview_cheering_team") || "LG \uD2B8\uC708\uC2A4";
+    const savedStadium = localStorage.getItem("seatview_favorite_stadium") || null;
+    const savedTeam = localStorage.getItem("seatview_cheering_team") || null;
     const savedNickname = localStorage.getItem("seatview_nickname") || "@\uC57C\uAD6C\uB7EC\uBC84";
     state.favoriteStadiumId = savedStadium;
     state.cheeringTeam = savedTeam;
@@ -583,18 +583,20 @@ class SeatViewApp {
             if (cat.id === "musical") bgImage = "assets/musical_stage.png";
             else if (cat.id === "plane") bgImage = "assets/flight_cinema.jpg";
 
-            // Set card status
-            const isClickable = cat.is_active;
-            card.className = `category-card${isClickable ? '' : ' disabled'}`;
-            
-            if (isClickable) {
-              if (cat.id === "baseball") {
-                card.onclick = () => this.navigateTo('stadiums');
-              } else if (cat.id === "musical") {
-                card.onclick = () => this.showMusicalComingSoon();
-              }
+            // Click behavior is driven purely by badge_text: "TO BE" shows the
+            // coming-soon popup, everything else navigates to its real screen.
+            // Visual style stays the same as a normal card either way.
+            card.className = "category-card";
+            const isComingSoon = cat.badge_text === "TO BE";
+
+            if (isComingSoon) {
+              card.onclick = () => this.showCategoryComingSoon(cat.name);
+            } else if (cat.id === "baseball") {
+              card.onclick = () => this.navigateTo('stadiums');
             } else {
-              card.onclick = () => this.showToast("SOON", "서비스 준비 중입니다!");
+              // No real screen built for this category yet either; fall back to
+              // the same coming-soon popup instead of leaving the card dead.
+              card.onclick = () => this.showCategoryComingSoon(cat.name);
             }
 
             // Badge HTML
@@ -664,8 +666,8 @@ class SeatViewApp {
           const idMap = {
             1: "jamsil",
             2: "gocheok",
-            3: "suwon",
-            4: "incheon",
+            3: "incheon",
+            4: "suwon",
             5: "daejeon",
             6: "daegu",
             7: "gwangju",
@@ -785,14 +787,65 @@ class SeatViewApp {
     if (searchInput) {
       searchInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter" && searchInput.value.trim() !== "") {
-          this.showToast("⚡", `'${searchInput.value}' 검색 결과가 준비 중입니다!`);
+          const query = searchInput.value.trim();
           searchInput.value = "";
+          this.handleMainSearch(query);
         }
       });
     }
 
     // Set up click-and-drag horizontal scroll for the grade filter bar
     this.setupDragScroll("grade-filter-bar");
+
+    // History API Router integration
+    if (!history.state) {
+      history.replaceState({ view: "main" }, "", "#main");
+    }
+
+    window.addEventListener("popstate", (e) => {
+      // 1. Close modals first if any are active (Requirement 15)
+      const activeModals = document.querySelectorAll(".modal.active");
+      if (activeModals.length > 0) {
+        const lastModal = activeModals[activeModals.length - 1];
+        this.closeModal(lastModal.id, true);
+        return;
+      }
+
+      // 2. Otherwise, navigate views
+      const stateObj = e.state;
+      if (stateObj && stateObj.view) {
+        this.navigateTo(stateObj.view, false);
+      }
+    });
+  }
+
+  // Parses queries like "고척 111구역" or "고척 111" into a stadium + block
+  // code, jumps to that stadium's detail view, and auto-selects the block.
+  async handleMainSearch(query) {
+    const blockMatch = query.match(/([A-Za-z]?\d+)\s*구역/) || query.match(/([A-Za-z]?\d+)\s*$/);
+    const blockCode = blockMatch ? blockMatch[1] : null;
+    const stadiumKeyword = query.replace(/([A-Za-z]?\d+)\s*구역?/, "").trim();
+
+    const stadium = stadiumKeyword
+      ? STADIUMS_DB.find(st => st.name.includes(stadiumKeyword) || (stadiumKeyword.length >= 2 && stadiumKeyword.includes(st.name.slice(0, 2))))
+      : null;
+
+    if (!stadium || !blockCode) {
+      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "구장명 구역번호" 형식으로 입력해 보세요. (예: 고척 111)`);
+      return;
+    }
+
+    await this.loadStadiumDetail(stadium.id);
+
+    const targetBlock = (state.selectedStadium && state.selectedStadium.blocks || [])
+      .find(b => String(b.block_code).toUpperCase() === blockCode.toUpperCase());
+
+    if (targetBlock) {
+      this.selectStadiumBlock(targetBlock.id);
+      this.showToast("✅", `${stadium.name} ${blockCode}구역으로 이동했어요.`);
+    } else {
+      this.showToast("🔍", `${stadium.name}에서 ${blockCode}구역을 찾지 못했어요.`);
+    }
   }
 
   setupDragScroll(elementId) {
@@ -832,11 +885,17 @@ class SeatViewApp {
   }
 
   // --- Router ---
-  navigateTo(viewId) {
+  navigateTo(viewId, pushHistory = true) {
     if (viewId === "ticketbook" && !state.isLoggedIn) {
       this.navigateTo("main");
       this.loginWithKakao();
       return;
+    }
+
+    if (pushHistory) {
+      if (!history.state || history.state.view !== viewId) {
+        history.pushState({ view: viewId }, "", "#" + viewId);
+      }
     }
 
     // Hide all views
@@ -859,29 +918,33 @@ class SeatViewApp {
       }
     });
 
-    // --- Dynamic Header Layout Updates ---
+    // --- Dynamic Header Layout Updates (Requirement 10) ---
     const logoEl = document.getElementById("header-logo");
     const backBtn = document.getElementById("header-back-btn");
     const titleEl = document.getElementById("header-title");
 
-    if (viewId === "stadiums" || viewId === "stadium-detail") {
-      // Subpage header layout
+    if (viewId === "main") {
+      // Main page layout: Logo & Hamburger only
+      if (logoEl) logoEl.style.display = "block";
+      if (backBtn) backBtn.style.display = "none";
+      if (titleEl) titleEl.style.display = "none";
+    } else {
+      // Subpage/Detail layout: Back button, Page Title, Hamburger
       if (logoEl) logoEl.style.display = "none";
       if (backBtn) backBtn.style.display = "flex";
       if (titleEl) {
         titleEl.style.display = "block";
         if (viewId === "stadiums") {
-          titleEl.textContent = "프로야구";
+          titleEl.textContent = "구장 시야 탐색";
+        } else if (viewId === "compare") {
+          titleEl.textContent = "1:1 시야 비교";
+        } else if (viewId === "ticketbook") {
+          titleEl.textContent = "마이페이지";
         } else if (viewId === "stadium-detail" && state.selectedStadium) {
           titleEl.textContent = state.selectedStadium.name;
+        } else {
+          titleEl.textContent = "상세 정보";
         }
-      }
-    } else {
-      // Main page/tab header layout
-      if (logoEl) logoEl.style.display = "block";
-      if (backBtn) backBtn.style.display = "none";
-      if (titleEl) {
-        titleEl.style.display = "none";
       }
     }
 
@@ -906,9 +969,11 @@ class SeatViewApp {
   handleHeaderBack() {
     if (state.currentView === "stadium-detail") {
       state.selectedBlock = null;
-      this.navigateTo("stadiums");
-    } else if (state.currentView === "stadiums") {
-      this.navigateTo("main");
+    }
+    
+    // Go back using browser history so it matches physical back button
+    if (window.history.length > 1) {
+      window.history.back();
     } else {
       this.navigateTo("main");
     }
@@ -923,7 +988,7 @@ class SeatViewApp {
     const container = document.getElementById("hamburger-menu-content");
     if (!container) return;
 
-    const defaultAvatar = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
     const avatarUrl = state.userAvatarUrl || defaultAvatar;
 
     let profileHtml = "";
@@ -939,7 +1004,7 @@ class SeatViewApp {
     } else {
       profileHtml = `
         <div class="menu-profile-card" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px; text-align: center; align-items: center;">
-          <span style="font-size: 0.85rem; color: var(--text-secondary);">\uB85C\uADF8\uC778 \uD6C4 \uC2DC\uC57C \uC81C\uBCF4\uC5D0 \uC9C0\uC5B4\uD574 \uBCF4\uC138\uC694!</span>
+          <span style="font-size: 0.85rem; color: var(--text-secondary);">\uB85C\uADF8\uC778\uD558\uACE0 \uC2DC\uC57C \uC81C\uBCF4\uC5D0 \uCC38\uC5EC\uD574 \uBCF4\uC138\uC694!</span>
           <button class="btn" onclick="app.closeModal('modal-menu'); app.loginWithKakao();" style="width: 100%; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer;">
             <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> \uCE74\uCE74\uC624 \uB85C\uADF8\uC778
           </button>
@@ -950,7 +1015,7 @@ class SeatViewApp {
     container.innerHTML = `
       ${profileHtml}
       <ul class="menu-list" style="list-style: none; display: flex; flex-direction: column; gap: 16px; padding: 10px 0;">
-        <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="home" style="width: 18px; height: 18px;"></i> \uD648 \uD654\uBA74</li>
+        <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="home" style="width: 18px; height: 18px;"></i> \uD648</li>
         <li onclick="app.closeModal('modal-menu'); app.navigateTo('stadiums')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="compass" style="width: 18px; height: 18px;"></i> \uC57C\uAD6C\uC7A5 \uC2DC\uC57C \uD0D0\uC0C9</li>
         <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="columns" style="width: 18px; height: 18px;"></i> 1:1 \uC2DC\uC57C \uBE44\uAD50</li>
         <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="user" style="width: 18px; height: 18px;"></i> \uB9C8\uC774\uD398\uC774\uC9C0</li>
@@ -987,7 +1052,7 @@ class SeatViewApp {
   }
 
   async logout() {
-    const confirmLogout = confirm("\uB85C\uADF8\uC544\uC6C3 \uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?");
+    const confirmLogout = await this.showConfirmDialog("\uB85C\uADF8\uC544\uC6C3", "\uB85C\uADF8\uC544\uC6C3 \uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?");
     if (!confirmLogout) return;
 
     if (supabaseClient) {
@@ -1014,9 +1079,10 @@ class SeatViewApp {
     const profileEmailEl = document.getElementById("my-profile-email");
     const profileAvatarEl = document.getElementById("my-profile-avatar");
     if (profileEmailEl) profileEmailEl.textContent = "(\uC774\uBA54\uC77C \uC815\uBCF4 \uC81C\uAC70)";
-    if (profileAvatarEl) profileAvatarEl.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    if (profileAvatarEl) profileAvatarEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
 
     this.renderTicketbook();
+    this.navigateTo("main");
     this.showToast("\uD83D\uDD13", "\uB85C\uADF8\uC544\uC6C3 \uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
     this.checkUserSession();
   }
@@ -1039,15 +1105,69 @@ class SeatViewApp {
 
         if (!profileErr && profile) {
           state.userNickname = profile.nickname || "@\uC57C\uAD6C\uB7EC\uBC84";
-          state.favoriteStadiumId = profile.favorite_stadium_id || "jamsil";
-          state.cheeringTeam = profile.cheering_team || "LG \uD2B8\uC708\uC2A4";
+          state.favoriteStadiumId = profile.favorite_stadium_id || null;
+          state.cheeringTeam = profile.cheering_team || null;
           state.userAvatarUrl = profile.profile_image_url || "";
-          state.userCouponsCount = profile.coupons_count || 0;
         } else {
           const meta = session.user.user_metadata || {};
           state.userNickname = meta.name || meta.full_name || "@\uC57C\uAD6C\uB7EC\uBC84";
           state.userAvatarUrl = meta.avatar_url || "";
-          state.userCouponsCount = 0;
+        }
+
+        // Fetch user reviews directly from Supabase db
+        try {
+          const { data: dbReviews, error: dbReviewsErr } = await supabaseClient
+            .from('seat_reviews')
+            .select('*')
+            .eq('user_id', state.userId)
+            .order('ins_dtm', { ascending: false });
+
+          if (!dbReviewsErr && dbReviews) {
+            // baseball_seat_id is a real FK to baseball_seats.id now, so look up
+            // the seat/block/stadium chain instead of guessing from a string.
+            const seatIds = [...new Set(dbReviews.map(r => r.baseball_seat_id).filter(id => id != null))];
+            let seatsById = {}, blocksById = {}, stadiumsById = {};
+
+            if (seatIds.length > 0) {
+              const { data: seatRows } = await supabaseClient.from('baseball_seats').select('*').in('id', seatIds);
+              (seatRows || []).forEach(s => { seatsById[s.id] = s; });
+
+              const blockIds = [...new Set((seatRows || []).map(s => s.block_id).filter(id => id != null))];
+              if (blockIds.length > 0) {
+                const { data: blockRows } = await supabaseClient.from('baseball_blocks').select('*').in('id', blockIds);
+                (blockRows || []).forEach(b => { blocksById[b.id] = b; });
+
+                const stadiumIds = [...new Set((blockRows || []).map(b => b.stadium_id).filter(id => id != null))];
+                if (stadiumIds.length > 0) {
+                  const { data: stadiumRows } = await supabaseClient.from('stadiums').select('*').in('id', stadiumIds);
+                  (stadiumRows || []).forEach(st => { stadiumsById[st.id] = st; });
+                }
+              }
+            }
+
+            state.tickets = dbReviews.map(r => {
+              const seatRow = seatsById[r.baseball_seat_id];
+              const blockRow = seatRow ? blocksById[seatRow.block_id] : null;
+              const stadiumRow = blockRow ? stadiumsById[blockRow.stadium_id] : null;
+
+              return {
+                id: r.id,
+                ins_dtm: r.ins_dtm,
+                stadiumId: stadiumRow ? stadiumRow.id : null,
+                stadiumName: stadiumRow ? stadiumRow.name : "기타 구장",
+                blockName: blockRow ? (blockRow.full_name || blockRow.block_code + "구역") : "구역 정보 없음",
+                seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
+                comment: r.content,
+                image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
+                images: r.image_urls || []
+              };
+            });
+          } else {
+            state.tickets = [];
+          }
+        } catch (dbErr) {
+          console.warn("Fetch seat reviews error:", dbErr);
+          state.tickets = [];
         }
 
         const profileStadiumEl = document.getElementById("my-profile-stadium");
@@ -1057,16 +1177,20 @@ class SeatViewApp {
         const profileAvatarEl = document.getElementById("my-profile-avatar");
         const favStadiumObj = STADIUMS_DB.find(s => s.id === state.favoriteStadiumId);
 
-        if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
-        if (profileTeamEl) profileTeamEl.textContent = state.cheeringTeam;
+        if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uBBF8\uC124\uC815";
+        if (profileTeamEl) profileTeamEl.textContent = state.cheeringTeam || "\uBBF8\uC124\uC815";
         if (profileNicknameEl) profileNicknameEl.textContent = state.userNickname;
-        if (profileEmailEl) profileEmailEl.textContent = state.userEmail;
-        if (profileAvatarEl) {
-          profileAvatarEl.src = state.userAvatarUrl || "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+        if (profileEmailEl) {
+          if (state.userEmail) {
+            profileEmailEl.textContent = state.userEmail;
+            profileEmailEl.style.display = "block";
+          } else {
+            profileEmailEl.style.display = "none";
+          }
         }
-        
-        const profileCouponsEl = document.getElementById("my-profile-coupons");
-        if (profileCouponsEl) profileCouponsEl.textContent = `${state.userCouponsCount || 0}\uC7A5 \uD83C\uDFAB`;
+        if (profileAvatarEl) {
+          profileAvatarEl.src = state.userAvatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+        }
 
         // Restore pending login state if exists
         const pendingJson = sessionStorage.getItem("seatview_pending_login_state");
@@ -1203,8 +1327,8 @@ class SeatViewApp {
         const reverseIdMap = {
           "jamsil": 1,
           "gocheok": 2,
-          "suwon": 3,
-          "incheon": 4,
+          "incheon": 3,
+          "suwon": 4,
           "daejeon": 5,
           "daegu": 6,
           "gwangju": 7,
@@ -2523,7 +2647,7 @@ class SeatViewApp {
     }
     if (descEl) descEl.textContent = curImg.comment || "\uB4F1\uB85D\uB41C \uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
-    const defaultAvatar = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
@@ -2799,7 +2923,7 @@ class SeatViewApp {
 
     const circle = document.getElementById("win-rate-circle");
     if (circle) {
-      circle.style.background = `radial-gradient(closest-side, var(--bg-card) 79%, transparent 80% 100%), conic-gradient(var(--accent-purple) 100%, var(--bg-input) 0)`;
+      circle.style.background = `radial-gradient(closest-side, var(--bg-card) 87%, transparent 88% 100%), conic-gradient(var(--accent-purple) 100%, var(--bg-input) 0)`;
     }
 
     const eventWidget = document.getElementById("ticketbook-event-widget");
@@ -2825,8 +2949,11 @@ class SeatViewApp {
           <div class="compare-empty-icon">
             <i data-lucide="book-open"></i>
           </div>
-          <h3>\uB4F1\uB85D\uB41C \uD2F0\uCE65 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
-          <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4\uB9B4 \uD1B5\uD574 \uB098\uB9CC\uC758 \uC2DC\uC57C \uB370\uC774\uD130\uB9BC \uC313\uC544\uAC00 \uBCF4\uC138\uC694!</p>
+          <h3>\uB4F1\uB85D\uD558\uC2E0 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
+          <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4\uB97C \uD1B5\uD574<br>\uB098\uB9CC\uC758 \uC2DC\uC57C \uB370\uC774\uD130\uB97C \uC313\uACE0<br>\uB2E4\uC591\uD55C \uC774\uBCA4\uD2B8\uC5D0 \uC790\uB3D9\uC73C\uB85C \uC751\uBAA8\uD574\uBCF4\uC138\uC694</p>
+          <button class="add-ticket-btn" onclick="app.navigateTo('stadiums')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto; margin-top: 16px;">
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> \uC2DC\uC57C \uC81C\uBCF4\uD558\uB7EC \uAC00\uAE30
+          </button>
         </div>
       `;
       lucide.createIcons();
@@ -2982,32 +3109,80 @@ class SeatViewApp {
     }
   }
 
-  handleTicketPhotoSelect(e) {
+  compressImageToWebP(file, maxWidth = 1024, quality = 0.7) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const webpBase64 = canvas.toDataURL("image/webp", quality);
+          resolve(webpBase64);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async handleTicketPhotoSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      state.currentUploadedPhotoBase64 = event.target.result;
+    try {
+      const webpData = await this.compressImageToWebP(file);
+      state.currentUploadedPhotoBase64 = webpData;
       
       const previewImg = document.getElementById("ticket-photo-preview");
       const placeholder = document.getElementById("upload-placeholder-content");
       
-      previewImg.src = event.target.result;
-      previewImg.style.display = "block";
-      placeholder.style.display = "none";
-    };
-    reader.readAsDataURL(file);
+      if (previewImg) {
+        previewImg.src = webpData;
+        previewImg.style.display = "block";
+      }
+      if (placeholder) {
+        placeholder.style.display = "none";
+      }
+    } catch (err) {
+      console.error("Image compression error:", err);
+    }
   }
 
-  saveNewTicket(e) {
+  async saveNewTicket(e) {
     e.preventDefault();
+
+    // Disable submit button immediately to prevent duplicate submissions
+    const submitBtn = e.target.querySelector("button[type='submit']");
+    let originalBtnHtml = "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      originalBtnHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = "<i class='spinner-border' style='width: 14px; height: 14px; margin-right: 6px; border: 2px solid; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; vertical-align: middle;'></i>\uB4F1\uB85D \uC91F...";
+    }
 
     // Photo upload is mandatory (supports both tempUploadedPhotos and currentUploadedPhotoBase64)
     const hasPhotos = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0;
     if (!hasPhotos && !state.currentUploadedPhotoBase64) {
       this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
-      alert("📸 시야 사진 제보 및 직관 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
+      await this.showAlertDialog("사진 업로드 필요", "시야 제보 및 직관 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
       return;
     }
 
@@ -3046,11 +3221,11 @@ class SeatViewApp {
     state.tickets.push(newTicket);
     localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
 
-    // Seed database with new custom seat view so it shows up in explorer if chosen!
-    const bIdNormalized = "b_" + blockVal.replace(/[^0-9]/g, "");
-    const rNum = parseInt(seatVal.replace(/[^0-9]/g, "").slice(0,1)) || 1;
-    const sNum = parseInt(seatVal.replace(/[^0-9]/g, "").slice(1,2)) || 1;
-    const dbKey = `${stadiumId}_${bIdNormalized}_${rNum}_${sNum}`;
+    // Use the same seat key the detail modal opened with (real baseball_seats.id
+    // for DB-backed seats, or a demo/composite string for placeholder seats that
+    // have no matching row in baseball_seats).
+    const dbKey = state.activeModalSeatKey;
+    const realSeatId = /^\d+$/.test(String(dbKey)) ? parseInt(dbKey, 10) : null;
 
     if (!SEAT_VIEWS_DB[dbKey]) {
       SEAT_VIEWS_DB[dbKey] = {
@@ -3069,21 +3244,27 @@ class SeatViewApp {
       };
     }
 
-    // Save to Supabase seat_reviews table
-    if (supabaseClient && state.userId) {
-      supabaseClient
-        .from('seat_reviews')
-        .insert({
-          baseball_seat_id: dbKey,
-          user_id: state.userId,
-          image_urls: finalImagesList,
-          content: commentVal,
-          is_anonymous: isAnonymous,
-          view_direction: "정면"
-        })
-        .then(({ error }) => {
-          if (error) console.warn("Supabase review insert warning:", error);
-        });
+    // Save to Supabase seat_reviews table (only for real DB-backed seats —
+    // demo/placeholder seats have no matching baseball_seats row, so the FK
+    // constraint would reject them; those stay local-only, same as before)
+    if (supabaseClient && state.userId && realSeatId !== null) {
+      try {
+        const { error } = await supabaseClient
+          .from('seat_reviews')
+          .insert({
+            baseball_seat_id: realSeatId,
+            user_id: state.userId,
+            image_urls: finalImagesList,
+            content: commentVal,
+            is_anonymous: isAnonymous
+          });
+        if (error) throw error;
+
+        // Reload all reviews from DB to get actual autogenerated integer IDs
+        await this.checkUserSession();
+      } catch (error) {
+        console.warn("Supabase review insert warning:", error);
+      }
     }
 
     this.closeModal("modal-add-ticket");
@@ -3097,8 +3278,10 @@ class SeatViewApp {
     // Simple helper if form needs block hints
   }
 
-  deleteTicket(id) {
-    const ticket = state.tickets.find(t => t.id === id);
+  async deleteTicket(id) {
+    // The onclick attribute passes id as a quoted string, but DB-backed
+    // ticket.id values are numbers — compare as strings so this always matches.
+    const ticket = state.tickets.find(t => String(t.id) === String(id));
     if (ticket) {
       // 3-day deletion window check
       const createdTime = new Date(ticket.ins_dtm || ticket.matchDate);
@@ -3106,14 +3289,29 @@ class SeatViewApp {
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       if (diffDays > 3) {
         this.showToast("⚠️", "등록 후 3일이 경과한 기록은 이메일로 삭제 요청해주세요.");
-        alert("⚠️ 등록 후 3일이 경과한 직관 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+        await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 직관 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
         return;
       }
     }
 
-    if (!confirm("정말 이 직관 티켓 기록을 삭제하시겠습니까?")) return;
+    const confirmed = await this.showConfirmDialog("기록 삭제", "정말 이 직관 티켓 기록을 삭제하시겠습니까?", { okText: "삭제", cancelText: "취소" });
+    if (!confirmed) return;
 
-    state.tickets = state.tickets.filter(t => t.id !== id);
+    if (supabaseClient && state.userId) {
+      try {
+        const { error } = await supabaseClient
+          .from('seat_reviews')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Supabase review delete error:", e);
+        this.showToast("❌", "데이터베이스 삭제 중 오류가 발생했습니다.");
+        return;
+      }
+    }
+
+    state.tickets = state.tickets.filter(t => String(t.id) !== String(id));
     localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
     this.renderTicketbook();
     this.showToast("🗑️", "직관 기록이 삭제되었습니다.");
@@ -3182,18 +3380,81 @@ class SeatViewApp {
     this.loginWithKakao();
   }
 
+  // Custom-styled replacement for native confirm()/alert(). Resolves true when
+  // the OK button is clicked, false on cancel/backdrop click (alert-only mode
+  // always resolves true since there's nothing to cancel).
+  showConfirmDialog(title, message, options = {}) {
+    return new Promise((resolve) => {
+      const titleEl = document.getElementById("generic-confirm-title");
+      const descEl = document.getElementById("generic-confirm-desc");
+      const okBtn = document.getElementById("generic-confirm-ok-btn");
+      const cancelBtn = document.getElementById("generic-confirm-cancel-btn");
+      const backdrop = document.getElementById("generic-confirm-backdrop");
+
+      if (titleEl) titleEl.textContent = title;
+      if (descEl) descEl.textContent = message;
+
+      const alertOnly = options.alertOnly === true;
+      if (cancelBtn) cancelBtn.style.display = alertOnly ? "none" : "";
+      if (okBtn) okBtn.textContent = options.okText || "확인";
+      if (cancelBtn && !alertOnly) cancelBtn.textContent = options.cancelText || "취소";
+
+      const cleanup = (result) => {
+        if (okBtn) okBtn.onclick = null;
+        if (cancelBtn) cancelBtn.onclick = null;
+        if (backdrop) backdrop.onclick = null;
+        this.closeModal("modal-generic-confirm");
+        resolve(result);
+      };
+
+      if (okBtn) okBtn.onclick = () => cleanup(true);
+      if (cancelBtn) cancelBtn.onclick = () => cleanup(false);
+      if (backdrop) backdrop.onclick = () => cleanup(alertOnly ? true : false);
+
+      this.openModal("modal-generic-confirm");
+    });
+  }
+
+  showAlertDialog(title, message) {
+    return this.showConfirmDialog(title, message, { alertOnly: true });
+  }
+
   // --- Modal Helpers ---
   openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.add("active");
+      document.body.classList.add("modal-open");
+      
+      // Push history state so back button closes it (Requirement 15)
+      if (!history.state || history.state.modalId !== modalId) {
+        history.pushState({ modalId: modalId, view: state.currentView }, "", "#" + modalId);
+      }
     }
   }
 
-  closeModal(modalId) {
+  closeModal(modalId, triggeredByPopState = false) {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.remove("active");
+      
+      // Check if any other modals are still active
+      const activeModals = document.querySelectorAll(".modal.active");
+      if (activeModals.length === 0) {
+        document.body.classList.remove("modal-open");
+      }
+      
+      // If closed manually (not via popstate), rewrite the current history entry
+      // back to the underlying view. We intentionally use replaceState (not
+      // history.back()) because back() is asynchronous and fires a delayed
+      // popstate event — if another modal/view navigation happens right after
+      // closeModal() in the same call chain, that delayed popstate would undo it.
+      if (!triggeredByPopState) {
+        if (history.state && history.state.modalId === modalId) {
+          const fallbackView = history.state.view || state.currentView || "main";
+          history.replaceState({ view: fallbackView }, "", "#" + fallbackView);
+        }
+      }
     }
   }
 
@@ -3296,7 +3557,7 @@ class SeatViewApp {
     this.openModal("modal-edit-profile");
   }
 
-  saveProfileSettings(e) {
+  async saveProfileSettings(e) {
     e.preventDefault();
     const nickVal = document.getElementById("profile-nickname-input").value.trim();
     const stadiumVal = document.getElementById("profile-stadium-select").value;
@@ -3304,16 +3565,8 @@ class SeatViewApp {
 
     if (!nickVal) return;
 
-    state.userNickname = nickVal;
-    state.favoriteStadiumId = stadiumVal;
-    state.cheeringTeam = teamVal;
-
-    localStorage.setItem("seatview_nickname", nickVal);
-    localStorage.setItem("seatview_favorite_stadium", stadiumVal);
-    localStorage.setItem("seatview_cheering_team", teamVal);
-
     if (supabaseClient && state.userId) {
-      supabaseClient
+      const { data, error } = await supabaseClient
         .from('profiles')
         .update({
           nickname: nickVal,
@@ -3322,11 +3575,16 @@ class SeatViewApp {
           mod_dtm: new Date().toISOString()
         })
         .eq('id', state.userId)
-        .then(({ error }) => {
-          if (error) console.warn("Supabase profile update warning:", error);
-        });
+        .select();
 
-      // Update auth user metadata to prevent stale session nickname fallback
+      // RLS can silently block an update: no error, but zero rows come back.
+      // Treat that the same as a real failure instead of reporting success.
+      if (error || !data || data.length === 0) {
+        console.warn("Supabase profile update failed or blocked by RLS:", error, data);
+        await this.showAlertDialog("\uC800\uC7A5 \uC2E4\uD328", "\uD504\uB85C\uD544 \uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.");
+        return;
+      }
+
       supabaseClient.auth.updateUser({
         data: {
           name: nickVal,
@@ -3336,6 +3594,14 @@ class SeatViewApp {
         if (error) console.warn("Supabase auth metadata update warning:", error);
       });
     }
+
+    state.userNickname = nickVal;
+    state.favoriteStadiumId = stadiumVal;
+    state.cheeringTeam = teamVal;
+
+    localStorage.setItem("seatview_nickname", nickVal);
+    localStorage.setItem("seatview_favorite_stadium", stadiumVal);
+    localStorage.setItem("seatview_cheering_team", teamVal);
 
     // Refresh UI
     const profileStadiumEl = document.getElementById("my-profile-stadium");
@@ -3370,11 +3636,10 @@ class SeatViewApp {
         state.isLoggedIn = false;
         state.userId = null;
         state.userNickname = "@\uC57C\uAD6C\uB7EC\uBC84";
-        state.favoriteStadiumId = "jamsil";
-        state.cheeringTeam = "LG \uD2B8\uC708\uC2A4";
+        state.favoriteStadiumId = null;
+        state.cheeringTeam = null;
         state.userEmail = "";
         state.userAvatarUrl = "";
-        state.userCouponsCount = 0;
 
         localStorage.removeItem("supabase.auth.token");
         localStorage.removeItem("seatview_nickname");
@@ -3395,12 +3660,12 @@ class SeatViewApp {
         this.checkUserSession();
       } catch (e) {
         console.warn("Withdraw error:", e);
-        alert("\uD68C\uC6D0 \uD0C8\uD1F4\uB97C \uC9C0\uC6D0\uD558\uAE30 \uC728\uD574 DB\uC5D0 \uD0C8\uD1F4 Policy\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.\n\n\uC548\uB0B4\uB4DC\uB9AC\uB294 SQL \uCFFC\uB9AC\uB97C SQL Editor\uC5D0 \uC2E4\uD589\uD574 \uC8FC\uC138\uC694!");
+        await this.showAlertDialog("\uD0C8\uD1F4 \uCC98\uB9AC \uC2E4\uD328", "\uD68C\uC6D0 \uD0C8\uD1F4\uB97C \uC9C0\uC6D0\uD558\uAE30 \uC704\uD574 DB\uC5D0 \uD0C8\uD1F4 Policy\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.\n\n\uC548\uB0B4\uB4DC\uB9AC\uB294 SQL \uCFFC\uB9AC\uB97C SQL Editor\uC5D0 \uC2E4\uD589\uD574 \uC8FC\uC138\uC694!");
       }
     }
   }
 
-  handleMultiplePhotosSelect(e) {
+  async handleMultiplePhotosSelect(e) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -3415,18 +3680,14 @@ class SeatViewApp {
       this.showToast("\u26A0\uFE0F", "\uCD5C\uB300 5\uC7A5\uAE4C\uC9C0\uB9CC \uB4F1\uB85D \uAC00\uB2A5\uD569\uB2C8\uB2E4.");
     }
 
-    let loadedCount = 0;
-    toUpload.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        state.tempUploadedPhotos.push(event.target.result);
-        loadedCount++;
-        if (loadedCount === toUpload.length) {
-          this.renderUploadedPhotosThumbnails();
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const compressionPromises = toUpload.map(file => this.compressImageToWebP(file));
+    try {
+      const compressedWebpList = await Promise.all(compressionPromises);
+      state.tempUploadedPhotos.push(...compressedWebpList);
+      this.renderUploadedPhotosThumbnails();
+    } catch (err) {
+      console.error("Multi-image compression error:", err);
+    }
     
     e.target.value = "";
   }
@@ -3536,6 +3797,16 @@ class SeatViewApp {
         downvoteBtn.classList.add("active");
       }
     }
+  }
+
+  showCategoryComingSoon(categoryName) {
+    const titleEl = document.getElementById("coming-soon-title");
+    const descEl = document.getElementById("coming-soon-desc");
+    if (titleEl) titleEl.textContent = "서비스 준비 중입니다";
+    if (descEl) {
+      descEl.innerHTML = `${categoryName} 시야 정보는<br>초기 서비스 안정화 후 곧 오픈될 예정입니다.<br>야구장 데이터부터 먼저 체험해 보세요!`;
+    }
+    this.openModal("modal-coming-soon");
   }
 
   showMusicalComingSoon() {

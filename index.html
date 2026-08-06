@@ -52,15 +52,7 @@
   <div class="app-container">
     <div class="phone-frame">
       
-      <!-- Top Status bar simulation -->
-      <div class="status-bar">
-        <span class="time" id="current-time">09:41</span>
-        <div class="status-icons">
-          <i data-lucide="signal" class="status-icon"></i>
-          <i data-lucide="wifi" class="status-icon"></i>
-          <i data-lucide="battery" class="status-icon"></i>
-        </div>
-      </div>
+
 
       <!-- App Header -->
       <header class="app-header">
@@ -91,7 +83,7 @@
             <p class="hero-desc">유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.</p>
             <div class="search-bar-container">
               <i data-lucide="search" class="search-icon"></i>
-              <input type="text" placeholder="경기장, 공연장 또는 좌석 검색..." id="main-search-input">
+              <input type="text" placeholder="경기장 + 구역번호로 검색 (예: 고척 111)" id="main-search-input">
             </div>
           </div>
 
@@ -123,19 +115,6 @@
                   <p class="category-sub">스페셜관 & 인기 기종</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-
-
-          <!-- Campaign / Points Promo -->
-          <div class="promo-card">
-            <div class="promo-icon-box">
-              <i data-lucide="gift"></i>
-            </div>
-            <div class="promo-text">
-              <h5>나만의 직관 티켓북 등록하기</h5>
-              <p>시야 사진을 올리고 포인트를 모아 네이버페이 상품권으로 교환하세요!</p>
             </div>
           </div>
         </section>
@@ -280,25 +259,14 @@
 
         <!-- 5. TICKETBOOK VIEW -->
         <section id="view-ticketbook" class="view">
-          <div class="view-header">
-            <h2 class="view-title">나의 시야 제보 내역</h2>
-            <button class="add-ticket-btn" onclick="app.navigateTo('stadiums')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; width: auto; height: auto;">
-              <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> 시야 제보하러 가기
-            </button>
-          </div>
-
           <!-- Stats Overview -->
           <div class="ticketbook-stats">
             <div class="stat-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
               <div class="stat-summary-text" style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                <img id="my-profile-avatar" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple); display: block;" alt="Profile Avatar" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
+                <img id="my-profile-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple); display: block;" alt="Profile Avatar" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23a78bfa\' stroke=\'%237c3aed\' stroke-width=\'1.5\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
                 <div>
                   <h3 id="my-profile-nickname" style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">@야구러버</h3>
-                  <span id="my-profile-email" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 2px;">(이메일 정보 없음)</span>
-                  <div style="display: flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 0.75rem; font-weight: 700; color: var(--text-primary);">
-                    <span style="color: var(--text-muted); font-weight: 500;">보유 응모권:</span>
-                    <span id="my-profile-coupons" style="color: #ffffff; font-weight: 700;">0장 🎟️</span>
-                  </div>
+                  <span id="my-profile-email" style="font-size: 0.72rem; color: var(--text-muted); display: none; margin-top: 2px;"></span>
                 </div>
               </div>
               <div class="stat-progress-circle" id="win-rate-circle" style="margin-left: auto; flex-shrink: 0;">
@@ -306,18 +274,22 @@
                 <span class="win-rate-lbl">제보 수</span>
               </div>
             </div>
-            <div class="stat-details" style="position: relative; padding-right: 60px;">
-              <div class="stat-sub">
-                <span class="stat-sub-label">최애 구장</span>
-                <span class="stat-sub-val" id="my-profile-stadium">잠실 야구장</span>
+            <div class="stat-details" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="display: flex; gap: 20px;">
+                <div class="stat-sub">
+                  <span class="stat-sub-label">최애 구장</span>
+                  <span class="stat-sub-val" id="my-profile-stadium">잠실 야구장</span>
+                </div>
+                <div class="stat-sub">
+                  <span class="stat-sub-label">응원 구단</span>
+                  <span class="stat-sub-val" id="my-profile-team" style="color: #ffffff !important;">Lotte Giants</span>
+                </div>
               </div>
-              <div class="stat-sub">
-                <span class="stat-sub-label">응원 구단</span>
-                <span class="stat-sub-val" id="my-profile-team" style="color: #ffffff !important;">Lotte Giants</span>
-              </div>
-              <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">변경</button>
+              <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="flex: none; padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">변경</button>
             </div>
           </div>
+
+          <h2 class="view-title" style="font-size: 1rem; margin-bottom: 12px;">나의 시야 제보 내역</h2>
 
           <!-- Ticket Archive Grid -->
           <div class="tickets-archive" id="tickets-archive-container">
@@ -470,12 +442,12 @@
                 <div style="font-weight: 800; margin-bottom: 6px; color: var(--text-primary);">💡 시야 제보 및 데이터 보존 정책 안내</div>
                 <ul style="margin: 0; padding-left: 14px; list-style-type: disc;">
                   <li style="margin-bottom: 4px;">시야 사진을 제보하면 3일 뒤 자동으로 이벤트 응모권이 지급됩니다.</li>
-                  <li>이벤트 참여 이후 및 <b>회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 야구팬들을 위해 삭제되지 않고 영구적으로 보존됩니다.</b></li>
+                  <li>이벤트 참여 이후 및 회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 야구팬들을 위해 삭제되지 않고 영구적으로 보존됩니다.</li>
                 </ul>
               </div>
 
               <button type="submit" class="btn btn-primary btn-full-width" style="padding: 14px; font-weight: 800; font-size: 0.95rem; border-radius: 12px;">
-                <i data-lucide="check"></i> 시야 사진 제보 완료
+                <i data-lucide="check"></i> 시야 사진 제보하기
               </button>
             </form>
           </div>
@@ -609,6 +581,22 @@
           <div style="display: flex; gap: 10px;">
             <button class="btn btn-secondary" onclick="app.closeModal('modal-login-confirm')" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
             <button class="btn btn-primary" onclick="app.confirmGoToLogin()" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">이동</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- I. Generic Confirm/Alert Modal (replaces native confirm()/alert()) -->
+      <div class="modal modal-center" id="modal-generic-confirm">
+        <div class="modal-backdrop" id="generic-confirm-backdrop"></div>
+        <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); text-align: center; border: 1px solid var(--border-color);">
+          <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+            <i data-lucide="help-circle" style="width: 28px; height: 28px;"></i>
+          </div>
+          <h3 class="modal-title" id="generic-confirm-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">제목</h3>
+          <p id="generic-confirm-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; white-space: pre-line;">메시지</p>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" id="generic-confirm-cancel-btn" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
+            <button class="btn btn-primary" id="generic-confirm-ok-btn" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">확인</button>
           </div>
         </div>
       </div>
