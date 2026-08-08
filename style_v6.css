@@ -314,6 +314,10 @@ body.modal-open .app-content {
   transform: translateY(-2px);
 }
 
+.app-nav .nav-item {
+  width: 25%;
+}
+
 .badge-wrapper {
   position: relative;
 }
@@ -1298,6 +1302,7 @@ body.modal-open .app-content {
 
 .compare-header-info {
   padding: 12px;
+  padding-right: 44px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -1335,7 +1340,8 @@ body.modal-open .app-content {
   padding: 12px;
   background-color: var(--bg-card-hover);
   font-size: 0.72rem;
-  overflow-y: auto;
+  height: 100px;
+  overflow: hidden;
 }
 
 .compare-tags {
@@ -1376,8 +1382,8 @@ body.modal-open .app-content {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.6);
   border: none;
@@ -1387,6 +1393,11 @@ body.modal-open .app-content {
   align-items: center;
   cursor: pointer;
   z-index: 3;
+}
+
+.compare-remove-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .clear-compare-btn {
@@ -1859,6 +1870,7 @@ body.modal-open .app-content {
   height: 128px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .modal-desc-box h4 {

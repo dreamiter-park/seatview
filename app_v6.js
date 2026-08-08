@@ -511,8 +511,8 @@ class SeatViewApp {
     }
     state.tickets = JSON.parse(localStorage.getItem("seatview_tickets"));
 
-    // Initialize Comparisons from LocalStorage
-    state.comparisons = JSON.parse(localStorage.getItem("seatview_compare") || "[]");
+    // Initialize Comparisons from LocalStorage (session-style: expires after inactivity)
+    state.comparisons = this.loadComparisons();
 
     // Populate Dynamic DOM Elements
     this.renderStadiumList();
@@ -749,6 +749,7 @@ class SeatViewApp {
               team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
               location: dbStadium.address || dbStadium.location_district,
               bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
+              map_image_url: dbStadium.map_image_url,
               gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
               blocks: [],
               amenities: amenitiesFallback[mappedId] || { toilet: [], snack: [], exit: [], medical: [] },
@@ -886,12 +887,6 @@ class SeatViewApp {
 
   // --- Router ---
   navigateTo(viewId, pushHistory = true) {
-    if (viewId === "ticketbook" && !state.isLoggedIn) {
-      this.navigateTo("main");
-      this.loginWithKakao();
-      return;
-    }
-
     if (pushHistory) {
       if (!history.state || history.state.view !== viewId) {
         history.pushState({ view: viewId }, "", "#" + viewId);
@@ -910,12 +905,12 @@ class SeatViewApp {
       state.currentView = viewId;
     }
 
-    // Update Bottom Navigation state
+    // Update Bottom Navigation state (stadium-detail counts as part of the
+    // "시야등록" tab since it's reached by drilling into stadiums)
     document.querySelectorAll(".nav-item").forEach(nav => {
-      nav.classList.remove("active");
-      if (nav.dataset.target === viewId) {
-        nav.classList.add("active");
-      }
+      const target = nav.dataset.target;
+      const isActive = target === viewId || (target === "stadiums" && viewId === "stadium-detail");
+      nav.classList.toggle("active", isActive);
     });
 
     // --- Dynamic Header Layout Updates (Requirement 10) ---
@@ -979,57 +974,6 @@ class SeatViewApp {
     }
   }
 
-  openMenuModal() {
-    this.renderMenu();
-    this.openModal("modal-menu");
-  }
-
-  renderMenu() {
-    const container = document.getElementById("hamburger-menu-content");
-    if (!container) return;
-
-    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
-    const avatarUrl = state.userAvatarUrl || defaultAvatar;
-
-    let profileHtml = "";
-    if (state.isLoggedIn) {
-      profileHtml = `
-        <div class="menu-profile-card" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px;">
-          <img src="${avatarUrl}" alt="Profile" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple);" onerror="this.src='${defaultAvatar}'">
-          <div style="display: flex; flex-direction: column; gap: 2px;">
-            <span style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">${state.userNickname}</span>
-          </div>
-        </div>
-      `;
-    } else {
-      profileHtml = `
-        <div class="menu-profile-card" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 20px; text-align: center; align-items: center;">
-          <span style="font-size: 0.85rem; color: var(--text-secondary);">\uB85C\uADF8\uC778\uD558\uACE0 \uC2DC\uC57C \uC81C\uBCF4\uC5D0 \uCC38\uC5EC\uD574 \uBCF4\uC138\uC694!</span>
-          <button class="btn" onclick="app.closeModal('modal-menu'); app.loginWithKakao();" style="width: 100%; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer;">
-            <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> \uCE74\uCE74\uC624 \uB85C\uADF8\uC778
-          </button>
-        </div>
-      `;
-    }
-
-    container.innerHTML = `
-      ${profileHtml}
-      <ul class="menu-list" style="list-style: none; display: flex; flex-direction: column; gap: 16px; padding: 10px 0;">
-        <li onclick="app.closeModal('modal-menu'); app.navigateTo('main')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="home" style="width: 18px; height: 18px;"></i> \uD648</li>
-        <li onclick="app.closeModal('modal-menu'); app.navigateTo('stadiums')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="compass" style="width: 18px; height: 18px;"></i> \uC57C\uAD6C\uC7A5 \uC2DC\uC57C \uD0D0\uC0C9</li>
-        <li onclick="app.closeModal('modal-menu'); app.navigateTo('compare')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="columns" style="width: 18px; height: 18px;"></i> 1:1 \uC2DC\uC57C \uBE44\uAD50</li>
-        <li onclick="app.closeModal('modal-menu'); app.navigateTo('ticketbook')" style="font-size: 1.05rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-primary);"><i data-lucide="user" style="width: 18px; height: 18px;"></i> \uB9C8\uC774\uD398\uC774\uC9C0</li>
-        
-        ${state.isLoggedIn ? `
-          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
-          <li onclick="app.closeModal('modal-menu'); app.logout();" style="font-size: 0.95rem; color: var(--accent-red); font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 12px;">
-            <i data-lucide="log-out" style="width: 18px; height: 18px;"></i> \uB85C\uADF8\uC544\uC6C3
-          </li>
-        ` : ""}
-      </ul>
-    `;
-    lucide.createIcons();
-  }
 
   async loginWithKakao() {
     if (!supabaseClient) {
@@ -1152,6 +1096,7 @@ class SeatViewApp {
 
               return {
                 id: r.id,
+                seatId: r.baseball_seat_id,
                 ins_dtm: r.ins_dtm,
                 stadiumId: stadiumRow ? stadiumRow.id : null,
                 stadiumName: stadiumRow ? stadiumRow.name : "기타 구장",
@@ -1266,7 +1211,16 @@ class SeatViewApp {
       return orderA - orderB;
     });
 
-    sortedStadiums.forEach(st => {
+    // Product ad slot: inserted right before whichever stadium currently sits
+    // in the "daegu" position, so it always shows mid-grid rather than at a
+    // hardcoded index that could drift if display_order changes later.
+    const adInsertBeforeIndex = sortedStadiums.findIndex(st => st.id === "daegu");
+
+    sortedStadiums.forEach((st, index) => {
+      if (index === adInsertBeforeIndex) {
+        container.appendChild(this.buildShoppingAdCard());
+      }
+
       const card = document.createElement("div");
       card.className = "stadium-card";
       // Apply gradient overlay + background image photo
@@ -1289,6 +1243,27 @@ class SeatViewApp {
       container.appendChild(card);
     });
     lucide.createIcons();
+  }
+
+  // Placeholder shopping-mall product ad card, same size/grid slot as a
+  // stadium card. Swap the image/link/click handler once real ad content
+  // (product image, name, click-through URL) is provided.
+  buildShoppingAdCard() {
+    const card = document.createElement("div");
+    card.className = "stadium-card";
+    card.style.backgroundImage = "linear-gradient(135deg, rgba(51, 41, 82, 0.9), rgba(15, 23, 42, 0.9))";
+    card.style.border = "1px dashed rgba(255, 255, 255, 0.2)";
+    card.onclick = () => this.showToast("🛍️", "광고 상품 페이지 연결 예정입니다.");
+
+    card.innerHTML = `
+      <span style="position: absolute; top: 10px; right: 10px; font-size: 0.6rem; background: rgba(255, 255, 255, 0.15); color: var(--text-secondary); padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em;">AD</span>
+      <div class="stadium-card-main">
+        <i data-lucide="shopping-bag" style="width: 20px; height: 20px; color: var(--text-muted); margin-bottom: 4px;"></i>
+        <h3 class="stadium-card-name" style="color: var(--text-secondary) !important;">상품 광고 영역</h3>
+        <span class="stadium-card-location">광고 상품이 여기에 노출됩니다</span>
+      </div>
+    `;
+    return card;
   }
 
   // --- Stadium Detail View ---
@@ -1401,7 +1376,7 @@ class SeatViewApp {
     // Load static stadium map image
     const mapWrapper = document.getElementById("stadium-static-map-wrapper");
     if (mapWrapper) {
-      const srcPath = stadiumId === "jamsil" ? "stadiums/stadium_01.png" : stadium.bg;
+      const srcPath = stadium.map_image_url || (stadiumId === "jamsil" ? "stadiums/stadium_01.png" : stadium.bg);
       mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${srcPath}" class="stadium-static-map" alt="구장 전체 안내도">`;
     }
 
@@ -2453,39 +2428,72 @@ class SeatViewApp {
 
   // --- Seat Detail Modal ---
   // --- Seat Detail Modal (Dynamic Carousel / Thumbnails) ---
-  async openSeatDetail(dbKey) {
+  async openSeatDetail(dbKey, options = {}) {
+    state.activeModalOwnReviewsOnly = !!options.ownReviewsOnly;
     const dbKeyStr = String(dbKey);
     const parts = dbKeyStr.split("_");
     const stadiumId = parts[0];
     const blockId = parts[1] || "";
     const r = parts[2] || "1";
     const s = parts[3] || "1";
-    const dbSeatId = parts[4]; // Present if database seat
 
     // Match demo seat by checking if it ends with "22567" or matches Gocheok Burgundy block 101, row D, seat 2
     const isDemoSeat = dbKeyStr.endsWith("22567") || (stadiumId === "gocheok" && blockId === "b101" && (r === "D" || r === "D\uC5F4") && (s === "2" || s === "2\uBC88"));
-    const seatInfo = isDemoSeat ? SEAT_VIEWS_DB["22567"] : SEAT_VIEWS_DB[dbKeyStr];
-    
+    const isRealSeat = !isDemoSeat && /^\d+$/.test(dbKeyStr);
+
     state.activeModalSeatKey = isDemoSeat ? "22567" : dbKeyStr;
 
     let images = [];
     let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
+    let stadiumName, blockName, seatName;
 
-    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
-    const stadiumName = stadium ? stadium.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
-    let blockName = blockId;
-    if (blockId.startsWith("b")) {
-      blockName = blockId.substring(1) + "\uC5D0\uB85C";
-    } else if (state.selectedBlock) {
-      blockName = state.selectedBlock.name;
+    if (isRealSeat && supabaseClient) {
+      try {
+        const { data: seatRow } = await supabaseClient.from('baseball_seats').select('*').eq('id', dbKey).single();
+        let blockRow = null, stadiumRow = null;
+        if (seatRow) {
+          const { data: bRow } = await supabaseClient.from('baseball_blocks').select('*').eq('id', seatRow.block_id).single();
+          blockRow = bRow;
+          if (blockRow) {
+            const { data: stRow } = await supabaseClient.from('stadiums').select('*').eq('id', blockRow.stadium_id).single();
+            stadiumRow = stRow;
+          }
+        }
+        stadiumName = stadiumRow ? stadiumRow.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
+        blockName = blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedBlock ? state.selectedBlock.name : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
+        seatName = seatRow ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+      } catch (e) {
+        console.warn("Failed to resolve real seat info:", e);
+        stadiumName = state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5";
+        blockName = state.selectedBlock ? state.selectedBlock.name : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C";
+        seatName = "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+      }
+    } else {
+      const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+      stadiumName = stadium ? stadium.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
+      blockName = blockId;
+      if (blockId.startsWith("b")) {
+        blockName = blockId.substring(1) + "\uC5D0\uB85C";
+      } else if (state.selectedBlock) {
+        blockName = state.selectedBlock.name;
+      }
+      seatName = `${r}\uC5F4 ${s}\uBC88`;
     }
-    const seatName = `${r}\uC5F4 ${s}\uBC88`;
 
-    if (seatInfo) {
-      document.getElementById("modal-seat-stadium").textContent = seatInfo.stadiumName;
-      document.getElementById("modal-seat-title").textContent = `${seatInfo.blockName} ${seatInfo.seatName}`;
-      
-      const imageUrls = Array.isArray(seatInfo.images) 
+    const seatInfo = isDemoSeat
+      ? SEAT_VIEWS_DB["22567"]
+      : (SEAT_VIEWS_DB[dbKeyStr] = { ...(SEAT_VIEWS_DB[dbKeyStr] || {}), stadiumName, blockName, seatName });
+
+    document.getElementById("modal-seat-stadium").textContent = stadiumName;
+    document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
+
+    // For real DB seats, skip this legacy placeholder-image block entirely —
+    // images/comments come only from the actual seat_reviews fetch below.
+    // Using seatInfo's leftover cache here used to fabricate a fake single
+    // "assets/seat_view_clean.png" photo even for seats with zero reviews.
+    if (seatInfo && !isRealSeat) {
+
+      const imageUrls = Array.isArray(seatInfo.images)
         ? seatInfo.images 
         : (seatInfo.image ? [seatInfo.image] : ["assets/seat_view_clean.png"]);
       
@@ -2536,18 +2544,24 @@ class SeatViewApp {
         });
       });
       comment = seatInfo.comment || comment;
-    } else {
-      document.getElementById("modal-seat-stadium").textContent = stadiumName;
-      document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
     }
 
     if (supabaseClient && dbKey) {
       try {
-        const { data: reviews, error } = await supabaseClient
+        let reviewsQuery = supabaseClient
           .from('seat_reviews')
           .select('*, profiles(*)')
           .eq('baseball_seat_id', dbKey)
-          .eq('is_blocked', false)
+          .eq('is_blocked', false);
+
+        // From 마이페이지, only show the reviews I personally wrote for this
+        // seat, so I can judge whether to keep or delete just my own entry
+        // instead of scrolling through everyone else's.
+        if (options.ownReviewsOnly && state.userId) {
+          reviewsQuery = reviewsQuery.eq('user_id', state.userId);
+        }
+
+        const { data: reviews, error } = await reviewsQuery
           .order('ins_dtm', { ascending: false });
 
         if (!error && reviews && reviews.length > 0) {
@@ -2561,6 +2575,9 @@ class SeatViewApp {
             urls.forEach(u => {
               dbImages.push({
                 url: u,
+                reviewId: rev.id,
+                insDtm: rev.ins_dtm,
+                isAnonymous: !!rev.is_anonymous,
                 direction: dir,
                 comment: rev.content || "\uB4F1\uB85D\uB41C \uC2DC\uC57C \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
                 uploader: uploaderName,
@@ -2572,6 +2589,14 @@ class SeatViewApp {
           if (dbImages.length > 0) {
             images = dbImages;
           }
+        }
+
+        // Keep the real photos/reviews in the cache too, so
+        // addCurrentSeatToCompare() can show the full swipeable set instead
+        // of just a single placeholder image.
+        if (isRealSeat) {
+          SEAT_VIEWS_DB[dbKeyStr].images = images;
+          SEAT_VIEWS_DB[dbKeyStr].comment = images[0] ? images[0].comment : "";
         }
       } catch (e) {
         console.warn("Could not load database seat reviews:", e);
@@ -2617,7 +2642,93 @@ class SeatViewApp {
       this.updateModalImage();
     }
 
+    // Opened from 마이페이지: show "기록 수정" / "기록 삭제" instead of the
+    // compare/report actions, since this view is for reviewing/deciding on
+    // my own existing entry, not registering a new one or comparing.
+    const compareBtn = document.getElementById("btn-detail-compare");
+    const reportBtn = document.getElementById("btn-detail-report");
+    const editBtn = document.getElementById("btn-detail-edit");
+    const deleteBtn = document.getElementById("btn-detail-delete");
+    const ownMode = state.activeModalOwnReviewsOnly && hasPhotos;
+    if (compareBtn) compareBtn.style.display = state.activeModalOwnReviewsOnly ? "none" : "";
+    if (reportBtn) reportBtn.style.display = state.activeModalOwnReviewsOnly ? "none" : "";
+    if (editBtn) editBtn.style.display = ownMode ? "flex" : "none";
+    if (deleteBtn) deleteBtn.style.display = ownMode ? "flex" : "none";
+
     this.openModal("modal-seat-detail");
+  }
+
+  // Both 3-day windows share the same rule, so this checks whichever
+  // timestamp is relevant (delete uses a ticket, edit uses a modal image).
+  isWithinEditWindow(insDtm) {
+    if (!insDtm) return false;
+    const diffDays = Math.abs(new Date() - new Date(insDtm)) / (1000 * 60 * 60 * 24);
+    return diffDays <= 3;
+  }
+
+  async deleteCurrentModalReview() {
+    if (!this.modalImages || this.modalImages.length === 0) return;
+    const reviewId = this.modalImages[this.currentImageIndex].reviewId;
+    if (!reviewId) return;
+    await this.deleteTicket(reviewId);
+    this.closeModal("modal-seat-detail");
+  }
+
+  async editCurrentModalReview() {
+    if (!this.modalImages || this.modalImages.length === 0) return;
+    const current = this.modalImages[this.currentImageIndex];
+    const reviewId = current.reviewId;
+    if (!reviewId) return;
+
+    if (!this.isWithinEditWindow(current.insDtm)) {
+      await this.showAlertDialog("수정할 수 없어요", "등록 후 3일이 경과한 기록은 직접 수정이 불가능합니다.\n\n수정이 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+      return;
+    }
+
+    // Gather every photo that belongs to this specific review (a review can
+    // have multiple photos, and the carousel mixes photos from other
+    // reviews of the same seat in together).
+    const ownPhotos = this.modalImages
+      .filter(img => img.reviewId === reviewId)
+      .map(img => img.url);
+
+    this.closeModal("modal-seat-detail");
+
+    document.getElementById("add-ticket-form").reset();
+    const commentEl = document.getElementById("form-comment");
+    if (commentEl) {
+      commentEl.value = current.comment || "";
+      commentEl.style.height = "auto";
+      this.autoResizeTextarea(commentEl);
+      this.updateCommentCounter(commentEl);
+    }
+    const anonEl = document.getElementById("form-is-anonymous");
+    if (anonEl) anonEl.checked = !!current.isAnonymous;
+
+    const labelEl = document.getElementById("form-seat-info-label");
+    if (labelEl) {
+      const heading = document.getElementById("modal-seat-title") ? document.getElementById("modal-seat-title").textContent : "";
+      const subheading = document.getElementById("modal-seat-stadium") ? document.getElementById("modal-seat-stadium").textContent : "";
+      labelEl.innerHTML = `${subheading}<br>${heading}`;
+    }
+
+    state.tempUploadedPhotos = [...ownPhotos];
+    state.currentUploadedPhotoBase64 = null;
+    this.renderUploadedPhotosThumbnails();
+
+    state.editingReviewId = reviewId;
+
+    const titleEl = document.getElementById("add-ticket-modal-title");
+    if (titleEl) titleEl.textContent = "시야 사진 수정";
+
+    const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "<i data-lucide=\"check\"></i> 수정 완료";
+      lucide.createIcons();
+    }
+
+    this.openModal("modal-add-ticket");
   }
 
   updateModalImage() {
@@ -2645,7 +2756,7 @@ class SeatViewApp {
       dirEl.style.display = "flex";
       dirEl.innerHTML = `\uD83D\uDCF8 ${displayDir}`;
     }
-    if (descEl) descEl.textContent = curImg.comment || "\uB4F1\uB85D\uB41C \uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
+    if (descEl) descEl.textContent = this.truncateComment(curImg.comment) || "\uB4F1\uB85D\uB41C \uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
 
     const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
@@ -2663,6 +2774,11 @@ class SeatViewApp {
         prevBtn.style.display = "none";
         nextBtn.style.display = "none";
       }
+    }
+
+    const counterEl = document.getElementById("modal-seat-counter");
+    if (counterEl) {
+      counterEl.textContent = `${this.currentImageIndex + 1} / ${this.modalImages.length}`;
     }
 
     if (thumbContainer) {
@@ -2756,15 +2872,39 @@ class SeatViewApp {
       ...seatInfo
     });
 
-    localStorage.setItem("seatview_compare", JSON.stringify(state.comparisons));
+    this.saveComparisons();
     this.updateCompareBadge();
     this.showToast("🛒", `${seatInfo.blockName} ${seatInfo.seatName}이 비교함에 담겼습니다!`);
     this.closeModal("modal-seat-detail");
   }
 
+  // Comparisons behave like a session: they persist across reloads in the
+  // same browsing session, but auto-clear after COMPARE_SESSION_TTL_MS of
+  // inactivity so stale picks from days ago don't linger forever.
+  saveComparisons() {
+    localStorage.setItem("seatview_compare", JSON.stringify(state.comparisons));
+    localStorage.setItem("seatview_compare_ts", String(Date.now()));
+  }
+
+  loadComparisons() {
+    const COMPARE_SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+    const ts = parseInt(localStorage.getItem("seatview_compare_ts") || "0", 10);
+    const expired = !ts || (Date.now() - ts > COMPARE_SESSION_TTL_MS);
+    if (expired) {
+      localStorage.removeItem("seatview_compare");
+      localStorage.removeItem("seatview_compare_ts");
+      return [];
+    }
+    try {
+      return JSON.parse(localStorage.getItem("seatview_compare") || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
   removeCompareItem(key) {
     state.comparisons = state.comparisons.filter(item => item.key !== key);
-    localStorage.setItem("seatview_compare", JSON.stringify(state.comparisons));
+    this.saveComparisons();
     this.updateCompareBadge();
     this.renderCompareView();
     this.showToast("🗑️", "비교 항목이 삭제되었습니다.");
@@ -2773,9 +2913,56 @@ class SeatViewApp {
   clearComparison() {
     state.comparisons = [];
     localStorage.removeItem("seatview_compare");
+    localStorage.removeItem("seatview_compare_ts");
     this.updateCompareBadge();
     this.renderCompareView();
     this.showToast("🗑️", "비교함이 비워졌습니다.");
+  }
+
+  // Shared markup for one compare column: image carousel (when the seat has
+  // more than one photo) + the comment that belongs to whichever photo is
+  // currently shown.
+  buildCompareColumnHtml(item) {
+    if (!state.compareImageIndices) state.compareImageIndices = {};
+    const images = Array.isArray(item.images) && item.images.length > 0
+      ? item.images
+      : (item.image ? [{ url: item.image, comment: item.comment }] : []);
+    const idx = Math.min(state.compareImageIndices[item.key] || 0, Math.max(images.length - 1, 0));
+    const current = images[idx];
+
+    return `
+      <div class="compare-header-info">
+        <span class="compare-seat-badge">${item.stadiumName}</span>
+        <div class="compare-seat-name">${item.blockName} ${item.seatName}</div>
+      </div>
+      <div class="compare-image-box">
+        ${current ? `<img src="${current.url}" alt="Seat View">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:0.72rem;">등록된 사진이 없습니다</div>`}
+        ${images.length > 1 ? `
+          <button class="carousel-nav-btn prev" style="width: 36px; height: 36px;" onclick="app.navCompareImage('${item.key}', -1)"><i data-lucide="chevron-left"></i></button>
+          <button class="carousel-nav-btn next" style="width: 36px; height: 36px;" onclick="app.navCompareImage('${item.key}', 1)"><i data-lucide="chevron-right"></i></button>
+          <span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; font-weight: 600;">${idx + 1} / ${images.length}</span>
+        ` : ""}
+      </div>
+      <div class="compare-content">
+        <div class="compare-comment">
+          <h5>💬 코멘트</h5>
+          <p>${current && current.comment ? this.truncateComment(current.comment) : "등록된 코멘트가 없습니다."}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  navCompareImage(key, delta) {
+    if (!state.compareImageIndices) state.compareImageIndices = {};
+    const item = state.comparisons.find(i => i.key === key);
+    if (!item) return;
+    const images = Array.isArray(item.images) && item.images.length > 0
+      ? item.images
+      : (item.image ? [item.image] : []);
+    if (images.length <= 1) return;
+    const current = state.compareImageIndices[key] || 0;
+    state.compareImageIndices[key] = (current + delta + images.length) % images.length;
+    this.renderCompareView();
   }
 
   updateCompareBadge() {
@@ -2797,6 +2984,11 @@ class SeatViewApp {
 
     container.innerHTML = "";
 
+    const toolbar = document.getElementById("compare-toolbar");
+    const countEl = document.getElementById("compare-count");
+    if (toolbar) toolbar.style.display = state.comparisons.length > 0 ? "flex" : "none";
+    if (countEl) countEl.textContent = state.comparisons.length;
+
     if (state.comparisons.length === 0) {
       container.innerHTML = `
         <div class="compare-empty">
@@ -2816,22 +3008,7 @@ class SeatViewApp {
             <button class="compare-remove-btn" onclick="app.removeCompareItem('${item.key}')">
               <i data-lucide="trash"></i>
             </button>
-            <div class="compare-header-info">
-              <span class="compare-seat-badge">${item.stadiumName}</span>
-              <div class="compare-seat-name">${item.blockName} ${item.seatName}</div>
-            </div>
-            <div class="compare-image-box">
-              <img src="${item.image}" alt="Seat View">
-            </div>
-            <div class="compare-content">
-              <div class="compare-tags">
-                ${item.tags.map(t => `<span class="compare-tag ${t.startsWith('⚠️') ? 'warning' : ''}">${t}</span>`).join("")}
-              </div>
-              <div class="compare-comment">
-                <h5>💬 코멘트</h5>
-                <p>${item.comment}</p>
-              </div>
-            </div>
+            ${this.buildCompareColumnHtml(item)}
           </div>
           <div class="compare-empty" style="padding: 20px; border-radius: 20px;">
             <div class="compare-empty-icon" style="margin-bottom: 8px;">
@@ -2854,22 +3031,7 @@ class SeatViewApp {
             <button class="compare-remove-btn" onclick="app.removeCompareItem('${itemLeft.key}')">
               <i data-lucide="x"></i>
             </button>
-            <div class="compare-header-info">
-              <span class="compare-seat-badge">${itemLeft.stadiumName}</span>
-              <div class="compare-seat-name">${itemLeft.blockName} ${itemLeft.seatName}</div>
-            </div>
-            <div class="compare-image-box">
-              <img src="${itemLeft.image}" alt="Seat View 1">
-            </div>
-            <div class="compare-content">
-              <div class="compare-tags">
-                ${itemLeft.tags.map(t => `<span class="compare-tag ${t.startsWith('⚠️') ? 'warning' : ''}">${t}</span>`).join("")}
-              </div>
-              <div class="compare-comment">
-                <h5>💬 관람평</h5>
-                <p>${itemLeft.comment}</p>
-              </div>
-            </div>
+            ${this.buildCompareColumnHtml(itemLeft)}
           </div>
 
           <!-- Right Column -->
@@ -2877,22 +3039,7 @@ class SeatViewApp {
             <button class="compare-remove-btn" onclick="app.removeCompareItem('${itemRight.key}')">
               <i data-lucide="x"></i>
             </button>
-            <div class="compare-header-info">
-              <span class="compare-seat-badge">${itemRight.stadiumName}</span>
-              <div class="compare-seat-name">${itemRight.blockName} ${itemRight.seatName}</div>
-            </div>
-            <div class="compare-image-box">
-              <img src="${itemRight.image}" alt="Seat View 2">
-            </div>
-            <div class="compare-content">
-              <div class="compare-tags">
-                ${itemRight.tags.map(t => `<span class="compare-tag ${t.startsWith('⚠️') ? 'warning' : ''}">${t}</span>`).join("")}
-              </div>
-              <div class="compare-comment">
-                <h5>💬 관람평</h5>
-                <p>${itemRight.comment}</p>
-              </div>
-            </div>
+            ${this.buildCompareColumnHtml(itemRight)}
           </div>
         </div>
       `;
@@ -2902,7 +3049,27 @@ class SeatViewApp {
 
   // --- Ticketbook Feature ---
   renderTicketbook() {
+    const loginPrompt = document.getElementById("ticketbook-login-prompt");
+    const statsCard = document.getElementById("ticketbook-stats-card");
+    const heading = document.getElementById("ticketbook-heading");
     const archiveContainer = document.getElementById("tickets-archive-container");
+    const footer = document.getElementById("my-page-footer");
+
+    if (!state.isLoggedIn) {
+      if (loginPrompt) loginPrompt.style.display = "flex";
+      if (statsCard) statsCard.style.display = "none";
+      if (heading) heading.style.display = "none";
+      if (archiveContainer) archiveContainer.innerHTML = "";
+      if (footer) footer.style.display = "none";
+      lucide.createIcons();
+      return;
+    }
+
+    if (loginPrompt) loginPrompt.style.display = "none";
+    if (statsCard) statsCard.style.display = "";
+    if (heading) heading.style.display = "";
+    if (footer) footer.style.display = "block";
+
     if (!archiveContainer) return;
 
     archiveContainer.innerHTML = "";
@@ -2963,30 +3130,28 @@ class SeatViewApp {
     sortedTickets.forEach(ticket => {
       const card = document.createElement("div");
       card.className = "ticket-card";
-      
-      const createdTime = new Date(ticket.ins_dtm);
-      const diffTime = Math.abs(new Date() - createdTime);
-      const diffDays = diffTime / (1000 * 60 * 60 * 24);
-      const isDeletable = diffDays <= 3;
+      card.style.cursor = "pointer";
+
+      const photoCount = Array.isArray(ticket.images) ? ticket.images.length : 0;
 
       card.innerHTML = `
-        <button class="delete-ticket-btn ${!isDeletable ? 'disabled' : ''}" 
-                onclick="app.deleteTicket('${ticket.id}')" 
-                title="${isDeletable ? '\uAE30\uB85D \uC0AD\uC81C' : '\uB4F1\uB85D \uD6C4 3\uC77C \uACBD\uACFC\uB85C \uC774\uBA54\uC77C \uC0AD\uC81C \uC694\uCCAD \uD544\uC694'}"
-                aria-label="Delete ticket">
-          <i data-lucide="${isDeletable ? 'trash-2' : 'lock'}"></i>
-        </button>
         <div class="ticket-img-header">
           <img src="${ticket.image}" alt="\uAD00\uC804 \uC2DC\uC57C \uC0AC\uC9C4">
+          ${photoCount > 1 ? `<span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: flex; align-items: center; gap: 3px;"><i data-lucide="images" style="width: 11px; height: 11px;"></i> ${photoCount}</span>` : ""}
         </div>
         <div class="ticket-body">
           <div class="ticket-meta-info" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
             <span class="ticket-match-date" style="font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">${ticket.stadiumName}</span>
+            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
           </div>
           <h4 style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 6px 0;">${ticket.blockName} ${ticket.seatName}</h4>
-          <p style="margin: 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+          <p style="margin: 0 0 6px 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+          <div style="text-align: right; font-size: 0.65rem; color: var(--text-muted); opacity: 0.8;">${ticket.ins_dtm ? new Date(ticket.ins_dtm).toISOString().split('T')[0] : ''}</div>
         </div>
       `;
+      if (ticket.seatId) {
+        card.onclick = () => this.openSeatDetail(ticket.seatId, { ownReviewsOnly: true });
+      }
       archiveContainer.appendChild(card);
     });
     lucide.createIcons();
@@ -3171,7 +3336,7 @@ class SeatViewApp {
     if (submitBtn) {
       submitBtn.disabled = true;
       originalBtnHtml = submitBtn.innerHTML;
-      submitBtn.innerHTML = "<i class='spinner-border' style='width: 14px; height: 14px; margin-right: 6px; border: 2px solid; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; vertical-align: middle;'></i>\uB4F1\uB85D \uC91F...";
+      submitBtn.innerHTML = "<i class='spinner-border' style='width: 14px; height: 14px; margin-right: 6px; border: 2px solid; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; vertical-align: middle;'></i>\uB4F1\uB85D \uC911...";
     }
 
     // Photo upload is mandatory (supports both tempUploadedPhotos and currentUploadedPhotoBase64)
@@ -3201,6 +3366,44 @@ class SeatViewApp {
 
     const finalImage = state.currentUploadedPhotoBase64 || (state.tempUploadedPhotos ? state.tempUploadedPhotos[0] : null);
     const finalImagesList = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0 ? state.tempUploadedPhotos : [finalImage];
+
+    // Editing an existing review (opened via 기록 수정) updates that one row
+    // instead of creating a new ticket/review.
+    if (state.editingReviewId) {
+      try {
+        const { error } = await supabaseClient
+          .from('seat_reviews')
+          .update({
+            image_urls: finalImagesList,
+            content: commentVal,
+            is_anonymous: isAnonymous,
+            mod_dtm: new Date().toISOString()
+          })
+          .eq('id', state.editingReviewId);
+        if (error) throw error;
+
+        state.editingReviewId = null;
+        const titleEl = document.getElementById("add-ticket-modal-title");
+        if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+
+        this.closeModal("modal-add-ticket");
+        await this.checkUserSession();
+        this.navigateTo("ticketbook");
+        this.showToast("✅", "시야 기록이 수정되었습니다!");
+      } catch (error) {
+        console.error("Supabase review update error:", error);
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+        await this.showAlertDialog("수정 실패", "기록 수정 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+      return;
+    }
 
     const newTicket = {
       id: "ticket_" + Date.now(),
@@ -3265,6 +3468,13 @@ class SeatViewApp {
       } catch (error) {
         console.warn("Supabase review insert warning:", error);
       }
+    }
+
+    // Restore the submit button so it isn't stuck in the loading state the
+    // next time this same modal is reopened for another seat.
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHtml;
     }
 
     this.closeModal("modal-add-ticket");
@@ -3352,6 +3562,7 @@ class SeatViewApp {
     const commentEl = document.getElementById("form-comment");
     if (commentEl) {
       commentEl.style.height = "auto";
+      this.updateCommentCounter(commentEl);
     }
 
     const stadiumSelect = document.getElementById("form-stadium");
@@ -3370,6 +3581,18 @@ class SeatViewApp {
 
     state.tempUploadedPhotos = [];
     this.renderUploadedPhotosThumbnails();
+
+    // Make sure nothing carries over from a previous edit/submission
+    state.editingReviewId = null;
+    const titleEl = document.getElementById("add-ticket-modal-title");
+    if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+
+    const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "<i data-lucide=\"check\"></i> 시야 사진 제보하기";
+      lucide.createIcons();
+    }
 
     this.openModal("modal-add-ticket");
   }
@@ -3902,9 +4125,6 @@ class SeatViewApp {
   }
 
   toggleTheme() {
-    // Close the menu first for smooth experience
-    this.closeModal("modal-menu");
-    
     const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
     const newTheme = currentTheme === "dark" ? "light" : "dark";
     
@@ -3929,10 +4149,25 @@ class SeatViewApp {
     this.showToast(newTheme === "light" ? "☀️" : "🌙", `${newTheme === "light" ? "라이트" : "다크"} 모드로 전환되었습니다.`);
   }
 
+  // Safety net for the fixed-height comment boxes: new comments are capped
+  // at input time (120자), but this guards against any older/legacy data
+  // that predates that limit.
+  truncateComment(text, max = 120) {
+    if (!text) return text;
+    return text.length > max ? text.slice(0, max) + "…" : text;
+  }
+
   autoResizeTextarea(textarea) {
     if (!textarea) return;
     textarea.style.height = "auto";
     textarea.style.height = textarea.scrollHeight + "px";
+  }
+
+  updateCommentCounter(textarea) {
+    const counterEl = document.getElementById("form-comment-counter");
+    if (!counterEl || !textarea) return;
+    const max = textarea.getAttribute("maxlength") || 120;
+    counterEl.textContent = `${textarea.value.length}/${max}`;
   }
 }
 
