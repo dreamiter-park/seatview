@@ -513,6 +513,7 @@ class SeatViewApp {
 
     // Initialize Comparisons from LocalStorage (session-style: expires after inactivity)
     state.comparisons = this.loadComparisons();
+    this.rehydrateComparisons(); // fire-and-forget: fills in real photos once loaded
 
     // Populate Dynamic DOM Elements
     this.renderStadiumList();
@@ -538,8 +539,8 @@ class SeatViewApp {
     const profileTeamEl = document.getElementById("my-profile-team");
     const profileNicknameEl = document.getElementById("my-profile-nickname");
     const favStadiumObj = STADIUMS_DB.find(s => s.id === savedStadium);
-    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
-    if (profileTeamEl) profileTeamEl.textContent = savedTeam;
+    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uBBF8\uC124\uC815";
+    if (profileTeamEl) profileTeamEl.textContent = savedTeam || "\uBBF8\uC124\uC815";
     if (profileNicknameEl) profileNicknameEl.textContent = savedNickname;
 
     // Initialize Theme
@@ -783,6 +784,16 @@ class SeatViewApp {
   }
 
   setupListeners() {
+    // Deter casual right-click-save / drag-save of seat-view photos (not a
+    // real security control — DevTools/view-source always gets around this —
+    // just raises the bar above a single right-click for most users.
+    document.addEventListener("contextmenu", (e) => {
+      if (e.target.tagName === "IMG") e.preventDefault();
+    });
+    document.addEventListener("dragstart", (e) => {
+      if (e.target.tagName === "IMG") e.preventDefault();
+    });
+
     // Quick handle search box typing
     const searchInput = document.getElementById("main-search-input");
     if (searchInput) {
@@ -2712,7 +2723,12 @@ class SeatViewApp {
       labelEl.innerHTML = `${subheading}<br>${heading}`;
     }
 
-    state.tempUploadedPhotos = [...ownPhotos];
+    state.tempUploadedPhotos = ownPhotos.map(url => ({ type: "existing", url }));
+    // Snapshot so saveNewTicket can diff against the final list at save time
+    // and only clean up storage files that were actually confirmed removed —
+    // deleting immediately here would break the live review if the user
+    // cancels the edit instead of submitting.
+    state.editingOriginalPhotos = [...ownPhotos];
     state.currentUploadedPhotoBase64 = null;
     this.renderUploadedPhotosThumbnails();
 
@@ -2729,6 +2745,10 @@ class SeatViewApp {
     }
 
     this.openModal("modal-add-ticket");
+    // Re-run the resize now that the modal is actually visible — doing it
+    // earlier (while the modal was still hidden) measures scrollHeight as 0,
+    // which is why the box looked collapsed until the user typed a character.
+    if (commentEl) this.autoResizeTextarea(commentEl);
   }
 
   updateModalImage() {
@@ -2881,9 +2901,33 @@ class SeatViewApp {
   // Comparisons behave like a session: they persist across reloads in the
   // same browsing session, but auto-clear after COMPARE_SESSION_TTL_MS of
   // inactivity so stale picks from days ago don't linger forever.
+  //
+  // New photos now upload to the "seat-photos" Storage bucket and
+  // seat_reviews.image_urls stores a short URL, but older rows saved before
+  // that migration can still hold full base64 strings — so saving
+  // state.comparisons as-is can still blow past localStorage's ~5-10MB
+  // per-origin quota and throw an uncaught QuotaExceededError that used to
+  // crash the whole page. Only lightweight fields go to localStorage; the
+  // actual photos are re-fetched from Supabase on load (see
+  // rehydrateComparisons).
   saveComparisons() {
-    localStorage.setItem("seatview_compare", JSON.stringify(state.comparisons));
-    localStorage.setItem("seatview_compare_ts", String(Date.now()));
+    try {
+      const lightweight = state.comparisons.map(item => ({
+        key: item.key,
+        stadiumName: item.stadiumName,
+        blockName: item.blockName,
+        seatName: item.seatName,
+        reviewIds: Array.isArray(item.images)
+          ? [...new Set(item.images.map(img => img.reviewId).filter(id => id != null))]
+          : []
+      }));
+      localStorage.setItem("seatview_compare", JSON.stringify(lightweight));
+      localStorage.setItem("seatview_compare_ts", String(Date.now()));
+    } catch (e) {
+      // Worst case the comparison list just doesn't survive a reload —
+      // never let a storage quota issue take down the whole app.
+      console.warn("Failed to persist comparisons (storage quota?):", e);
+    }
   }
 
   loadComparisons() {
@@ -2899,6 +2943,49 @@ class SeatViewApp {
       return JSON.parse(localStorage.getItem("seatview_compare") || "[]");
     } catch (e) {
       return [];
+    }
+  }
+
+  // Re-fetches the actual photos/reviews for whatever lightweight comparison
+  // entries were restored from localStorage, then re-renders if the user is
+  // looking at the compare screen.
+  async rehydrateComparisons() {
+    if (!supabaseClient || state.comparisons.length === 0) return;
+
+    const hydrated = [];
+    for (const item of state.comparisons) {
+      if (!item.reviewIds || item.reviewIds.length === 0) {
+        hydrated.push(item);
+        continue;
+      }
+      try {
+        const { data: reviews } = await supabaseClient
+          .from('seat_reviews')
+          .select('*, profiles(*)')
+          .in('id', item.reviewIds);
+
+        const images = [];
+        (reviews || []).forEach(rev => {
+          (rev.image_urls || []).forEach(u => {
+            images.push({
+              url: u,
+              reviewId: rev.id,
+              comment: rev.content || "",
+              uploader: rev.is_anonymous ? "익명" : (rev.profiles?.nickname || "@제보자")
+            });
+          });
+        });
+
+        hydrated.push({ ...item, images, image: images[0] ? images[0].url : null, comment: images[0] ? images[0].comment : "" });
+      } catch (e) {
+        console.warn("Failed to rehydrate comparison item:", e);
+        hydrated.push(item);
+      }
+    }
+
+    state.comparisons = hydrated;
+    if (state.currentView === "compare") {
+      this.renderCompareView();
     }
   }
 
@@ -3072,6 +3159,7 @@ class SeatViewApp {
 
     if (!archiveContainer) return;
 
+    this.applyTicketViewMode();
     archiveContainer.innerHTML = "";
 
     const sortedTickets = [...state.tickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
@@ -3140,13 +3228,12 @@ class SeatViewApp {
           ${photoCount > 1 ? `<span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: flex; align-items: center; gap: 3px;"><i data-lucide="images" style="width: 11px; height: 11px;"></i> ${photoCount}</span>` : ""}
         </div>
         <div class="ticket-body">
-          <div class="ticket-meta-info" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <span class="ticket-match-date" style="font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">${ticket.stadiumName}</span>
-            <i data-lucide="chevron-right" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+          <div class="ticket-meta-info" style="display: flex; align-items: baseline; justify-content: space-between; gap: 4px;">
+            <span class="ticket-stadium-name">${ticket.stadiumName}</span>
+            <span class="ticket-date">${ticket.ins_dtm ? new Date(ticket.ins_dtm).toISOString().split('T')[0].slice(2).replace(/-/g, '.') : ''}</span>
           </div>
-          <h4 style="font-size: 0.76rem; color: var(--text-secondary); margin: 0 0 6px 0;">${ticket.blockName} ${ticket.seatName}</h4>
-          <p style="margin: 0 0 6px 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
-          <div style="text-align: right; font-size: 0.65rem; color: var(--text-muted); opacity: 0.8;">${ticket.ins_dtm ? new Date(ticket.ins_dtm).toISOString().split('T')[0] : ''}</div>
+          <h4 class="ticket-seat-info">${ticket.blockName} ${ticket.seatName}</h4>
+          <p class="ticket-comment-preview">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
         </div>
       `;
       if (ticket.seatId) {
@@ -3155,6 +3242,29 @@ class SeatViewApp {
       archiveContainer.appendChild(card);
     });
     lucide.createIcons();
+  }
+
+  // Shopping-mall-style 1열/2열 toggle for the ticketbook grid. Defaults to
+  // 2 columns; the choice is remembered in localStorage across visits.
+  toggleTicketViewMode() {
+    const current = localStorage.getItem("seatview_ticket_view") || "2col";
+    const next = current === "2col" ? "1col" : "2col";
+    localStorage.setItem("seatview_ticket_view", next);
+    this.applyTicketViewMode();
+  }
+
+  applyTicketViewMode() {
+    const mode = localStorage.getItem("seatview_ticket_view") || "2col";
+    const container = document.getElementById("tickets-archive-container");
+    const btn = document.getElementById("btn-ticket-view-toggle");
+    if (container) container.classList.toggle("view-list", mode === "1col");
+    if (btn) {
+      // Icon shown is the mode a tap would switch TO.
+      btn.innerHTML = mode === "2col"
+        ? '<i data-lucide="list" style="width: 16px; height: 16px;"></i>'
+        : '<i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>';
+      if (window.lucide) lucide.createIcons();
+    }
   }
 
   // --- Add to Ticketbook flow ---
@@ -3304,6 +3414,100 @@ class SeatViewApp {
     });
   }
 
+  // Same compression pipeline as compressImageToWebP, but resolves a Blob
+  // instead of a base64 data URI — Blobs upload directly to Supabase Storage
+  // without the ~33% base64 size overhead.
+  compressImageToWebPBlob(file, maxWidth = 1024, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("WebP 변환 실패"));
+          }, "image/webp", quality);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Uploads a compressed seat-view photo to the "seat-photos" Supabase
+  // Storage bucket and returns its public URL. Path is namespaced by user id
+  // purely to keep files organized in the bucket browser.
+  async uploadSeatPhoto(blob) {
+    const prefix = state.userId ? String(state.userId) : "guest";
+    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+    const { error } = await supabaseClient.storage
+      .from("seat-photos")
+      .upload(fileName, blob, { contentType: "image/webp", upsert: false });
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from("seat-photos").getPublicUrl(fileName);
+    return data.publicUrl;
+  }
+
+  // Photos are compressed and object-URL-previewed immediately on selection,
+  // but the actual Storage upload is deferred until the user hits 저장/수정
+  // 완료 — so an abandoned form or a removed-before-save photo never touches
+  // the bucket at all, and there's nothing to clean up for that case.
+  // tempUploadedPhotos entries are either {type:"existing", url} (already
+  // hosted, from editing a saved review) or {type:"new", blob, previewUrl}
+  // (picked this session, not yet uploaded).
+  async resolveFinalImageUrls(photos) {
+    const results = [];
+    for (const p of photos) {
+      if (p && p.type === "existing") {
+        results.push(p.url);
+      } else if (p && p.type === "new") {
+        const url = await this.uploadSeatPhoto(p.blob);
+        if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+        results.push(url);
+      } else if (typeof p === "string") {
+        results.push(p); // defensive fallback, shouldn't normally occur
+      }
+    }
+    return results;
+  }
+
+  // Best-effort cleanup for photos removed from a review (edit) or a whole
+  // deleted review — never throws, since a stray orphaned file in the bucket
+  // is harmless and shouldn't block the user-facing action that triggered it.
+  // Silently ignores non-storage URLs (e.g. legacy base64 rows from before
+  // the Storage migration) since there's nothing to remove for those.
+  async deleteSeatPhotosFromStorage(urls) {
+    if (!supabaseClient || !urls || urls.length === 0) return;
+    const marker = "/object/public/seat-photos/";
+    const paths = urls
+      .filter(u => typeof u === "string" && u.includes(marker))
+      .map(u => u.split(marker)[1]);
+    if (paths.length === 0) return;
+    try {
+      const { error } = await supabaseClient.storage.from("seat-photos").remove(paths);
+      if (error) console.warn("Seat photo storage cleanup warning:", error);
+    } catch (e) {
+      console.warn("Seat photo storage cleanup error:", e);
+    }
+  }
+
   async handleTicketPhotoSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -3364,8 +3568,24 @@ class SeatViewApp {
     const commentVal = document.getElementById("form-comment").value.trim();
     const isAnonymous = document.getElementById("form-is-anonymous") ? document.getElementById("form-is-anonymous").checked : false;
 
-    const finalImage = state.currentUploadedPhotoBase64 || (state.tempUploadedPhotos ? state.tempUploadedPhotos[0] : null);
-    const finalImagesList = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0 ? state.tempUploadedPhotos : [finalImage];
+    // Upload any not-yet-uploaded photos to Storage now that the user has
+    // actually confirmed the submission (existing/already-hosted photos in
+    // an edit pass straight through unchanged).
+    let finalImagesList;
+    try {
+      finalImagesList = (state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0)
+        ? await this.resolveFinalImageUrls(state.tempUploadedPhotos)
+        : [state.currentUploadedPhotoBase64];
+    } catch (err) {
+      console.error("Photo upload error:", err);
+      this.showToast("❌", "사진 업로드 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+      return;
+    }
+    const finalImage = finalImagesList[0];
 
     // Editing an existing review (opened via 기록 수정) updates that one row
     // instead of creating a new ticket/review.
@@ -3381,6 +3601,12 @@ class SeatViewApp {
           })
           .eq('id', state.editingReviewId);
         if (error) throw error;
+
+        // Now that the DB row no longer references the old list, it's safe
+        // to delete any photos the user removed during this edit.
+        const removedUrls = (state.editingOriginalPhotos || []).filter(u => !finalImagesList.includes(u));
+        this.deleteSeatPhotosFromStorage(removedUrls);
+        state.editingOriginalPhotos = null;
 
         state.editingReviewId = null;
         const titleEl = document.getElementById("add-ticket-modal-title");
@@ -3519,6 +3745,11 @@ class SeatViewApp {
         this.showToast("❌", "데이터베이스 삭제 중 오류가 발생했습니다.");
         return;
       }
+    }
+
+    // The review row itself is gone now, so its photo files are safe to remove.
+    if (ticket && ticket.images) {
+      this.deleteSeatPhotosFromStorage(ticket.images);
     }
 
     state.tickets = state.tickets.filter(t => String(t.id) !== String(id));
@@ -3772,10 +4003,11 @@ class SeatViewApp {
 
     if (nickInput) nickInput.value = state.userNickname || "";
     if (stadiumSelect) {
-      stadiumSelect.innerHTML = STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
-      stadiumSelect.value = state.favoriteStadiumId || "jamsil";
+      const placeholder = `<option value="" disabled ${state.favoriteStadiumId ? "" : "selected"}>구장을 선택해주세요</option>`;
+      stadiumSelect.innerHTML = placeholder + STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      stadiumSelect.value = state.favoriteStadiumId || "";
     }
-    if (teamSelect) teamSelect.value = state.cheeringTeam || "LG Twins";
+    if (teamSelect) teamSelect.value = state.cheeringTeam || "";
 
     this.openModal("modal-edit-profile");
   }
@@ -3783,8 +4015,8 @@ class SeatViewApp {
   async saveProfileSettings(e) {
     e.preventDefault();
     const nickVal = document.getElementById("profile-nickname-input").value.trim();
-    const stadiumVal = document.getElementById("profile-stadium-select").value;
-    const teamVal = document.getElementById("profile-team-select").value;
+    const stadiumVal = document.getElementById("profile-stadium-select").value || null;
+    const teamVal = document.getElementById("profile-team-select").value || null;
 
     if (!nickVal) return;
 
@@ -3832,8 +4064,8 @@ class SeatViewApp {
     const profileNicknameEl = document.getElementById("my-profile-nickname");
     const favStadiumObj = STADIUMS_DB.find(s => s.id === stadiumVal);
 
-    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uC7A0\uC2E4 \uC57C\uAD6C\uC7A5";
-    if (profileTeamEl) profileTeamEl.textContent = teamVal;
+    if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uBBF8\uC124\uC815";
+    if (profileTeamEl) profileTeamEl.textContent = teamVal || "\uBBF8\uC124\uC815";
     if (profileNicknameEl) profileNicknameEl.textContent = nickVal;
 
     this.closeModal("modal-edit-profile");
@@ -3903,15 +4135,20 @@ class SeatViewApp {
       this.showToast("\u26A0\uFE0F", "\uCD5C\uB300 5\uC7A5\uAE4C\uC9C0\uB9CC \uB4F1\uB85D \uAC00\uB2A5\uD569\uB2C8\uB2E4.");
     }
 
-    const compressionPromises = toUpload.map(file => this.compressImageToWebP(file));
+    // Only compress + build a local preview here \u2014 the actual Storage
+    // upload happens at save time (see resolveFinalImageUrls), so picking
+    // then removing a photo before saving never touches the bucket.
     try {
-      const compressedWebpList = await Promise.all(compressionPromises);
-      state.tempUploadedPhotos.push(...compressedWebpList);
+      const blobs = await Promise.all(toUpload.map(file => this.compressImageToWebPBlob(file)));
+      blobs.forEach(blob => {
+        state.tempUploadedPhotos.push({ type: "new", blob, previewUrl: URL.createObjectURL(blob) });
+      });
       this.renderUploadedPhotosThumbnails();
     } catch (err) {
       console.error("Multi-image compression error:", err);
+      this.showToast("\u26A0\uFE0F", "\uC0AC\uC9C4 \uCC98\uB9AC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC5B4\uC694.");
     }
-    
+
     e.target.value = "";
   }
 
@@ -3945,8 +4182,10 @@ class SeatViewApp {
       wrapper.style.overflow = "hidden";
       wrapper.style.border = "1px solid var(--border-color)";
 
+      const src = typeof photo === "string" ? photo : (photo.type === "existing" ? photo.url : photo.previewUrl);
+
       wrapper.innerHTML = `
-        <img src="${photo}" style="width: 100%; height: 100%; object-fit: cover;">
+        <img src="${src}" style="width: 100%; height: 100%; object-fit: cover;">
         <button type="button" onclick="app.removeUploadedPhoto(${index})" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 8px; cursor: pointer; padding: 0;">
           \u2715
         </button>
@@ -3957,7 +4196,13 @@ class SeatViewApp {
 
   removeUploadedPhoto(index) {
     if (state.tempUploadedPhotos) {
-      state.tempUploadedPhotos.splice(index, 1);
+      const [removed] = state.tempUploadedPhotos.splice(index, 1);
+      // Nothing to clean up on the server: "existing" entries aren't touched
+      // until save time (see the diff in saveNewTicket), and "new" entries
+      // were never uploaded in the first place — just release the local preview.
+      if (removed && removed.type === "new" && removed.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
       this.renderUploadedPhotosThumbnails();
     }
   }

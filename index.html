@@ -265,14 +265,20 @@
         <!-- 5. TICKETBOOK VIEW -->
         <section id="view-ticketbook" class="view">
           <!-- Shown when logged out, instead of the profile stats card -->
-          <div id="ticketbook-login-prompt" style="display: none; flex-direction: column; align-items: center; gap: 14px; padding: 32px 20px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; text-align: center; margin-bottom: 20px;">
-            <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <div id="ticketbook-login-prompt" style="display: none; flex-direction: column; align-items: center; gap: 14px; padding: 40px 20px 28px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; text-align: center; margin-bottom: 20px; position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -60px; right: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, transparent 70%); pointer-events: none;"></div>
+            <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
               <i data-lucide="user" style="width: 28px; height: 28px;"></i>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">로그인하고 나만의 시야 제보를<br>관리해 보세요!</p>
-            <button class="btn" onclick="app.loginWithKakao();" style="width: 100%; max-width: 240px; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer;">
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; position: relative;">로그인하고 나만의 시야 제보를<br>관리해 보세요!</p>
+            <button class="btn" onclick="app.loginWithKakao();" style="width: 100%; max-width: 240px; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; position: relative;">
               <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> 카카오 로그인
             </button>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin-top: 4px; position: relative;">
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>나만의 직관 기록 저장</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>시야 사진 영구 보관</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>시야 투표 참여</span>
+            </div>
           </div>
 
           <!-- Stats Overview -->
@@ -301,11 +307,14 @@
                   <span class="stat-sub-val" id="my-profile-team" style="color: #ffffff !important;">Lotte Giants</span>
                 </div>
               </div>
-              <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="flex: none; padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">변경</button>
+              <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="flex: none; padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">정보수정</button>
             </div>
           </div>
 
-          <h2 class="view-title" id="ticketbook-heading" style="font-size: 1rem; margin-bottom: 12px;">나의 시야 제보 내역</h2>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+            <h2 class="view-title" id="ticketbook-heading" style="font-size: 1rem; margin-bottom: 0;">나의 시야 제보 내역</h2>
+            <button id="btn-ticket-view-toggle" onclick="app.toggleTicketViewMode()" aria-label="보기 방식 전환" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 7px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary);"></button>
+          </div>
 
           <!-- Ticket Archive Grid -->
           <div class="tickets-archive" id="tickets-archive-container">
@@ -314,8 +323,7 @@
 
           <!-- My Page Footer (Only visible when logged in) -->
           <div id="my-page-footer" style="display: none; text-align: center; margin-top: 20px; margin-bottom: 20px;">
-            <button onclick="app.logout()" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer; margin-right: 16px;">로그아웃</button>
-            <button onclick="app.openWithdrawModal()" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer;">회원 탈퇴</button>
+            <button onclick="app.logout()" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer;">로그아웃</button>
           </div>
         </section>
 
@@ -535,7 +543,7 @@
         <div class="modal-backdrop" onclick="app.closeModal('modal-edit-profile')"></div>
         <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg);">
           <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">프로필 설정 변경</h3>
+            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">정보수정</h3>
             <button class="close-btn" onclick="app.closeModal('modal-edit-profile')" aria-label="Close" style="padding: 0; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;">
               <i data-lucide="x" style="width: 18px; height: 18px;"></i>
             </button>
@@ -548,13 +556,14 @@
               </div>
               <div class="form-group" style="margin-bottom: 12px;">
                 <label for="profile-stadium-select">최애 구장</label>
-                <select id="profile-stadium-select" required style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                <select id="profile-stadium-select">
                   <!-- Dynamic options -->
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 20px;">
                 <label for="profile-team-select">응원 구단</label>
-                <select id="profile-team-select" required style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
+                <select id="profile-team-select">
+                  <option value="" disabled selected>응원 구단을 선택해주세요</option>
                   <option value="LG 트윈스">LG 트윈스</option>
                   <option value="두산 베어스">두산 베어스</option>
                   <option value="SSG 랜더스">SSG 랜더스</option>
@@ -571,6 +580,9 @@
                 저장 완료
               </button>
             </form>
+            <div style="text-align: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+              <button onclick="app.closeModal('modal-edit-profile'); app.openWithdrawModal();" style="background: none; border: none; color: var(--text-muted); font-size: 0.72rem; text-decoration: underline; cursor: pointer;">회원 탈퇴</button>
+            </div>
           </div>
         </div>
       </div>
@@ -638,7 +650,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=4.5"></script>
+  <script src="app_v6.js?v=5.4"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
