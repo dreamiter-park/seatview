@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SeatView - 좌석별 시야 공유 서비스</title>
+  <title>잘보여유 - 좌석별 시야 공유 서비스</title>
   <!-- Global Debug Error Logger -->
   <script>
     window.errors = [];
@@ -39,11 +39,11 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&family=Do+Hyeon&family=Gamja+Flower&display=swap" rel="stylesheet">
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=4.5">
+  <link rel="stylesheet" href="style_v6.css?v=4.9">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -61,7 +61,7 @@
             <i data-lucide="chevron-left"></i>
           </button>
           <div class="header-logo" id="header-logo" onclick="app.navigateTo('main')">
-            <span class="logo-accent">Seat</span>View
+            <span class="logo-text">잘보여</span><span class="logo-bubble">유</span>
           </div>
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
@@ -77,10 +77,6 @@
           <div class="hero-section">
             <h1 class="hero-title">이 자리에서<br>경기/무대가 잘 보일까?</h1>
             <p class="hero-desc">유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.</p>
-            <div class="search-bar-container">
-              <i data-lucide="search" class="search-icon"></i>
-              <input type="text" placeholder="경기장 + 구역번호로 검색 (예: 고척 111)" id="main-search-input">
-            </div>
           </div>
 
           <!-- Category Selection -->
@@ -121,18 +117,140 @@
             data-ad-width = "320"
             data-ad-height = "50"></ins>
           </div>
+
+          <!-- Site Footer (home screen only — the one view every visitor,
+               logged in or not, always lands on) -->
+          <footer class="site-footer">
+            <div class="site-footer-links">
+              <a href="javascript:void(0)" onclick="app.showToast('📄', '페이지 준비중입니다.')">이용약관</a>
+              <span class="site-footer-divider">·</span>
+              <a href="javascript:void(0)" onclick="app.showToast('📄', '페이지 준비중입니다.')">개인정보처리방침</a>
+            </div>
+            <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
+          </footer>
         </section>
 
         <!-- 2. STADIUM SELECTION VIEW -->
         <section id="view-stadiums" class="view">
-          
+
           <div class="stadium-intro">
             <p>시야 정보를 확인하고 싶은 야구장을 선택하세요.</p>
+          </div>
+
+          <div class="search-bar-container" style="margin-bottom: 16px;">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" placeholder="경기장 + 구역번호로 검색 (예: 고척 111)" id="stadium-search-input">
           </div>
 
           <!-- Stadium Card Grid -->
           <div class="stadium-grid" id="stadium-grid-container">
             <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 2b. VENUE (공연장) LIST VIEW -->
+        <section id="view-venues" class="view">
+          <div class="stadium-intro">
+            <p>시야 정보를 확인하고 싶은 공연장을 선택하세요.</p>
+          </div>
+
+          <div class="search-bar-container" style="margin-bottom: 16px;">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" placeholder="공연장 + 구역으로 검색 (예: 세종 A)" id="venue-search-input">
+          </div>
+
+          <div class="stadium-grid" id="venue-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 2c. VENUE DETAIL VIEW -->
+        <section id="view-venue-detail" class="view">
+          <div class="stadium-detail-profile" id="detail-venue-banner">
+            <div class="profile-overlay"></div>
+            <div class="profile-info">
+              <span class="stadium-badge" id="venue-detail-shows" style="display: none;">작품명</span>
+              <h3 id="venue-detail-name">공연장 이름</h3>
+              <p class="stadium-meta"><i data-lucide="map-pin"></i> <span id="venue-detail-location">위치</span></p>
+            </div>
+          </div>
+
+          <!-- Section Navigation -->
+          <div class="detail-tabs">
+            <button class="tab-btn active" onclick="app.switchVenueDetailTab('map')">공연장 지도 & 시야</button>
+            <button class="tab-btn" onclick="app.switchVenueDetailTab('info')">공연장 정보</button>
+          </div>
+
+          <!-- Tab Content: Map & Seating -->
+          <div id="venue-tab-content-map" class="tab-pane active">
+            <!-- Collapsible Venue Map Accordion -->
+            <div class="map-guide-card" style="margin-bottom: 16px;">
+              <button class="map-collapse-btn" onclick="app.toggleVenueMapCollapse()" id="venue-map-collapse-btn">
+                <span>🗺️ 좌석 이미지 펼치기</span>
+                <i data-lucide="chevron-down" class="collapse-icon" id="venue-map-collapse-icon"></i>
+              </button>
+              <div class="stadium-static-map-wrapper collapsed" id="venue-static-map-wrapper">
+                <img id="venue-detail-map-img" src="" alt="공연장 좌석 배치도" class="stadium-static-map">
+              </div>
+            </div>
+
+            <!-- STEP 1: Floor Filter -->
+            <div class="step-card grade-filter-card">
+              <div class="step-title">
+                <span class="step-number">STEP 1</span>
+                <span class="step-text">층 선택</span>
+              </div>
+              <div class="grade-filter-bar" id="venue-floor-filter-bar">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- STEP 2: Zone Selector -->
+            <div class="step-card block-selector-wrapper" id="venue-block-selector-wrapper">
+              <div class="step-title">
+                <span class="step-number">STEP 2</span>
+                <span class="step-text">구역 선택</span>
+              </div>
+              <div class="block-selector-container" id="venue-block-selector-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <!-- STEP 3: Seat Grid -->
+            <div class="step-card block-seats-section" id="venue-block-seats-section">
+              <div class="step-title">
+                <span class="step-number">STEP 3</span>
+                <span class="step-text">좌석 선택</span>
+              </div>
+              <div class="block-info-header">
+                <div>
+                  <span class="block-badge" id="venue-selected-block-badge">구역 미선택</span>
+                  <h4 class="block-name" id="venue-selected-block-title">원하는 구역을 먼저 선택해 주세요</h4>
+                </div>
+              </div>
+
+              <div class="seat-grid-container" id="venue-seat-grid-wrapper">
+                <div class="seat-grid-legend">
+                  <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
+                  <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                </div>
+                <div class="seat-rows" id="venue-seat-rows-container">
+                  <!-- Row 1, 2, 3... -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Content: Venue Info -->
+          <div id="venue-tab-content-info" class="tab-pane">
+            <div class="info-card">
+              <h4>🍔 대표 먹거리</h4>
+              <p class="info-text" id="venue-info-food">정보를 불러오는 중입니다...</p>
+            </div>
+            <div class="info-card">
+              <h4>🚗 주차 안내</h4>
+              <p class="info-text" id="venue-info-parking">정보를 불러오는 중입니다...</p>
+            </div>
           </div>
         </section>
 
@@ -162,12 +280,12 @@
               
               <!-- Collapsible Stadium Map Accordion -->
               <div class="map-guide-card" style="margin-bottom: 16px;">
-                <button class="map-collapse-btn expanded" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
-                  <span>🗺️ 경기장 이미지 접기</span>
+                <button class="map-collapse-btn" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
+                  <span>🗺️ 좌석 이미지 펼치기</span>
                   <i data-lucide="chevron-down" class="collapse-icon" id="map-collapse-icon"></i>
                 </button>
 
-                <div class="stadium-static-map-wrapper" id="stadium-static-map-wrapper">
+                <div class="stadium-static-map-wrapper collapsed" id="stadium-static-map-wrapper">
                   <img id="stadium-static-map-img" src="" alt="구장 전체 안내도" class="stadium-static-map">
                 </div>
               </div>
@@ -192,7 +310,7 @@
               </div>
 
               <!-- STEP 2: Block Selector Grid (Card) -->
-              <div class="step-card block-selector-wrapper">
+              <div class="step-card block-selector-wrapper" id="stadium-block-selector-wrapper">
                 <div class="step-title">
                   <span class="step-number">STEP 2</span>
                   <span class="step-text">구역 선택</span>
@@ -309,6 +427,11 @@
               </div>
               <button class="btn btn-secondary" onclick="app.openEditProfileModal()" style="flex: none; padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; font-weight: 700; width: auto; height: auto;">정보수정</button>
             </div>
+          </div>
+
+          <div class="detail-tabs" id="ticketbook-category-tabs" style="margin-bottom: 14px;">
+            <button class="tab-btn active" data-category="baseball" onclick="app.switchTicketbookCategory('baseball')">⚾ 프로야구장</button>
+            <button class="tab-btn" data-category="musical" onclick="app.switchTicketbookCategory('musical')">🎭 공연장</button>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
@@ -489,13 +612,10 @@
                 <label for="form-is-anonymous" style="font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">익명으로 표기 (제보 시 닉네임을 노출하지 않습니다)</label>
               </div>
 
-              <!-- 4. 안내문구 영역 -->
-              <div class="policy-notice-banner" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.6;">
-                <div style="font-weight: 800; margin-bottom: 6px; color: var(--text-primary);">💡 시야 제보 및 데이터 보존 정책 안내</div>
-                <ul style="margin: 0; padding-left: 14px; list-style-type: disc;">
-                  <li style="margin-bottom: 4px;">시야 사진을 제보하면 3일 뒤 자동으로 이벤트 응모권이 지급됩니다.</li>
-                  <li>이벤트 참여 이후 및 회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 야구팬들을 위해 삭제되지 않고 영구적으로 보존됩니다.</li>
-                </ul>
+              <!-- 4. 안내문구 영역 (짧게, 상세 내용은 더보기 팝업으로) -->
+              <div class="policy-notice-banner" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 10px 14px; margin-bottom: 20px; font-size: 0.72rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <span>💡 시야 제보 정책 및 유의사항 안내</span>
+                <button type="button" onclick="app.showSubmissionPolicyDetail()" style="background: none; border: none; color: var(--accent-purple); font-weight: 700; font-size: 0.72rem; text-decoration: underline; cursor: pointer; padding: 0; flex-shrink: 0;">더보기</button>
               </div>
 
               <button type="submit" class="btn btn-primary btn-full-width" style="padding: 14px; font-weight: 800; font-size: 0.95rem; border-radius: 12px;">
@@ -511,7 +631,7 @@
         <div class="modal-backdrop" onclick="app.closeModal('modal-profile')"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3 class="modal-title">SeatView 회원 서비스</h3>
+            <h3 class="modal-title">잘보여유 회원 서비스</h3>
             <button class="close-btn" onclick="app.closeModal('modal-profile')" aria-label="Close">
               <i data-lucide="x"></i>
             </button>
@@ -650,7 +770,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=5.4"></script>
+  <script src="app_v6.js?v=7.2"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SeatView - 관리자 좌석 설정</title>
+  <title>잘보여유 - 관리자 좌석 설정</title>
   <!-- Noto Sans KR Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -447,7 +447,7 @@
 
   <header style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
     <div>
-      <h1><i data-lucide="settings"></i> SeatView - 관리자 좌석 설정</h1>
+      <h1><i data-lucide="settings"></i> 잘보여유 - 관리자 좌석 설정</h1>
       <p class="subtitle">구역을 선택하고 마우스 클릭과 일괄 설정을 통해 좌석 여부 및 번호를 편리하게 세팅하세요.</p>
     </div>
     <div>
@@ -458,9 +458,17 @@
   </header>
 
   <!-- Step 1: Selection Area -->
-  <div class="selector-container" style="grid-template-columns: 1fr 1fr 1fr;">
+  <div class="selector-container" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
     <div class="card form-group">
-      <label for="stadium-select"><i data-lucide="map"></i> 야구장 선택</label>
+      <label for="category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+      <select id="category-select">
+        <option value="baseball">⚾ 야구장</option>
+        <option value="musical">🎭 공연장</option>
+      </select>
+    </div>
+
+    <div class="card form-group">
+      <label for="stadium-select"><i data-lucide="map"></i> <span id="stadium-select-label">야구장 선택</span></label>
       <select id="stadium-select">
         <option value="">야구장을 선택하세요...</option>
       </select>
@@ -674,6 +682,7 @@
 
     class AdminApp {
       constructor() {
+        this.category = 'baseball'; // 'baseball' | 'musical'
         this.stadiums = [];
         this.selectedStadium = null;
         this.selectedBlock = null;
@@ -725,7 +734,39 @@
         lucide.createIcons();
       }
 
+      // Table/column names differ by category but the shape of the data
+      // (block: block_code/full_name/total_rows/max_seats, seat: grid_x/
+      // grid_y/status/seat_num/offset_type) is identical, so the rest of
+      // the editor doesn't need to know which category it's editing.
+      getTopTable() { return this.category === 'musical' ? 'venues' : 'stadiums'; }
+      getBlocksTable() { return this.category === 'musical' ? 'musical_blocks' : 'baseball_blocks'; }
+      getBlocksFkCol() { return this.category === 'musical' ? 'venue_id' : 'stadium_id'; }
+      getSeatsTable() { return this.category === 'musical' ? 'musical_seats' : 'baseball_seats'; }
+
+      handleCategoryChange(category) {
+        this.category = category;
+        this.stadiums = [];
+        this.selectedStadium = null;
+        this.selectedBlock = null;
+        this.allBlocks = [];
+
+        const stadiumLabel = document.getElementById("stadium-select-label");
+        if (stadiumLabel) stadiumLabel.textContent = category === 'musical' ? '공연장 선택' : '야구장 선택';
+
+        const gradeSelect = document.getElementById("grade-select");
+        const blockSelect = document.getElementById("block-select");
+        const configPanel = document.getElementById("config-panel");
+        gradeSelect.innerHTML = '<option value="">공연장/야구장을 먼저 선택하세요...</option>';
+        gradeSelect.disabled = true;
+        blockSelect.innerHTML = '<option value="">구역을 선택하세요...</option>';
+        blockSelect.disabled = true;
+        configPanel.style.display = "none";
+
+        this.loadStadiums();
+      }
+
       bindEvents() {
+        document.getElementById("category-select").addEventListener("change", (e) => this.handleCategoryChange(e.target.value));
         document.getElementById("stadium-select").addEventListener("change", (e) => this.handleStadiumChange(e.target.value));
         document.getElementById("grade-select").addEventListener("change", (e) => this.handleGradeChange(e.target.value));
         document.getElementById("block-select").addEventListener("change", (e) => this.handleBlockChange(e.target.value));
@@ -759,20 +800,22 @@
       // Load stadium list
       async fnFetchStadiums() {
         const { data, error } = await supabaseClient
-          .from('stadiums')
+          .from(this.getTopTable())
           .select('id, name')
-          .order('display_order', { ascending: true });
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true });
         if (error) throw error;
         return data;
       }
 
       async loadStadiums() {
+        const placeholder = this.category === 'musical' ? '공연장을 선택하세요...' : '야구장을 선택하세요...';
         try {
           const list = await this.fnFetchStadiums();
           this.stadiums = list;
           const select = document.getElementById("stadium-select");
           if (select) {
-            select.innerHTML = '<option value="">야구장을 선택하세요...</option>';
+            select.innerHTML = `<option value="">${placeholder}</option>`;
             list.forEach(st => {
               const opt = document.createElement("option");
               opt.value = st.id;
@@ -782,7 +825,7 @@
           }
         } catch (e) {
           console.error("loadStadiums failed:", e);
-          this.showToast("오류", "야구장 리스트를 가져오지 못했습니다.", "danger");
+          this.showToast("오류", "목록을 가져오지 못했습니다.", "danger");
           
           // Clear only this tab's cached key so a reload re-prompts for the
           // password (not the raw key) — if the key is genuinely bad, use
@@ -814,27 +857,39 @@
         this.selectedBlock = null;
 
         try {
+          const isMusical = this.category === 'musical';
+          const selectCols = isMusical
+            ? 'id, block_code, full_name, total_rows, max_seats'
+            : 'id, block_code, full_name, seat_grade, total_rows, max_seats';
+
           const { data: blocks, error } = await supabaseClient
-            .from('baseball_blocks')
-            .select('id, block_code, full_name, seat_grade, total_rows, max_seats')
-            .eq('stadium_id', stadiumId)
+            .from(this.getBlocksTable())
+            .select(selectCols)
+            .eq(this.getBlocksFkCol(), stadiumId)
             .order('block_code', { ascending: true });
 
           if (error) throw error;
 
           this.allBlocks = blocks;
 
-          // Extract unique grades
-          const grades = [...new Set(blocks.map(b => b.seat_grade).filter(Boolean))];
-          
-          gradeSelect.innerHTML = '<option value="">전체 등급</option>';
-          grades.forEach(g => {
-            const opt = document.createElement("option");
-            opt.value = g;
-            opt.textContent = g;
-            gradeSelect.appendChild(opt);
-          });
-          gradeSelect.disabled = false;
+          if (isMusical) {
+            // musical_blocks has no block-level grade (grade lives on the
+            // seat itself), so there's nothing to filter by here.
+            gradeSelect.innerHTML = '<option value="">등급 구분 없음 (좌석 단위)</option>';
+            gradeSelect.disabled = true;
+          } else {
+            // Extract unique grades
+            const grades = [...new Set(blocks.map(b => b.seat_grade).filter(Boolean))];
+
+            gradeSelect.innerHTML = '<option value="">전체 등급</option>';
+            grades.forEach(g => {
+              const opt = document.createElement("option");
+              opt.value = g;
+              opt.textContent = g;
+              gradeSelect.appendChild(opt);
+            });
+            gradeSelect.disabled = false;
+          }
 
           // Initially show all blocks
           this.populateBlocks(blocks);
@@ -909,7 +964,7 @@
 
         try {
           const { data: seats, error } = await supabaseClient
-            .from('baseball_seats')
+            .from(this.getSeatsTable())
             .select('*')
             .eq('block_id', this.selectedBlock.id);
 
@@ -1561,7 +1616,7 @@
           // 1. Insert new seats
           if (insertBatch.length > 0) {
             const { error: insertErr } = await supabaseClient
-              .from('baseball_seats')
+              .from(this.getSeatsTable())
               .insert(insertBatch);
             if (insertErr) throw insertErr;
           }
@@ -1569,7 +1624,7 @@
           // 2. Update existing seats
           if (updateBatch.length > 0) {
             const { error: updateErr } = await supabaseClient
-              .from('baseball_seats')
+              .from(this.getSeatsTable())
               .upsert(updateBatch, { onConflict: 'id' });
             if (updateErr) throw updateErr;
           }
@@ -1629,7 +1684,7 @@
           // 1. Insert new seats
           if (insertBatch.length > 0) {
             const { error: insertErr } = await supabaseClient
-              .from('baseball_seats')
+              .from(this.getSeatsTable())
               .insert(insertBatch);
             if (insertErr) throw insertErr;
           }
@@ -1637,7 +1692,7 @@
           // 2. Update existing seats
           if (updateBatch.length > 0) {
             const { error: updateErr } = await supabaseClient
-              .from('baseball_seats')
+              .from(this.getSeatsTable())
               .upsert(updateBatch, { onConflict: 'id' });
             if (updateErr) throw updateErr;
           }

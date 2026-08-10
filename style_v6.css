@@ -116,6 +116,22 @@ img {
     max-height: 100dvh;
     height: 100dvh;
   }
+
+  /* Real phone browsers show/hide their address bar as you scroll, which
+     makes 100dvh-based flex layouts unreliable for keeping the nav bar
+     pinned (seen clipped on Samsung Internet). Pin it to the viewport
+     directly instead — the same pattern most mobile web apps use — and
+     pad the scroll area so content never sits underneath it. */
+  .app-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .app-content {
+    padding-bottom: calc(64px + 8px + env(safe-area-inset-bottom));
+  }
 }
 
 /* 3. Status Bar Simulation */
@@ -167,19 +183,33 @@ img {
 }
 
 .header-logo {
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
   cursor: pointer;
   user-select: none;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
-.header-logo .logo-accent {
-  -webkit-text-fill-color: var(--text-primary);
+.header-logo .logo-text {
+  font-family: 'Do Hyeon', var(--font-display);
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.header-logo .logo-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 8px;
+  margin-left: 3px;
+  border-radius: 15px 15px 15px 3px;
+  background: var(--accent-gradient);
+  font-family: 'Gamja Flower', cursive;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #fff;
 }
 
 .header-title {
@@ -494,7 +524,7 @@ img {
 }
 
 .category-card {
-  height: 96px;
+  height: 118px;
   border-radius: 20px;
   overflow: hidden;
   position: relative;
@@ -2649,24 +2679,10 @@ img {
 }
 
 .grade-filter-bar {
-  display: flex;
-  flex-wrap: nowrap !important;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  overflow-x: auto;
-  padding: 4px 24px 8px 4px;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.grade-filter-bar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.grade-filter-bar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  padding: 4px;
 }
 
 /* Step Cards style */
@@ -2706,13 +2722,6 @@ img {
 .step-card.map-guide-card {
   padding: 12px;
 }
-.step-card.grade-filter-card {
-  padding: 16px 0 16px 16px; /* give space for fade effect and left padding */
-}
-.step-card.grade-filter-card .step-title {
-  padding-right: 16px;
-}
-
 .step-card.block-selector-wrapper {
   margin-bottom: 16px;
 }
@@ -2747,17 +2756,22 @@ img {
 }
 
 .grade-pill {
-  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background-color: var(--bg-input);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 6px 8px;
   border-radius: 20px;
   cursor: pointer;
+  text-align: center;
   transition: all var(--transition-fast);
 }
 
@@ -3148,6 +3162,46 @@ input[type="date"] {
 input[type="date"]:focus {
   border-color: var(--accent-purple);
   box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+}
+
+/* Site Footer — home screen only, sits inside the scrollable .app-content
+   area so it never overlaps the sticky header or bottom nav. */
+.site-footer {
+  margin-top: 28px;
+  padding: 20px 0 8px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.site-footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.site-footer-links a {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.site-footer-links a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.site-footer-divider {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.site-footer-copy {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.6);

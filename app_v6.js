@@ -20,6 +20,7 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 
 // --- 1. Seed & Mock Database ---
 let STADIUMS_DB = [];
+let VENUES_DB = [];
 const MOCK_STADIUMS_DB = [
   {
     id: "jamsil",
@@ -521,6 +522,7 @@ class SeatViewApp {
       this.renderStadiumList();
       this.checkUserSession();
     });
+    this.loadVenues().then(() => this.renderVenueList());
     this.loadCategories();
     this.updateCompareBadge();
 
@@ -573,7 +575,10 @@ class SeatViewApp {
         const { data, error } = await supabaseClient
           .from('categories')
           .select('*')
-          .order('display_order', { ascending: true });
+          // Explicit display_order wins; anything without one falls back to
+          // name (ㄱㄴㄷ/alphabetical) instead of arbitrary DB order.
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true });
 
         if (!error && data && data.length > 0) {
           container.innerHTML = "";
@@ -594,6 +599,8 @@ class SeatViewApp {
               card.onclick = () => this.showCategoryComingSoon(cat.name);
             } else if (cat.id === "baseball") {
               card.onclick = () => this.navigateTo('stadiums');
+            } else if (cat.id === "musical") {
+              card.onclick = () => this.navigateTo('venues');
             } else {
               // No real screen built for this category yet either; fall back to
               // the same coming-soon popup instead of leaving the card dead.
@@ -659,7 +666,8 @@ class SeatViewApp {
         const { data, error } = await supabaseClient
           .from('stadiums')
           .select('*')
-          .order('display_order', { ascending: true });
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true });
 
         if (!error && data && data.length > 0) {
           STADIUMS_DB = []; // Reset STADIUMS_DB to strictly use DB values
@@ -788,20 +796,37 @@ class SeatViewApp {
     // real security control — DevTools/view-source always gets around this —
     // just raises the bar above a single right-click for most users.
     document.addEventListener("contextmenu", (e) => {
-      if (e.target.tagName === "IMG") e.preventDefault();
+      if (e.target.tagName === "IMG") {
+        e.preventDefault();
+        this.showToast("🚫", "무단 캡처 및 재배포는 금지되어 있습니다.");
+      }
     });
     document.addEventListener("dragstart", (e) => {
-      if (e.target.tagName === "IMG") e.preventDefault();
+      if (e.target.tagName === "IMG") {
+        e.preventDefault();
+        this.showToast("🚫", "무단 캡처 및 재배포는 금지되어 있습니다.");
+      }
     });
 
-    // Quick handle search box typing
-    const searchInput = document.getElementById("main-search-input");
-    if (searchInput) {
-      searchInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter" && searchInput.value.trim() !== "") {
-          const query = searchInput.value.trim();
-          searchInput.value = "";
-          this.handleMainSearch(query);
+    // Quick handle search box typing — one search bar per category list
+    // screen now (each one only ever needs to search its own category).
+    const stadiumSearchInput = document.getElementById("stadium-search-input");
+    if (stadiumSearchInput) {
+      stadiumSearchInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter" && stadiumSearchInput.value.trim() !== "") {
+          const query = stadiumSearchInput.value.trim();
+          stadiumSearchInput.value = "";
+          this.handleStadiumSearch(query);
+        }
+      });
+    }
+    const venueSearchInput = document.getElementById("venue-search-input");
+    if (venueSearchInput) {
+      venueSearchInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter" && venueSearchInput.value.trim() !== "") {
+          const query = venueSearchInput.value.trim();
+          venueSearchInput.value = "";
+          this.handleVenueSearch(query);
         }
       });
     }
@@ -831,16 +856,25 @@ class SeatViewApp {
     });
   }
 
-  // Parses queries like "고척 111구역" or "고척 111" into a stadium + block
-  // code, jumps to that stadium's detail view, and auto-selects the block.
-  async handleMainSearch(query) {
-    const blockMatch = query.match(/([A-Za-z]?\d+)\s*구역/) || query.match(/([A-Za-z]?\d+)\s*$/);
+  // Parses queries like "고척 111구역" or "세종 A"/"세종 A구역" into a
+  // {target, blockCode} pair — target is whichever item in db has a
+  // matching name, blockCode is the trailing zone code (letters and/or
+  // digits, since musical zones can be letter-only unlike baseball's).
+  // Shared by handleStadiumSearch()/handleVenueSearch() below.
+  parseVenueSearchQuery(query, db) {
+    const blockMatch = query.match(/([A-Za-z0-9]+)\s*구역\s*$/) || query.match(/([A-Za-z0-9]+)\s*$/);
     const blockCode = blockMatch ? blockMatch[1] : null;
-    const stadiumKeyword = query.replace(/([A-Za-z]?\d+)\s*구역?/, "").trim();
+    const nameKeyword = query.replace(/([A-Za-z0-9]+)\s*구역?\s*$/, "").trim();
 
-    const stadium = stadiumKeyword
-      ? STADIUMS_DB.find(st => st.name.includes(stadiumKeyword) || (stadiumKeyword.length >= 2 && stadiumKeyword.includes(st.name.slice(0, 2))))
+    const target = nameKeyword
+      ? db.find(item => item.name.includes(nameKeyword) || (nameKeyword.length >= 2 && nameKeyword.includes(item.name.slice(0, 2))))
       : null;
+
+    return { target, blockCode };
+  }
+
+  async handleStadiumSearch(query) {
+    const { target: stadium, blockCode } = this.parseVenueSearchQuery(query, STADIUMS_DB);
 
     if (!stadium || !blockCode) {
       this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "구장명 구역번호" 형식으로 입력해 보세요. (예: 고척 111)`);
@@ -857,6 +891,28 @@ class SeatViewApp {
       this.showToast("✅", `${stadium.name} ${blockCode}구역으로 이동했어요.`);
     } else {
       this.showToast("🔍", `${stadium.name}에서 ${blockCode}구역을 찾지 못했어요.`);
+    }
+  }
+
+  async handleVenueSearch(query) {
+    const { target: venue, blockCode } = this.parseVenueSearchQuery(query, VENUES_DB);
+
+    if (!venue || !blockCode) {
+      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "공연장명 구역" 형식으로 입력해 보세요. (예: 세종 A)`);
+      return;
+    }
+
+    await this.loadVenueDetail(venue.id);
+
+    const targetBlock = (state.selectedVenue && state.selectedVenue.blocks || [])
+      .find(b => String(b.block_code).toUpperCase() === blockCode.toUpperCase());
+
+    if (targetBlock) {
+      this.selectVenueFloor(targetBlock.floor);
+      this.selectVenueBlock(targetBlock.id);
+      this.showToast("✅", `${venue.name} ${blockCode}구역으로 이동했어요.`);
+    } else {
+      this.showToast("🔍", `${venue.name}에서 ${blockCode}구역을 찾지 못했어요.`);
     }
   }
 
@@ -942,6 +998,10 @@ class SeatViewApp {
         titleEl.style.display = "block";
         if (viewId === "stadiums") {
           titleEl.textContent = "구장 시야 탐색";
+        } else if (viewId === "venues") {
+          titleEl.textContent = "공연장 시야 탐색";
+        } else if (viewId === "venue-detail" && state.selectedVenue) {
+          titleEl.textContent = state.selectedVenue.name;
         } else if (viewId === "compare") {
           titleEl.textContent = "1:1 시야 비교";
         } else if (viewId === "ticketbook") {
@@ -961,6 +1021,8 @@ class SeatViewApp {
       this.renderCompareView();
     } else if (viewId === "stadiums") {
       this.renderStadiumList();
+    } else if (viewId === "venues") {
+      this.renderVenueList();
     }
 
     // Scroll to top of app content
@@ -975,6 +1037,8 @@ class SeatViewApp {
   handleHeaderBack() {
     if (state.currentView === "stadium-detail") {
       state.selectedBlock = null;
+    } else if (state.currentView === "venue-detail") {
+      state.selectedVenueBlock = null;
     }
     
     // Go back using browser history so it matches physical back button
@@ -1072,7 +1136,7 @@ class SeatViewApp {
         // Fetch user reviews directly from Supabase db
         try {
           const { data: dbReviews, error: dbReviewsErr } = await supabaseClient
-            .from('seat_reviews')
+            .from('baseball_seat_reviews')
             .select('*')
             .eq('user_id', state.userId)
             .order('ins_dtm', { ascending: false });
@@ -1124,6 +1188,20 @@ class SeatViewApp {
         } catch (dbErr) {
           console.warn("Fetch seat reviews error:", dbErr);
           state.tickets = [];
+        }
+
+        // Lightweight count-only fetch so the top-right badge can show the
+        // combined 야구장+공연장 total without eagerly loading the full
+        // musical ticket list (that stays lazy, see loadMusicalTickets()).
+        try {
+          const { count } = await supabaseClient
+            .from('musical_seat_reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', state.userId);
+          state.musicalTicketCount = count || 0;
+        } catch (countErr) {
+          console.warn("Fetch musical review count error:", countErr);
+          state.musicalTicketCount = 0;
         }
 
         const profileStadiumEl = document.getElementById("my-profile-stadium");
@@ -1277,6 +1355,369 @@ class SeatViewApp {
     return card;
   }
 
+  // --- Venue (공연장) List + Detail — lean parallel to the stadium flow
+  // above, not sharing code with it since loadStadiums()/loadStadiumDetail()
+  // are full of baseball-only assumptions (hardcoded id remaps, amenities
+  // fallback data per stadium) that don't apply here.
+  async loadVenues() {
+    if (!supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('venues')
+        .select('*')
+        .order('display_order', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true });
+      if (!error && data) {
+        VENUES_DB = data.map(v => ({
+          id: v.id,
+          name: v.name,
+          location: v.address || v.location_district || "",
+          bg: v.bg_image_url || "assets/musical_stage.png",
+          map_image_url: v.map_image_url,
+          food_info: v.food_info,
+          parking_info: v.parking_info,
+          currentShows: v.current_shows || [],
+          display_order: v.display_order
+        }));
+      }
+    } catch (e) {
+      console.error("공연장 목록 로딩 에러:", e);
+    }
+  }
+
+  renderVenueList() {
+    const container = document.getElementById("venue-grid-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (VENUES_DB.length === 0) {
+      container.innerHTML = `
+        <div class="compare-empty" style="border-style: solid;">
+          <div class="compare-empty-icon"><i data-lucide="drama"></i></div>
+          <h3>등록된 공연장이 없습니다</h3>
+          <p>곧 다양한 공연장 시야 정보로<br>찾아뵙겠습니다!</p>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
+    VENUES_DB.forEach(venue => {
+      const card = document.createElement("div");
+      card.className = "stadium-card";
+      card.style.backgroundImage = `linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75)), url('${venue.bg}')`;
+      card.onclick = () => this.loadVenueDetail(venue.id);
+      const showsHtml = (venue.currentShows || [])
+        .map(s => `<span class="stadium-card-team">[${s}]</span>`)
+        .join("");
+      card.innerHTML = `
+        <div class="stadium-card-main">
+          ${showsHtml ? `<div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">${showsHtml}</div>` : ""}
+          <h3 class="stadium-card-name">${venue.name}</h3>
+          <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${venue.location}</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+    lucide.createIcons();
+  }
+
+  async loadVenueDetail(venueId) {
+    const venue = VENUES_DB.find(v => String(v.id) === String(venueId));
+    if (!venue) return;
+    state.selectedVenue = venue;
+    state.selectedVenueFloor = null;
+    state.selectedVenueBlock = null;
+
+    const nameEl = document.getElementById("venue-detail-name");
+    const locEl = document.getElementById("venue-detail-location");
+    const mapImgEl = document.getElementById("venue-detail-map-img");
+    const foodEl = document.getElementById("venue-info-food");
+    const parkingEl = document.getElementById("venue-info-parking");
+    const showsEl = document.getElementById("venue-detail-shows");
+
+    if (nameEl) nameEl.textContent = venue.name;
+    if (locEl) locEl.textContent = venue.location;
+    if (showsEl) {
+      const shows = venue.currentShows || [];
+      if (shows.length > 0) {
+        showsEl.textContent = shows.join(" / ");
+        showsEl.style.display = "";
+      } else {
+        showsEl.style.display = "none";
+      }
+    }
+
+    const bannerOverlay = document.querySelector("#detail-venue-banner .profile-overlay");
+    if (bannerOverlay) bannerOverlay.style.backgroundImage = `url('${venue.bg}')`;
+    if (mapImgEl) mapImgEl.src = venue.map_image_url || venue.bg;
+
+    // Collapsed by default every time a venue's detail screen loads.
+    const venueMapWrapper = document.getElementById("venue-static-map-wrapper");
+    if (venueMapWrapper) venueMapWrapper.classList.add("collapsed");
+    const venueMapCollapseBtn = document.getElementById("venue-map-collapse-btn");
+    if (venueMapCollapseBtn) {
+      venueMapCollapseBtn.classList.remove("expanded");
+      const label = venueMapCollapseBtn.querySelector("span");
+      if (label) label.textContent = "🗺️ 좌석 이미지 펼치기";
+    }
+
+    if (foodEl) foodEl.textContent = venue.food_info || "등록된 먹거리 정보가 없습니다.";
+    if (parkingEl) parkingEl.textContent = venue.parking_info || "등록된 주차 정보가 없습니다.";
+
+    // Reset STEP 2/3 UI from any previously-viewed venue
+    const blockSelectorEl = document.getElementById("venue-block-selector-container");
+    const seatRowsEl = document.getElementById("venue-seat-rows-container");
+    if (blockSelectorEl) blockSelectorEl.innerHTML = "";
+    if (seatRowsEl) seatRowsEl.innerHTML = "";
+    const badgeEl = document.getElementById("venue-selected-block-badge");
+    const titleEl = document.getElementById("venue-selected-block-title");
+    if (badgeEl) badgeEl.textContent = "구역 미선택";
+    if (titleEl) titleEl.textContent = "원하는 구역을 먼저 선택해 주세요";
+    this.updateVenueStepVisibility();
+
+    this.navigateTo("venue-detail");
+
+    if (!supabaseClient) return;
+    try {
+      const { data: blocks, error } = await supabaseClient
+        .from('musical_blocks')
+        .select('*')
+        .eq('venue_id', venue.id)
+        .order('floor', { ascending: true })
+        .order('block_code', { ascending: true });
+      if (error) throw error;
+      venue.blocks = blocks || [];
+      this.renderVenueFloorFilterBar(venue.blocks);
+    } catch (e) {
+      console.error("공연장 구역 로딩 에러:", e);
+    }
+  }
+
+  // STEP 1: floor pills, derived from whatever floors this venue's blocks
+  // actually span (no hardcoded floor count).
+  renderVenueFloorFilterBar(blocks) {
+    const container = document.getElementById("venue-floor-filter-bar");
+    if (!container) return;
+    const floors = [...new Set(blocks.map(b => b.floor))].sort((a, b) => a - b);
+
+    if (floors.length === 0) {
+      container.innerHTML = `<span style="font-size: 0.8rem; color: var(--text-muted); padding: 8px;">등록된 층 정보가 없습니다.</span>`;
+      return;
+    }
+
+    container.innerHTML = floors.map(floor => `
+      <button class="grade-pill" onclick="app.selectVenueFloor(${floor})" data-floor="${floor}">${floor}층</button>
+    `).join("");
+
+    // Only auto-select when there's exactly one real choice — if there's
+    // more than one floor, don't presume which one the user wants.
+    if (floors.length === 1) {
+      this.selectVenueFloor(floors[0]);
+    } else {
+      this.updateVenueStepVisibility();
+    }
+  }
+
+  selectVenueFloor(floor) {
+    state.selectedVenueFloor = floor;
+    state.selectedVenueBlock = null;
+    document.querySelectorAll("#venue-floor-filter-bar .grade-pill").forEach(btn => {
+      btn.classList.toggle("active", Number(btn.dataset.floor) === Number(floor));
+    });
+    this.renderVenueBlockSelector(floor);
+    this.updateVenueStepVisibility();
+
+    // Same rule one level down: if this floor only has one zone, there's
+    // nothing to actually choose in STEP2 either — cascade straight into
+    // STEP3, matching baseball's grade→block auto-select behavior.
+    const blocksOnFloor = (state.selectedVenue?.blocks || []).filter(b => Number(b.floor) === Number(floor));
+    if (blocksOnFloor.length === 1) {
+      this.selectVenueBlock(blocksOnFloor[0].id);
+    }
+  }
+
+  // STEP 2: zone badges for the selected floor.
+  renderVenueBlockSelector(floor) {
+    const container = document.getElementById("venue-block-selector-container");
+    if (!container || !state.selectedVenue) return;
+    const blocks = (state.selectedVenue.blocks || []).filter(b => Number(b.floor) === Number(floor));
+
+    if (blocks.length === 0) {
+      container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">해당 층에 구역이 없습니다.</div>`;
+      return;
+    }
+
+    // Venues have far fewer zones per floor than a baseball stadium has
+    // blocks overall, so a fixed 5-per-row grid (reusing the same grid CSS
+    // baseball uses inside each of its 1루/3루/기타 groups) shows everything
+    // at once instead of needing baseball's horizontal-scroll pill bar.
+    const pills = blocks.map(b => {
+      const isActive = state.selectedVenueBlock && state.selectedVenueBlock.id === b.id;
+      return `<button class="block-pill-btn ${isActive ? 'active' : ''}" onclick="app.selectVenueBlock(${b.id})">${b.block_code}</button>`;
+    }).join("");
+    container.innerHTML = `<div class="block-selector-group-list">${pills}</div>`;
+  }
+
+  selectVenueBlock(blockId) {
+    if (!state.selectedVenue) return;
+    const block = (state.selectedVenue.blocks || []).find(b => b.id === blockId);
+    if (!block) return;
+    state.selectedVenueBlock = block;
+
+    this.renderVenueBlockSelector(state.selectedVenueFloor);
+
+    const badgeEl = document.getElementById("venue-selected-block-badge");
+    const titleEl = document.getElementById("venue-selected-block-title");
+    if (badgeEl) badgeEl.textContent = `${block.floor}층`;
+    if (titleEl) titleEl.textContent = block.full_name || `${block.block_code}구역`;
+
+    this.renderVenueSeatingGrid(block.id);
+    this.updateVenueStepVisibility();
+
+    const step3 = document.getElementById("venue-block-seats-section");
+    if (step3) {
+      setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    }
+  }
+
+  // STEP 3: seat grid — same visual language as the baseball seat grid
+  // (camera icon = has a submitted view photo), reading from musical_seats/
+  // musical_seat_reviews instead. Seat click doesn't open the photo-submit
+  // flow yet — that's a separate follow-up since openSeatDetail()'s review
+  // pipeline is still baseball-specific.
+  async renderVenueSeatingGrid(blockId) {
+    const wrapper = document.getElementById("venue-seat-grid-wrapper");
+    const container = document.getElementById("venue-seat-rows-container");
+    if (!wrapper || !container) return;
+    container.innerHTML = "";
+
+    const indicator = document.createElement("div");
+    indicator.className = "field-direction-indicator";
+    indicator.style.cssText = "width:100%;text-align:center;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:6px;padding:6px 8px;margin-bottom:14px;font-size:0.7rem;color:rgba(255,255,255,0.5);font-weight:bold;letter-spacing:2px;";
+    indicator.textContent = "▲ 🎭 무대 (STAGE) 방면 ▲";
+    container.appendChild(indicator);
+
+    const block = (state.selectedVenue?.blocks || []).find(b => b.id === blockId);
+    if (!supabaseClient || !block) return;
+
+    try {
+      const { data: seats, error } = await supabaseClient
+        .from('musical_seats')
+        .select('*')
+        .eq('block_id', block.id)
+        .order('grid_y', { ascending: true })
+        .order('grid_x', { ascending: true });
+      if (error) throw error;
+
+      const seatIds = (seats || []).map(s => s.id);
+      const seatsWithPhotos = new Set();
+      if (seatIds.length > 0) {
+        const { data: reviews } = await supabaseClient
+          .from('musical_seat_reviews')
+          .select('musical_seat_id, image_urls')
+          .in('musical_seat_id', seatIds);
+        (reviews || []).forEach(rev => {
+          if (Array.isArray(rev.image_urls) && rev.image_urls.length > 0) seatsWithPhotos.add(rev.musical_seat_id);
+        });
+      }
+
+      const rowsMap = {};
+      (seats || []).forEach(seat => {
+        const y = seat.grid_y || 1;
+        const x = seat.grid_x || 1;
+        if (!rowsMap[y]) rowsMap[y] = {};
+        rowsMap[y][x] = seat;
+      });
+
+      const maxRows = block.total_rows || 0;
+      const maxCols = block.max_seats || 0;
+
+      if (maxRows === 0 || maxCols === 0 || !seats || seats.length === 0) {
+        container.innerHTML += `
+          <div style="padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; width: 100%;">
+            🎭 해당 구역은 현재 좌석 배치 정보 준비 중입니다.
+          </div>
+        `;
+        return;
+      }
+
+      const visibleSeats = Math.min(maxCols, 14);
+      container.style.setProperty('--visible-seats', visibleSeats);
+
+      for (let r = 1; r <= maxRows; r++) {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "seat-row";
+
+        let rowLabel = String(r);
+        if (rowsMap[r]) {
+          const firstSeatKey = Object.keys(rowsMap[r])[0];
+          if (firstSeatKey && rowsMap[r][firstSeatKey].row_num) rowLabel = rowsMap[r][firstSeatKey].row_num;
+        }
+        const dispLabel = String(rowLabel).endsWith("열") ? rowLabel : `${rowLabel}열`;
+
+        const label = document.createElement("span");
+        label.className = "row-num";
+        label.textContent = dispLabel;
+        rowDiv.appendChild(label);
+
+        const seatsDiv = document.createElement("div");
+        seatsDiv.className = "row-seats";
+
+        for (let c = 1; c <= maxCols; c++) {
+          const seat = rowsMap[r] ? rowsMap[r][c] : null;
+          if (!seat) {
+            const gapBtn = document.createElement("button");
+            gapBtn.className = "seat-item gap";
+            seatsDiv.appendChild(gapBtn);
+          } else {
+            const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY");
+            if (isWalkway) {
+              const gapBtn = document.createElement("button");
+              gapBtn.className = "seat-item gap";
+              seatsDiv.appendChild(gapBtn);
+            } else {
+              const seatBtn = document.createElement("button");
+              seatBtn.className = "seat-item";
+              seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
+              if (seatsWithPhotos.has(seat.id)) seatBtn.classList.add("has-camera");
+              seatBtn.onclick = () => this.openSeatDetail(seat.id, { category: "musical" });
+              seatsDiv.appendChild(seatBtn);
+            }
+          }
+        }
+        rowDiv.appendChild(seatsDiv);
+        container.appendChild(rowDiv);
+      }
+    } catch (e) {
+      console.error("공연장 좌석 로딩 에러:", e);
+    }
+  }
+
+  switchVenueDetailTab(tabName) {
+    document.querySelectorAll("#view-venue-detail .detail-tabs .tab-btn").forEach(btn => btn.classList.remove("active"));
+    const clickedBtn = document.querySelector(`#view-venue-detail .detail-tabs .tab-btn[onclick*="${tabName}"]`);
+    if (clickedBtn) clickedBtn.classList.add("active");
+
+    document.getElementById("venue-tab-content-map").classList.remove("active");
+    document.getElementById("venue-tab-content-info").classList.remove("active");
+    document.getElementById(`venue-tab-content-${tabName}`).classList.add("active");
+  }
+
+  toggleVenueMapCollapse() {
+    const wrapper = document.getElementById("venue-static-map-wrapper");
+    const btn = document.getElementById("venue-map-collapse-btn");
+    if (!wrapper || !btn) return;
+    const isCollapsed = wrapper.classList.toggle("collapsed");
+    if (isCollapsed) {
+      btn.classList.remove("expanded");
+      btn.querySelector("span").textContent = "🗺️ 좌석 이미지 펼치기";
+    } else {
+      btn.classList.add("expanded");
+      btn.querySelector("span").textContent = "🗺️ 좌석 이미지 접기";
+    }
+  }
+
   // --- Stadium Detail View ---
   async loadStadiumDetail(stadiumId) {
     const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
@@ -1384,11 +1825,19 @@ class SeatViewApp {
     // Render grade filter pills dynamically based on loaded blocks
     this.renderGradeFilterBar(stadium.blocks);
 
-    // Load static stadium map image
+    // Load static stadium map image — collapsed by default every time a
+    // stadium's detail screen loads, not just on the very first page load.
     const mapWrapper = document.getElementById("stadium-static-map-wrapper");
     if (mapWrapper) {
       const srcPath = stadium.map_image_url || (stadiumId === "jamsil" ? "stadiums/stadium_01.png" : stadium.bg);
       mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${srcPath}" class="stadium-static-map" alt="구장 전체 안내도">`;
+      mapWrapper.classList.add("collapsed");
+    }
+    const mapCollapseBtn = document.getElementById("map-collapse-btn");
+    if (mapCollapseBtn) {
+      mapCollapseBtn.classList.remove("expanded");
+      const label = mapCollapseBtn.querySelector("span");
+      if (label) label.textContent = "🗺️ 좌석 이미지 펼치기";
     }
 
     // Set title on header
@@ -1406,18 +1855,12 @@ class SeatViewApp {
     // Switch default tab
     this.switchDetailTab("map");
 
-    // Clear previous choices
-    state.selectedGradeFilter = null;
+    // Clear previous choices. Grade filter/pills/STEP2 are NOT reset here —
+    // renderGradeFilterBar() above already rebuilds the pill bar from
+    // scratch and (when there's a default grade) auto-selects + populates
+    // STEP2 itself; resetting it again right after would just immediately
+    // undo that.
     state.selectedBlock = null;
-
-    // Reset active grade pills class
-    document.querySelectorAll(".grade-pill").forEach(p => p.classList.remove("active"));
-    
-    // Clear block selector container
-    const blockContainer = document.getElementById("block-selector-container");
-    if (blockContainer) {
-      blockContainer.innerHTML = `<div style="padding: 16px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">좌석등급을 선택해 주세요.</div>`;
-    }
 
     // Reset map dimming (all bright initially)
     const sectors = document.querySelectorAll(".stadium-sector");
@@ -1449,6 +1892,9 @@ class SeatViewApp {
     const bar = document.getElementById("grade-filter-bar");
     if (!bar) return;
     bar.innerHTML = "";
+    // Reset here (not left to a stale value from whatever stadium/grade was
+    // last viewed) since auto-select is now conditional and may not fire.
+    state.selectedGradeFilter = null;
 
     if (!blocks || blocks.length === 0) {
       bar.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">등록된 좌석 등급이 없습니다.</div>`;
@@ -1468,22 +1914,9 @@ class SeatViewApp {
       }
     });
 
-    // Custom sort order to maintain Jamsil and general order logically if present
-    const categoryOrder = [
-      "프리미엄석", "프리미엄", "로얄다이아몬드클럽", 
-      "테이블석", "1층 테이블석", "2층 테이블석", 
-      "익사이팅석", "블루석", "오렌지석(응원)", "오렌지석", 
-      "레드석", "네이비석", "외야그린석", "외야지정석", 
-      "외야응원석", "휠체어석", "버건디석", "스카이블루석"
-    ];
-    uniqueCategories.sort((a, b) => {
-      const idxA = categoryOrder.indexOf(a);
-      const idxB = categoryOrder.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.localeCompare(b);
-    });
+    // No explicit display_order exists for block categories, so fall back to
+    // 가나다순 (consistent with the rest of the app's ordering rule).
+    uniqueCategories.sort((a, b) => a.localeCompare(b, "ko"));
 
     uniqueCategories.forEach((cat, idx) => {
       const gradeColors = {
@@ -1505,7 +1938,8 @@ class SeatViewApp {
       btn.style.borderLeft = `3px solid ${color}`;
       btn.textContent = cat;
 
-      if (idx === 0) {
+      // Only auto-select when there's exactly one real choice.
+      if (idx === 0 && uniqueCategories.length === 1) {
         btn.classList.add("active");
         state.selectedGradeFilter = cat;
       }
@@ -1514,10 +1948,13 @@ class SeatViewApp {
       bar.appendChild(btn);
     });
 
-    // Auto-filter blocks for the default active grade
-    if (uniqueCategories.length > 0) {
+    const blockContainer = document.getElementById("block-selector-container");
+    if (state.selectedGradeFilter) {
       this.renderBlockSelector(state.selectedGradeFilter);
+    } else if (blockContainer) {
+      blockContainer.innerHTML = `<div style="padding: 16px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">좌석등급을 선택해 주세요.</div>`;
     }
+    this.updateStepVisibility();
   }
 
   // Inject beautiful customizable SVG for Seating layout
@@ -1688,7 +2125,7 @@ class SeatViewApp {
   }
 
   updateStepVisibility() {
-    const step2 = document.querySelector(".step-card.block-selector-wrapper");
+    const step2 = document.getElementById("stadium-block-selector-wrapper");
     const step3 = document.getElementById("block-seats-section");
 
     if (step2) {
@@ -1705,6 +2142,20 @@ class SeatViewApp {
       } else {
         step3.classList.add("disabled-step");
       }
+    }
+  }
+
+  // Musical equivalent of updateStepVisibility() — separate element ids
+  // since venue-detail and stadium-detail reuse the same step-card classes.
+  updateVenueStepVisibility() {
+    const step2 = document.getElementById("venue-block-selector-wrapper");
+    const step3 = document.getElementById("venue-block-seats-section");
+
+    if (step2) {
+      step2.classList.toggle("disabled-step", !state.selectedVenueFloor);
+    }
+    if (step3) {
+      step3.classList.toggle("disabled-step", !state.selectedVenueBlock);
     }
   }
 
@@ -2095,7 +2546,7 @@ class SeatViewApp {
           const seatsWithPhotos = new Set();
           if (seatIds.length > 0) {
             const { data: reviews, error: revErr } = await supabaseClient
-              .from('seat_reviews')
+              .from('baseball_seat_reviews')
               .select('baseball_seat_id, image_urls')
               .in('baseball_seat_id', seatIds);
 
@@ -2441,6 +2892,8 @@ class SeatViewApp {
   // --- Seat Detail Modal (Dynamic Carousel / Thumbnails) ---
   async openSeatDetail(dbKey, options = {}) {
     state.activeModalOwnReviewsOnly = !!options.ownReviewsOnly;
+    state.activeModalCategory = options.category === "musical" ? "musical" : "baseball";
+    const isMusical = state.activeModalCategory === "musical";
     const dbKeyStr = String(dbKey);
     const parts = dbKeyStr.split("_");
     const stadiumId = parts[0];
@@ -2449,16 +2902,42 @@ class SeatViewApp {
     const s = parts[3] || "1";
 
     // Match demo seat by checking if it ends with "22567" or matches Gocheok Burgundy block 101, row D, seat 2
-    const isDemoSeat = dbKeyStr.endsWith("22567") || (stadiumId === "gocheok" && blockId === "b101" && (r === "D" || r === "D\uC5F4") && (s === "2" || s === "2\uBC88"));
-    const isRealSeat = !isDemoSeat && /^\d+$/.test(dbKeyStr);
+    // (musical seats never go through the demo/mock path \u2014 every musical seat id is a real row)
+    const isDemoSeat = !isMusical && (dbKeyStr.endsWith("22567") || (stadiumId === "gocheok" && blockId === "b101" && (r === "D" || r === "D\uC5F4") && (s === "2" || s === "2\uBC88")));
+    const isRealSeat = isMusical || (!isDemoSeat && /^\d+$/.test(dbKeyStr));
 
+    // musical seat ids are plain integers too, so namespace the shared
+    // SEAT_VIEWS_DB cache key to avoid colliding with a baseball seat that
+    // happens to share the same raw id.
+    const cacheKey = isMusical ? `musical_${dbKeyStr}` : dbKeyStr;
     state.activeModalSeatKey = isDemoSeat ? "22567" : dbKeyStr;
 
     let images = [];
     let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
     let stadiumName, blockName, seatName;
 
-    if (isRealSeat && supabaseClient) {
+    if (isRealSeat && supabaseClient && isMusical) {
+      try {
+        const { data: seatRow } = await supabaseClient.from('musical_seats').select('*').eq('id', dbKey).single();
+        let blockRow = null, venueRow = null;
+        if (seatRow) {
+          const { data: bRow } = await supabaseClient.from('musical_blocks').select('*').eq('id', seatRow.block_id).single();
+          blockRow = bRow;
+          if (blockRow) {
+            const { data: vRow } = await supabaseClient.from('venues').select('*').eq('id', blockRow.venue_id).single();
+            venueRow = vRow;
+          }
+        }
+        stadiumName = venueRow ? venueRow.name : (state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5");
+        blockName = blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
+        seatName = seatRow ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+      } catch (e) {
+        console.warn("Failed to resolve real musical seat info:", e);
+        stadiumName = state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5";
+        blockName = state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C";
+        seatName = "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+      }
+    } else if (isRealSeat && supabaseClient) {
       try {
         const { data: seatRow } = await supabaseClient.from('baseball_seats').select('*').eq('id', dbKey).single();
         let blockRow = null, stadiumRow = null;
@@ -2491,15 +2970,20 @@ class SeatViewApp {
       seatName = `${r}\uC5F4 ${s}\uBC88`;
     }
 
+    // Cached for addCurrentSeatToTicketbook(), which needs these resolved
+    // display strings without re-deriving them from a key format that only
+    // makes sense for baseball's "_"-joined composite keys.
+    state.activeModalDisplayInfo = { stadiumName, blockName, seatName };
+
     const seatInfo = isDemoSeat
       ? SEAT_VIEWS_DB["22567"]
-      : (SEAT_VIEWS_DB[dbKeyStr] = { ...(SEAT_VIEWS_DB[dbKeyStr] || {}), stadiumName, blockName, seatName });
+      : (SEAT_VIEWS_DB[cacheKey] = { ...(SEAT_VIEWS_DB[cacheKey] || {}), stadiumName, blockName, seatName });
 
     document.getElementById("modal-seat-stadium").textContent = stadiumName;
     document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
 
     // For real DB seats, skip this legacy placeholder-image block entirely —
-    // images/comments come only from the actual seat_reviews fetch below.
+    // images/comments come only from the actual baseball_seat_reviews fetch below.
     // Using seatInfo's leftover cache here used to fabricate a fake single
     // "assets/seat_view_clean.png" photo even for seats with zero reviews.
     if (seatInfo && !isRealSeat) {
@@ -2560,9 +3044,9 @@ class SeatViewApp {
     if (supabaseClient && dbKey) {
       try {
         let reviewsQuery = supabaseClient
-          .from('seat_reviews')
+          .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .select('*, profiles(*)')
-          .eq('baseball_seat_id', dbKey)
+          .eq(isMusical ? 'musical_seat_id' : 'baseball_seat_id', dbKey)
           .eq('is_blocked', false);
 
         // From 마이페이지, only show the reviews I personally wrote for this
@@ -2606,8 +3090,8 @@ class SeatViewApp {
         // addCurrentSeatToCompare() can show the full swipeable set instead
         // of just a single placeholder image.
         if (isRealSeat) {
-          SEAT_VIEWS_DB[dbKeyStr].images = images;
-          SEAT_VIEWS_DB[dbKeyStr].comment = images[0] ? images[0].comment : "";
+          SEAT_VIEWS_DB[cacheKey].images = images;
+          SEAT_VIEWS_DB[cacheKey].comment = images[0] ? images[0].comment : "";
         }
       } catch (e) {
         console.warn("Could not load database seat reviews:", e);
@@ -2896,6 +3380,12 @@ class SeatViewApp {
     this.updateCompareBadge();
     this.showToast("🛒", `${seatInfo.blockName} ${seatInfo.seatName}이 비교함에 담겼습니다!`);
     this.closeModal("modal-seat-detail");
+
+    // Two seats is the max comparison supports — once the 2nd one lands,
+    // jump straight to the compare screen instead of making the user find it.
+    if (state.comparisons.length === 2) {
+      this.navigateTo("compare");
+    }
   }
 
   // Comparisons behave like a session: they persist across reloads in the
@@ -2903,7 +3393,7 @@ class SeatViewApp {
   // inactivity so stale picks from days ago don't linger forever.
   //
   // New photos now upload to the "seat-photos" Storage bucket and
-  // seat_reviews.image_urls stores a short URL, but older rows saved before
+  // baseball_seat_reviews.image_urls stores a short URL, but older rows saved before
   // that migration can still hold full base64 strings — so saving
   // state.comparisons as-is can still blow past localStorage's ~5-10MB
   // per-origin quota and throw an uncaught QuotaExceededError that used to
@@ -2960,7 +3450,7 @@ class SeatViewApp {
       }
       try {
         const { data: reviews } = await supabaseClient
-          .from('seat_reviews')
+          .from('baseball_seat_reviews')
           .select('*, profiles(*)')
           .in('id', item.reviewIds);
 
@@ -3135,6 +3625,78 @@ class SeatViewApp {
   }
 
   // --- Ticketbook Feature ---
+  async switchTicketbookCategory(category) {
+    state.ticketbookCategory = category;
+    document.querySelectorAll("#ticketbook-category-tabs .tab-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.category === category);
+    });
+    if (category === "musical") {
+      // Always refetch rather than cache — a musical review can be added or
+      // edited from the venue-detail seat grid without ever touching this
+      // array, so a stale cache would silently miss it.
+      await this.loadMusicalTickets();
+    }
+    this.renderTicketbook();
+  }
+
+  // Parallel to the baseball review fetch inside checkUserSession() — kept
+  // separate and loaded lazily (only once, on first visit to the 공연장 탭)
+  // since most sessions never touch it.
+  async loadMusicalTickets() {
+    state.musicalTickets = [];
+    if (!supabaseClient || !state.userId) return;
+    try {
+      const { data: dbReviews, error } = await supabaseClient
+        .from('musical_seat_reviews')
+        .select('*')
+        .eq('user_id', state.userId)
+        .order('ins_dtm', { ascending: false });
+
+      if (error || !dbReviews) return;
+
+      const seatIds = [...new Set(dbReviews.map(r => r.musical_seat_id).filter(id => id != null))];
+      let seatsById = {}, blocksById = {}, venuesById = {};
+
+      if (seatIds.length > 0) {
+        const { data: seatRows } = await supabaseClient.from('musical_seats').select('*').in('id', seatIds);
+        (seatRows || []).forEach(s => { seatsById[s.id] = s; });
+
+        const blockIds = [...new Set((seatRows || []).map(s => s.block_id).filter(id => id != null))];
+        if (blockIds.length > 0) {
+          const { data: blockRows } = await supabaseClient.from('musical_blocks').select('*').in('id', blockIds);
+          (blockRows || []).forEach(b => { blocksById[b.id] = b; });
+
+          const venueIds = [...new Set((blockRows || []).map(b => b.venue_id).filter(id => id != null))];
+          if (venueIds.length > 0) {
+            const { data: venueRows } = await supabaseClient.from('venues').select('*').in('id', venueIds);
+            (venueRows || []).forEach(v => { venuesById[v.id] = v; });
+          }
+        }
+      }
+
+      state.musicalTickets = dbReviews.map(r => {
+        const seatRow = seatsById[r.musical_seat_id];
+        const blockRow = seatRow ? blocksById[seatRow.block_id] : null;
+        const venueRow = blockRow ? venuesById[blockRow.venue_id] : null;
+
+        return {
+          id: r.id,
+          seatId: r.musical_seat_id,
+          ins_dtm: r.ins_dtm,
+          stadiumName: venueRow ? venueRow.name : "기타 공연장",
+          blockName: blockRow ? (blockRow.full_name || blockRow.block_code + "구역") : "구역 정보 없음",
+          seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
+          comment: r.content,
+          image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
+          images: r.image_urls || []
+        };
+      });
+    } catch (e) {
+      console.warn("Fetch musical seat reviews error:", e);
+      state.musicalTickets = [];
+    }
+  }
+
   renderTicketbook() {
     const loginPrompt = document.getElementById("ticketbook-login-prompt");
     const statsCard = document.getElementById("ticketbook-stats-card");
@@ -3162,13 +3724,21 @@ class SeatViewApp {
     this.applyTicketViewMode();
     archiveContainer.innerHTML = "";
 
-    const sortedTickets = [...state.tickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
+    const activeCategory = state.ticketbookCategory === "musical" ? "musical" : "baseball";
+    const sourceTickets = activeCategory === "musical" ? (state.musicalTickets || []) : state.tickets;
+    const sortedTickets = [...sourceTickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
     const total = sortedTickets.length;
 
     // Update Stats Display
+    // Top badge shows the combined report count across both baseball and
+    // musical categories, regardless of which tab is currently active.
+    // Musical count prefers the full loaded list (accurate after visiting the
+    // 공연장 탭) and falls back to the lightweight count fetched at login.
+    const musicalCount = state.musicalTickets ? state.musicalTickets.length : (state.musicalTicketCount || 0);
+    const combinedTotal = (state.tickets ? state.tickets.length : 0) + musicalCount;
     const winRateTextEl = document.getElementById("win-rate-text");
     if (winRateTextEl) {
-      winRateTextEl.textContent = `${total}\uD68C`;
+      winRateTextEl.textContent = `${combinedTotal}\uD68C`;
     }
     
     const summaryDescEl = document.getElementById("ticketbook-summary-desc");
@@ -3199,15 +3769,17 @@ class SeatViewApp {
     }
 
     if (sortedTickets.length === 0) {
+      const emptyNavTarget = activeCategory === "musical" ? "venues" : "stadiums";
+      const emptyLabel = activeCategory === "musical" ? "\uACF5\uC5F0\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30" : "\uC2DC\uC57C \uC81C\uBCF4\uD558\uB7EC \uAC00\uAE30";
       archiveContainer.innerHTML = `
         <div class="compare-empty" style="border-style: solid;">
           <div class="compare-empty-icon">
-            <i data-lucide="book-open"></i>
+            <i data-lucide="${activeCategory === 'musical' ? 'drama' : 'book-open'}"></i>
           </div>
           <h3>\uB4F1\uB85D\uD558\uC2E0 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
           <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4\uB97C \uD1B5\uD574<br>\uB098\uB9CC\uC758 \uC2DC\uC57C \uB370\uC774\uD130\uB97C \uC313\uACE0<br>\uB2E4\uC591\uD55C \uC774\uBCA4\uD2B8\uC5D0 \uC790\uB3D9\uC73C\uB85C \uC751\uBAA8\uD574\uBCF4\uC138\uC694</p>
-          <button class="add-ticket-btn" onclick="app.navigateTo('stadiums')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto; margin-top: 16px;">
-            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> \uC2DC\uC57C \uC81C\uBCF4\uD558\uB7EC \uAC00\uAE30
+          <button class="add-ticket-btn" onclick="app.navigateTo('${emptyNavTarget}')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto; margin-top: 16px;">
+            <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> ${emptyLabel}
           </button>
         </div>
       `;
@@ -3237,7 +3809,7 @@ class SeatViewApp {
         </div>
       `;
       if (ticket.seatId) {
-        card.onclick = () => this.openSeatDetail(ticket.seatId, { ownReviewsOnly: true });
+        card.onclick = () => this.openSeatDetail(ticket.seatId, { ownReviewsOnly: true, category: activeCategory });
       }
       archiveContainer.appendChild(card);
     });
@@ -3533,6 +4105,7 @@ class SeatViewApp {
 
   async saveNewTicket(e) {
     e.preventDefault();
+    const isMusical = state.activeModalCategory === "musical";
 
     // Disable submit button immediately to prevent duplicate submissions
     const submitBtn = e.target.querySelector("button[type='submit']");
@@ -3553,6 +4126,22 @@ class SeatViewApp {
         submitBtn.innerHTML = originalBtnHtml;
       }
       return;
+    }
+
+    // One seat-view report per seat per user. This is mainly a race-condition
+    // backstop now — the real check happens at click-time in
+    // addCurrentSeatToTicketbook(), before the user fills out the form.
+    if (!state.editingReviewId) {
+      const dbKeyForCheck = state.activeModalSeatKey;
+      const realSeatIdForCheck = /^\d+$/.test(String(dbKeyForCheck)) ? parseInt(dbKeyForCheck, 10) : null;
+      if (await this.hasExistingSeatReview(realSeatIdForCheck, isMusical)) {
+        await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요. 기존 등록 내역은 마이페이지에서 수정하거나 삭제할 수 있습니다.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+        return;
+      }
     }
 
     const stadiumId = document.getElementById("form-stadium").value;
@@ -3592,7 +4181,7 @@ class SeatViewApp {
     if (state.editingReviewId) {
       try {
         const { error } = await supabaseClient
-          .from('seat_reviews')
+          .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .update({
             image_urls: finalImagesList,
             content: commentVal,
@@ -3617,7 +4206,15 @@ class SeatViewApp {
         }
 
         this.closeModal("modal-add-ticket");
-        await this.checkUserSession();
+        // Editing (unlike a brand-new submission) is only ever reached from
+        // 마이페이지's ownReviewsOnly card, for both categories — so this
+        // should always return there, same as baseball, not to venue-detail.
+        if (isMusical) {
+          await this.loadMusicalTickets();
+        } else {
+          await this.checkUserSession();
+        }
+        this.renderTicketbook();
         this.navigateTo("ticketbook");
         this.showToast("✅", "시야 기록이 수정되었습니다!");
       } catch (error) {
@@ -3631,68 +4228,81 @@ class SeatViewApp {
       return;
     }
 
-    const newTicket = {
-      id: "ticket_" + Date.now(),
-      ins_dtm: new Date().toISOString(), // store creation time for the 3-day policy
-      stadiumId: stadiumId,
-      stadiumName: stadium ? stadium.name : "기타 구장",
-      blockName: blockVal,
-      seatName: seatVal,
-      matchDate: dateVal,
-      result: resultVal,
-      score: scoreVal,
-      comment: commentVal,
-      image: finalImage,
-      images: finalImagesList
-    };
+    // Musical submissions don't get a local seatview_tickets/SEAT_VIEWS_DB
+    // cache entry — that cache only backs the baseball ticketbook list and
+    // the demo-seat placeholder path, neither of which musical uses.
+    if (!isMusical) {
+      const newTicket = {
+        id: "ticket_" + Date.now(),
+        ins_dtm: new Date().toISOString(), // store creation time for the 3-day policy
+        stadiumId: stadiumId,
+        stadiumName: stadium ? stadium.name : "기타 구장",
+        blockName: blockVal,
+        seatName: seatVal,
+        matchDate: dateVal,
+        result: resultVal,
+        score: scoreVal,
+        comment: commentVal,
+        image: finalImage,
+        images: finalImagesList
+      };
 
-    // Save to LocalStorage
-    state.tickets.push(newTicket);
-    localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
+      state.tickets.push(newTicket);
+      localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
+
+      if (!SEAT_VIEWS_DB[state.activeModalSeatKey]) {
+        SEAT_VIEWS_DB[state.activeModalSeatKey] = {
+          stadiumName: newTicket.stadiumName,
+          blockName: blockVal,
+          seatName: seatVal,
+          image: finalImage,
+          images: finalImagesList,
+          uploader: isAnonymous ? "익명" : state.userNickname,
+          uploaderBadge: isAnonymous ? "일반 제보자" : "골드 제보자",
+          upvotes: 0,
+          downvotes: 0,
+          userVoted: null,
+          tags: [resultVal === "승리" ? "✅ 직관 승요 기운" : "⚠️ 아쉬운 패배 기운", "✅ 직접 제보"],
+          comment: commentVal || "유저가 직접 아카이빙한 소중한 시야 제보 데이터입니다."
+        };
+      }
+    }
 
     // Use the same seat key the detail modal opened with (real baseball_seats.id
-    // for DB-backed seats, or a demo/composite string for placeholder seats that
-    // have no matching row in baseball_seats).
+    // or musical_seats.id for DB-backed seats, or a demo/composite string for
+    // placeholder baseball seats that have no matching row in baseball_seats).
     const dbKey = state.activeModalSeatKey;
     const realSeatId = /^\d+$/.test(String(dbKey)) ? parseInt(dbKey, 10) : null;
 
-    if (!SEAT_VIEWS_DB[dbKey]) {
-      SEAT_VIEWS_DB[dbKey] = {
-        stadiumName: newTicket.stadiumName,
-        blockName: blockVal,
-        seatName: seatVal,
-        image: finalImage,
-        images: finalImagesList,
-        uploader: isAnonymous ? "익명" : state.userNickname,
-        uploaderBadge: isAnonymous ? "일반 제보자" : "골드 제보자",
-        upvotes: 0,
-        downvotes: 0,
-        userVoted: null,
-        tags: [resultVal === "승리" ? "✅ 직관 승요 기운" : "⚠️ 아쉬운 패배 기운", "✅ 직접 제보"],
-        comment: commentVal || "유저가 직접 아카이빙한 소중한 시야 제보 데이터입니다."
-      };
-    }
-
-    // Save to Supabase seat_reviews table (only for real DB-backed seats —
-    // demo/placeholder seats have no matching baseball_seats row, so the FK
-    // constraint would reject them; those stay local-only, same as before)
+    // Save to Supabase (only for real DB-backed seats — demo/placeholder
+    // baseball seats have no matching row, so the FK constraint would
+    // reject them; those stay local-only, same as before)
     if (supabaseClient && state.userId && realSeatId !== null) {
       try {
+        const insertPayload = isMusical
+          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous }
+          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous };
+
         const { error } = await supabaseClient
-          .from('seat_reviews')
-          .insert({
-            baseball_seat_id: realSeatId,
-            user_id: state.userId,
-            image_urls: finalImagesList,
-            content: commentVal,
-            is_anonymous: isAnonymous
-          });
+          .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
+          .insert(insertPayload);
         if (error) throw error;
 
         // Reload all reviews from DB to get actual autogenerated integer IDs
-        await this.checkUserSession();
+        if (!isMusical) await this.checkUserSession();
       } catch (error) {
         console.warn("Supabase review insert warning:", error);
+        // Unique-constraint violation means the app-level pre-check above lost
+        // a race (e.g. the same seat submitted from two tabs at once). Surface
+        // it instead of silently falling through to the success toast below.
+        if (error && error.code === '23505') {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+          }
+          await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요.");
+          return;
+        }
       }
     }
 
@@ -3704,9 +4314,14 @@ class SeatViewApp {
     }
 
     this.closeModal("modal-add-ticket");
-    this.renderTicketbook();
-    this.navigateTo("ticketbook");
-    this.showToast("🎉", "새로운 직관 기록과 시야 정보가 등록되었습니다!");
+    if (isMusical) {
+      if (state.selectedVenueBlock) this.renderVenueSeatingGrid(state.selectedVenueBlock.id);
+      this.navigateTo("venue-detail");
+    } else {
+      this.renderTicketbook();
+      this.navigateTo("ticketbook");
+    }
+    this.showToast("🎉", isMusical ? "새로운 시야 정보가 등록되었습니다!" : "새로운 직관 기록과 시야 정보가 등록되었습니다!");
   }
 
   // Auto-populate block if stadium in modal changed
@@ -3715,9 +4330,15 @@ class SeatViewApp {
   }
 
   async deleteTicket(id) {
+    // deleteCurrentModalReview() calls this right after the seat-detail
+    // modal was open, so activeModalCategory still reflects which list/
+    // table this delete actually belongs to.
+    const isMusical = state.activeModalCategory === "musical";
+    const sourceList = isMusical ? (state.musicalTickets || []) : state.tickets;
+
     // The onclick attribute passes id as a quoted string, but DB-backed
     // ticket.id values are numbers — compare as strings so this always matches.
-    const ticket = state.tickets.find(t => String(t.id) === String(id));
+    const ticket = sourceList.find(t => String(t.id) === String(id));
     if (ticket) {
       // 3-day deletion window check
       const createdTime = new Date(ticket.ins_dtm || ticket.matchDate);
@@ -3736,7 +4357,7 @@ class SeatViewApp {
     if (supabaseClient && state.userId) {
       try {
         const { error } = await supabaseClient
-          .from('seat_reviews')
+          .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .delete()
           .eq('id', id);
         if (error) throw error;
@@ -3752,20 +4373,87 @@ class SeatViewApp {
       this.deleteSeatPhotosFromStorage(ticket.images);
     }
 
-    state.tickets = state.tickets.filter(t => String(t.id) !== String(id));
-    localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
+    if (isMusical) {
+      state.musicalTickets = (state.musicalTickets || []).filter(t => String(t.id) !== String(id));
+    } else {
+      state.tickets = state.tickets.filter(t => String(t.id) !== String(id));
+      localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
+    }
     this.renderTicketbook();
-    this.showToast("🗑️", "직관 기록이 삭제되었습니다.");
+    this.showToast("🗑️", "기록이 삭제되었습니다.");
   }
 
-  addCurrentSeatToTicketbook() {
+  // Shared by the click-time check in addCurrentSeatToTicketbook() and the
+  // submit-time backstop in saveNewTicket().
+  async hasExistingSeatReview(realSeatId, isMusical) {
+    if (!supabaseClient || !state.userId || realSeatId === null) return false;
+    try {
+      const { data, error } = await supabaseClient
+        .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
+        .select('id')
+        .eq(isMusical ? 'musical_seat_id' : 'baseball_seat_id', realSeatId)
+        .eq('user_id', state.userId)
+        .limit(1);
+      return !error && data && data.length > 0;
+    } catch (e) {
+      console.warn("Duplicate seat review check error:", e);
+      return false;
+    }
+  }
+
+  async addCurrentSeatToTicketbook() {
     if (!state.isLoggedIn) {
       this.openModal("modal-login-confirm");
       return;
     }
 
     if (!state.activeModalSeatKey) return;
-    
+
+    // Check for a duplicate up front — before the user fills out photos and
+    // a comment — so a "already registered" rejection can't hit them after
+    // they've already done the work.
+    const realSeatIdForCheck = /^\d+$/.test(String(state.activeModalSeatKey)) ? parseInt(state.activeModalSeatKey, 10) : null;
+    if (await this.hasExistingSeatReview(realSeatIdForCheck, state.activeModalCategory === "musical")) {
+      this.closeModal("modal-seat-detail");
+      await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요. 기존 등록 내역은 마이페이지에서 수정하거나 삭제할 수 있습니다.");
+      return;
+    }
+
+    // Musical seat ids are plain integers, not baseball's "_"-joined
+    // composite key, so there's nothing to parse — use the display info
+    // openSeatDetail() already resolved instead.
+    if (state.activeModalCategory === "musical") {
+      this.closeModal("modal-seat-detail");
+
+      document.getElementById("add-ticket-form").reset();
+      const commentEl = document.getElementById("form-comment");
+      if (commentEl) {
+        commentEl.style.height = "auto";
+        this.updateCommentCounter(commentEl);
+      }
+
+      const info = state.activeModalDisplayInfo || {};
+      const labelEl = document.getElementById("form-seat-info-label");
+      if (labelEl) labelEl.innerHTML = `${info.stadiumName || ""}<br>${info.blockName || ""} ${info.seatName || ""}`;
+
+      state.tempUploadedPhotos = [];
+      this.renderUploadedPhotosThumbnails();
+      state.editingReviewId = null;
+
+      const titleEl = document.getElementById("add-ticket-modal-title");
+      if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+
+      const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "<i data-lucide=\"check\"></i> 시야 사진 제보하기";
+        lucide.createIcons();
+      }
+
+      this.openModal("modal-add-ticket");
+      return;
+    }
+
     const isDemoSeat = state.activeModalSeatKey.endsWith("22567");
     const seatInfo = isDemoSeat ? SEAT_VIEWS_DB["22567"] : SEAT_VIEWS_DB[state.activeModalSeatKey];
 
@@ -3871,6 +4559,16 @@ class SeatViewApp {
 
   showAlertDialog(title, message) {
     return this.showConfirmDialog(title, message, { alertOnly: true });
+  }
+
+  showSubmissionPolicyDetail() {
+    this.showAlertDialog(
+      "시야 제보 정책 및 유의사항",
+      "• 시야 사진을 제보하면 3일 뒤 자동으로 이벤트 응모권이 지급됩니다.\n\n" +
+      "• 이벤트 참여 이후 및 회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 이용자들을 위해 삭제되지 않고 영구적으로 보존됩니다.\n\n" +
+      "• 좌석 시야와 무관하거나 부적절한 사진이 제보된 경우, 운영자가 임의로 삭제하거나 노출을 제한할 수 있습니다.\n\n" +
+      "• 사진에 타인의 얼굴이 포함된 경우, 초상권 보호를 위해 모자이크 처리 등 식별이 어렵게 조치해 주세요."
+    );
   }
 
   // --- Modal Helpers ---
@@ -4305,10 +5003,10 @@ class SeatViewApp {
     const isCollapsed = wrapper.classList.toggle("collapsed");
     if (isCollapsed) {
       btn.classList.remove("expanded");
-      btn.querySelector("span").textContent = "🗺️ 경기장 이미지 펼치기";
+      btn.querySelector("span").textContent = "🗺️ 좌석 이미지 펼치기";
     } else {
       btn.classList.add("expanded");
-      btn.querySelector("span").textContent = "🗺️ 경기장 이미지 접기";
+      btn.querySelector("span").textContent = "🗺️ 좌석 이미지 접기";
     }
   }
 
