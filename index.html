@@ -43,7 +43,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=4.9">
+  <link rel="stylesheet" href="style_v6.css?v=5.4">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -83,30 +83,8 @@
           <div class="section-container">
             <h2 class="section-title">카테고리 선택</h2>
             <div class="category-grid" id="category-grid-container">
-              <div class="category-card" onclick="app.navigateTo('stadiums')">
-                <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
-                <div class="category-tag blue">MAX TRAFFIC</div>
-                <div class="category-info">
-                  <h3 class="category-name">⚾ 프로야구장</h3>
-                  <p class="category-sub">10개 구단 홈구장</p>
-                </div>
-              </div>
-              <div class="category-card" onclick="app.showMusicalComingSoon()">
-                <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
-                <div class="category-tag red">HOT</div>
-                <div class="category-info">
-                  <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
-                  <p class="category-sub">주요 대형 아트센터</p>
-                </div>
-              </div>
-              <div class="category-card" onclick="app.showFlightComingSoon()">
-                <div class="card-bg-overlay" style="background-image: url('assets/flight_cinema.jpg');"></div>
-                <div class="category-tag green">NEW</div>
-                <div class="category-info">
-                  <h3 class="category-name">✈️ 항공 / 영화관</h3>
-                  <p class="category-sub">스페셜관 & 인기 기종</p>
-                </div>
-              </div>
+              <!-- Dynamically populated by loadCategories() — left empty so
+                   there's nothing stale to flash before the real data loads -->
             </div>
           </div>
 
@@ -122,9 +100,11 @@
                logged in or not, always lands on) -->
           <footer class="site-footer">
             <div class="site-footer-links">
-              <a href="javascript:void(0)" onclick="app.showToast('📄', '페이지 준비중입니다.')">이용약관</a>
+              <a href="terms.html">이용약관</a>
               <span class="site-footer-divider">·</span>
-              <a href="javascript:void(0)" onclick="app.showToast('📄', '페이지 준비중입니다.')">개인정보처리방침</a>
+              <a href="privacy.html">개인정보처리방침</a>
+              <span class="site-footer-divider">·</span>
+              <a href="event-terms.html">이벤트 참여규정</a>
             </div>
             <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
           </footer>
@@ -139,7 +119,7 @@
 
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="경기장 + 구역번호로 검색 (예: 고척 111)" id="stadium-search-input">
+            <input type="text" placeholder="야구장 + 구역/좌석 검색 (예: 고척 111 5열 3번)" id="stadium-search-input">
           </div>
 
           <!-- Stadium Card Grid -->
@@ -156,7 +136,7 @@
 
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="공연장 + 구역으로 검색 (예: 세종 A)" id="venue-search-input">
+            <input type="text" placeholder="공연장 + 층/구역 검색 (예: 세종 1층 A)" id="venue-search-input">
           </div>
 
           <div class="stadium-grid" id="venue-grid-container">
@@ -392,8 +372,9 @@
             <button class="btn" onclick="app.loginWithKakao();" style="width: 100%; max-width: 240px; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; position: relative;">
               <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> 카카오 로그인
             </button>
+            <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0; position: relative;">계속 진행 시 <a href="terms.html" style="color: var(--text-muted); text-decoration: underline;">이용약관</a> 및 <a href="privacy.html" style="color: var(--text-muted); text-decoration: underline;">개인정보처리방침</a>에 동의하는 것으로 간주합니다.</p>
             <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin-top: 4px; position: relative;">
-              <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>나만의 직관 기록 저장</span>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>나만의 시야 기록 저장</span>
               <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>시야 사진 영구 보관</span>
               <span style="font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="check" style="width: 13px; height: 13px; color: var(--accent-purple);"></i>시야 투표 참여</span>
             </div>
@@ -464,7 +445,7 @@
         </button>
         <button class="nav-item" data-target="compare" onclick="app.navigateTo('compare')">
           <i data-lucide="columns"></i>
-          <span>1:1 시야비교</span>
+          <span>1:1 시야 비교</span>
         </button>
         <button class="nav-item" data-target="ticketbook" onclick="app.navigateTo('ticketbook')">
           <i data-lucide="user"></i>
@@ -532,21 +513,24 @@
               </div>
               <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary);">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
             </div>
+          </div>
 
-            <div class="modal-actions">
-              <button class="btn btn-secondary" id="btn-detail-compare" onclick="app.addCurrentSeatToCompare()">
-                <i data-lucide="plus-square"></i> 1:1 비교함 담기
-              </button>
-              <button class="btn btn-primary" id="btn-detail-report" onclick="app.addCurrentSeatToTicketbook()">
-                <i data-lucide="camera"></i> 시야 사진 제보하기
-              </button>
-              <button class="btn btn-secondary" id="btn-detail-edit" onclick="app.editCurrentModalReview()" style="display: none;">
-                <i data-lucide="pencil"></i> 기록 수정
-              </button>
-              <button class="btn" id="btn-detail-delete" onclick="app.deleteCurrentModalReview()" style="display: none; background: var(--danger); color: #fff;">
-                <i data-lucide="trash-2"></i> 기록 삭제
-              </button>
-            </div>
+          <!-- Outside .modal-body on purpose: these buttons must always stay
+               visible, not scroll away with the (now taller, square-image)
+               content above them. -->
+          <div class="modal-actions">
+            <button class="btn btn-secondary" id="btn-detail-compare" onclick="app.addCurrentSeatToCompare()">
+              <i data-lucide="plus-square"></i> 1:1 비교함 담기
+            </button>
+            <button class="btn btn-primary" id="btn-detail-report" onclick="app.addCurrentSeatToTicketbook()">
+              <i data-lucide="camera"></i> 시야 사진 제보하기
+            </button>
+            <button class="btn btn-secondary" id="btn-detail-edit" onclick="app.editCurrentModalReview()" style="display: none;">
+              <i data-lucide="pencil"></i> 기록 수정
+            </button>
+            <button class="btn" id="btn-detail-delete" onclick="app.deleteCurrentModalReview()" style="display: none; background: var(--danger); color: #fff;">
+              <i data-lucide="trash-2"></i> 기록 삭제
+            </button>
           </div>
         </div>
       </div>
@@ -652,7 +636,7 @@
           </div>
           <h3 class="modal-title" id="coming-soon-title" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">준비 중인 구장입니다</h3>
           <p id="coming-soon-desc" style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
-            선택하신 경기장의 구역 정보 및<br>시야 데이터를 열심히 준비하고 있습니다.<br>더 나은 서비스로 빠르게 찾아뵙겠습니다!
+            선택하신 구장의 구역 정보 및<br>시야 데이터를 열심히 준비하고 있습니다.<br>더 나은 서비스로 빠르게 찾아뵙겠습니다!
           </p>
           <button class="btn btn-primary" onclick="app.closeModal('modal-coming-soon')" style="width: 100%; padding: 12px; font-weight: 700; border-radius: 12px; font-size: 0.95rem; cursor: pointer; transition: var(--transition-normal);">확인</button>
         </div>
@@ -770,7 +754,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=7.2"></script>
+  <script src="app_v6.js?v=8.1"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

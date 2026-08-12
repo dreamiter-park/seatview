@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SeatView Premium CSS Stylesheet
+   잘보여유 Premium CSS Stylesheet
    ========================================================================== */
 
 /* 1. Global Reset & Theme Variables */
@@ -108,29 +108,60 @@ img {
 @media (max-width: 480px) {
   .app-container {
     padding: 0;
-    height: 100dvh;
+    height: auto;
+    min-height: 100dvh;
+    display: block;
+  }
+
+  /* Real phone browsers only auto-hide their own address bar when the
+     actual page/document scrolls — never when an inner div scrolls, which
+     is what trapping everything inside a fixed-height .app-content did.
+     Let the page scroll normally on mobile instead (desktop keeps the
+     boxed "floating phone" preview look, which has no such issue). */
+  body {
+    overflow: auto;
+  }
+  body.modal-open {
+    overflow: hidden;
   }
   .phone-frame {
     border-radius: 0;
     border: none;
-    max-height: 100dvh;
-    height: 100dvh;
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow: visible;
+  }
+  .app-content {
+    /* .app-content's base rule (flex:1; overflow-y:auto;) is declared later
+       in this file than this media query, so it would win the cascade on
+       these two properties without !important. */
+    flex: none !important;
+    overflow-y: visible !important;
+    padding-bottom: calc(64px + 8px + env(safe-area-inset-bottom));
+  }
+
+  /* .phone-frame can now be taller than the viewport (it grows with page
+     content since real mobile scrolls the page, not an inner div). .modal
+     is position:absolute against .phone-frame, so with align-items:flex-end
+     it was aligning to the bottom of that taller box — off-screen below
+     the fold — instead of the bottom of what's actually visible. Anchor
+     modals to the real viewport instead. (.modal's base rule is declared
+     later in this file, hence !important.) */
+  .modal {
+    position: fixed !important;
   }
 
   /* Real phone browsers show/hide their address bar as you scroll, which
      makes 100dvh-based flex layouts unreliable for keeping the nav bar
      pinned (seen clipped on Samsung Internet). Pin it to the viewport
-     directly instead — the same pattern most mobile web apps use — and
-     pad the scroll area so content never sits underneath it. */
+     directly instead — the same pattern most mobile web apps use. */
   .app-nav {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  }
-  .app-content {
-    padding-bottom: calc(64px + 8px + env(safe-area-inset-bottom));
   }
 }
 
@@ -448,7 +479,7 @@ img {
 
 /* 7. Main Page View Specifics */
 .hero-section {
-  padding: 10px 0 20px 0;
+  padding: 10px 0 10px 0;
 }
 
 .hero-title {
@@ -464,7 +495,7 @@ img {
   font-size: 0.9rem;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .search-bar-container {
@@ -507,7 +538,7 @@ img {
 }
 
 .section-container {
-  margin-top: 24px;
+  margin-top: 14px;
 }
 
 .section-title {
@@ -740,6 +771,13 @@ img {
   gap: 12px;
 }
 
+/* Venue list has far fewer entries than the stadium list right now — 2
+   columns leaves an awkward empty-looking row. Single column until there
+   are enough venues for 2-up to look intentional. */
+#venue-grid-container {
+  grid-template-columns: 1fr;
+}
+
 .stadium-card {
   border: 1px solid var(--border-color);
   border-radius: 16px;
@@ -903,8 +941,8 @@ img {
 }
 
 .tab-btn.active {
-  background-color: var(--bg-input);
-  color: var(--text-primary);
+  background-color: var(--text-primary);
+  color: var(--bg-card);
   font-weight: 700;
 }
 
@@ -1361,16 +1399,17 @@ img {
 
 .compare-image-box {
   width: 100%;
-  height: 200px;
+  aspect-ratio: 1 / 1;
   position: relative;
   overflow: hidden;
   background-color: #000;
+  touch-action: pan-y;
 }
 
 .compare-image-box img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .compare-content {
@@ -1821,6 +1860,11 @@ img {
   padding: 20px;
   overflow-y: auto;
   scrollbar-width: none;
+  /* Bounds .modal-body to whatever space .modal-content's max-height
+     leaves it, so it scrolls internally instead of pushing .modal-actions
+     (now a sibling, always visible) past the bottom of the screen. */
+  flex: 1;
+  min-height: 0;
 }
 
 .modal-body::-webkit-scrollbar {
@@ -1830,16 +1874,17 @@ img {
 .modal-image-wrapper {
   border-radius: 20px;
   overflow: hidden;
-  height: 220px;
+  aspect-ratio: 1 / 1;
   position: relative;
   margin-bottom: 12px;
   background-color: #000;
+  touch-action: pan-y;
 }
 
 .modal-image-wrapper img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 /* Direction overlay badge */
@@ -1998,6 +2043,10 @@ img {
 .modal-actions {
   display: flex;
   gap: 12px;
+  padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 /* 15. Buttons System */

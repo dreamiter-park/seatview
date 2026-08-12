@@ -834,6 +834,10 @@ class SeatViewApp {
     // Set up click-and-drag horizontal scroll for the grade filter bar
     this.setupDragScroll("grade-filter-bar");
 
+    // Swipe support for the seat-detail and compare image carousels, so
+    // they work with a touch swipe (not just the < > buttons).
+    this.setupImageSwipeGestures();
+
     // History API Router integration
     if (!history.state) {
       history.replaceState({ view: "main" }, "", "#main");
@@ -856,64 +860,186 @@ class SeatViewApp {
     });
   }
 
-  // Parses queries like "고척 111구역" or "세종 A"/"세종 A구역" into a
-  // {target, blockCode} pair — target is whichever item in db has a
-  // matching name, blockCode is the trailing zone code (letters and/or
-  // digits, since musical zones can be letter-only unlike baseball's).
-  // Shared by handleStadiumSearch()/handleVenueSearch() below.
-  parseVenueSearchQuery(query, db) {
-    const blockMatch = query.match(/([A-Za-z0-9]+)\s*구역\s*$/) || query.match(/([A-Za-z0-9]+)\s*$/);
-    const blockCode = blockMatch ? blockMatch[1] : null;
-    const nameKeyword = query.replace(/([A-Za-z0-9]+)\s*구역?\s*$/, "").trim();
-
-    const target = nameKeyword
-      ? db.find(item => item.name.includes(nameKeyword) || (nameKeyword.length >= 2 && nameKeyword.includes(item.name.slice(0, 2))))
-      : null;
-
-    return { target, blockCode };
+  // Splits a query into whitespace tokens and finds the longest leading
+  // run of tokens that names a stadium/venue, so the rest can be parsed as
+  // qualifiers (grade/floor, zone, seat). Tries longest prefix first so
+  // "세종문화회관 대극장 1층 A" matches the full name, not just "세종".
+  // A prefix only counts as a name match if it's an actual substring of
+  // the real name, or an exact prefix of it — a loose "contains the first
+  // 2 chars" check would let "잠실 101" wrongly swallow "101" as if it
+  // were part of the name.
+  matchNameAndTokens(query, db) {
+    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    for (let i = tokens.length; i >= 1; i--) {
+      const candidate = tokens.slice(0, i).join(" ");
+      const target = db.find(item =>
+        item.name.includes(candidate) ||
+        (candidate.length >= 2 && item.name.slice(0, candidate.length) === candidate)
+      );
+      if (target) return { target, remainder: tokens.slice(i) };
+    }
+    return { target: null, remainder: tokens };
   }
 
-  async handleStadiumSearch(query) {
-    const { target: stadium, blockCode } = this.parseVenueSearchQuery(query, STADIUMS_DB);
+  // Looks up one seat's real DB id by block + row + seat number, for the
+  // deepest search level ("구장 등급 구역 좌석"). Row/seat are compared as
+  // strings since some stadiums use letter row labels (e.g. Gocheok).
+  async findSeatId(table, blockIdColumn, blockId, rowVal, seatVal) {
+    if (!supabaseClient) return null;
+    try {
+      const { data: seats } = await supabaseClient
+        .from(table)
+        .select('id, row_num, seat_num')
+        .eq(blockIdColumn, blockId);
+      const match = (seats || []).find(s => String(s.row_num) === rowVal && String(s.seat_num) === seatVal);
+      return match ? match.id : null;
+    } catch (e) {
+      console.warn(`Seat lookup error (${table}):`, e);
+      return null;
+    }
+  }
 
-    if (!stadium || !blockCode) {
-      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "구장명 구역번호" 형식으로 입력해 보세요. (예: 고척 111)`);
+  // Supports "야구장", "야구장 등급", "야구장 등급 구역", "야구장 구역"
+  // (등급 생략 가능 — 구역코드는 구장 내에서 겹치지 않아 그 자체로 유일),
+  // "야구장 등급 구역 N열 M번". 등급 텍스트는 구역이 있으면 무시된다 —
+  // selectStadiumBlock()이 구역에서 등급을 자동으로 다시 채워주기 때문.
+  async handleStadiumSearch(query) {
+    const { target: stadium, remainder } = this.matchNameAndTokens(query, STADIUMS_DB);
+    if (!stadium) {
+      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "야구장명 [좌석등급] [구역] [좌석]" 형식으로 입력해 보세요. (예: 고척 111, 고척 111 5열 3번)`);
       return;
     }
 
     await this.loadStadiumDetail(stadium.id);
+    const blocks = (state.selectedStadium && state.selectedStadium.blocks) || [];
 
-    const targetBlock = (state.selectedStadium && state.selectedStadium.blocks || [])
-      .find(b => String(b.block_code).toUpperCase() === blockCode.toUpperCase());
-
-    if (targetBlock) {
-      this.selectStadiumBlock(targetBlock.id);
-      this.showToast("✅", `${stadium.name} ${blockCode}구역으로 이동했어요.`);
-    } else {
-      this.showToast("🔍", `${stadium.name}에서 ${blockCode}구역을 찾지 못했어요.`);
+    let tokens = [...remainder];
+    let rowVal = null, seatVal = null;
+    if (tokens.length >= 2 && /^.+열$/.test(tokens[tokens.length - 2]) && /^\d+번$/.test(tokens[tokens.length - 1])) {
+      seatVal = tokens[tokens.length - 1].replace(/번$/, "");
+      rowVal = tokens[tokens.length - 2].replace(/열$/, "");
+      tokens = tokens.slice(0, -2);
     }
+
+    let zoneCode = null;
+    if (tokens.length > 0) {
+      const lastTok = tokens[tokens.length - 1];
+      const lastTokBare = lastTok.replace(/구역$/, "");
+      const matched = blocks.find(b => String(b.block_code).toUpperCase() === lastTok.toUpperCase())
+        || blocks.find(b => String(b.block_code).toUpperCase() === lastTokBare.toUpperCase());
+      if (matched) {
+        zoneCode = matched.block_code;
+        tokens = tokens.slice(0, -1);
+      }
+    }
+
+    if (!zoneCode) {
+      const gradeText = tokens.join(" ").trim();
+      if (!gradeText) {
+        this.showToast("✅", `${stadium.name}으로 이동했어요.`);
+        return;
+      }
+      const categories = [...new Set(blocks.map(b => b.category).filter(Boolean))];
+      // Exact match must win before substring fuzziness — otherwise a
+      // shorter category that happens to be a substring of the real match
+      // (e.g. "버건디석" inside "다크버건디석") gets picked first just
+      // because it appears earlier in the list. Whitespace is normalized
+      // away at every tier too, since category names like "4층 지정석"
+      // are commonly typed without the internal space ("4층지정석").
+      const norm = s => s.replace(/\s+/g, "");
+      const normGradeText = norm(gradeText);
+      const matchedGrade = categories.find(c => c === gradeText)
+        || categories.find(c => norm(c) === normGradeText)
+        || categories.find(c => norm(c).includes(normGradeText) || normGradeText.includes(norm(c)));
+      if (!matchedGrade) {
+        this.showToast("🔍", `${stadium.name}에서 '${gradeText}' 좌석등급을 찾지 못했어요.`);
+        return;
+      }
+      this.filterMapByGrade(matchedGrade);
+      this.showToast("✅", `${stadium.name} ${matchedGrade}로 이동했어요.`);
+      return;
+    }
+
+    const targetBlock = blocks.find(b => String(b.block_code).toUpperCase() === zoneCode.toUpperCase());
+    this.selectStadiumBlock(targetBlock.id);
+
+    if (rowVal !== null && seatVal !== null) {
+      const seatId = targetBlock.db_id ? await this.findSeatId('baseball_seats', 'block_id', targetBlock.db_id, rowVal, seatVal) : null;
+      if (seatId) {
+        this.openSeatDetail(seatId, { category: "baseball" });
+        this.showToast("✅", `${stadium.name} ${zoneCode}구역 ${rowVal}열 ${seatVal}번으로 이동했어요.`);
+      } else {
+        this.showToast("🔍", `${zoneCode}구역에서 ${rowVal}열 ${seatVal}번 좌석을 찾지 못했어요.`);
+      }
+      return;
+    }
+
+    this.showToast("✅", `${stadium.name} ${zoneCode}구역으로 이동했어요.`);
   }
 
+  // Supports "공연장", "공연장 층", "공연장 층 구역", "공연장 층 구역 N열
+  // M번". 층은 생략 불가 — 공연장은 구역코드가 층마다 겹칠 수 있어서
+  // (예: 1층 A구역과 2층 A구역이 모두 존재) 층 없이는 구역만으로 어느
+  // 층인지 확정할 수 없다.
   async handleVenueSearch(query) {
-    const { target: venue, blockCode } = this.parseVenueSearchQuery(query, VENUES_DB);
-
-    if (!venue || !blockCode) {
-      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "공연장명 구역" 형식으로 입력해 보세요. (예: 세종 A)`);
+    const { target: venue, remainder } = this.matchNameAndTokens(query, VENUES_DB);
+    if (!venue) {
+      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "공연장명 [층] [구역] [좌석]" 형식으로 입력해 보세요. (예: 세종 1층 A, 세종 1층 A 5열 3번)`);
       return;
     }
 
     await this.loadVenueDetail(venue.id);
 
-    const targetBlock = (state.selectedVenue && state.selectedVenue.blocks || [])
-      .find(b => String(b.block_code).toUpperCase() === blockCode.toUpperCase());
-
-    if (targetBlock) {
-      this.selectVenueFloor(targetBlock.floor);
-      this.selectVenueBlock(targetBlock.id);
-      this.showToast("✅", `${venue.name} ${blockCode}구역으로 이동했어요.`);
-    } else {
-      this.showToast("🔍", `${venue.name}에서 ${blockCode}구역을 찾지 못했어요.`);
+    if (remainder.length === 0) {
+      this.showToast("✅", `${venue.name}으로 이동했어요.`);
+      return;
     }
+
+    const floorNum = parseInt(remainder[0].replace(/층$/, ""), 10);
+    if (isNaN(floorNum)) {
+      this.showToast("🔍", `층 정보를 이해하지 못했어요. "공연장명 1층 [구역]" 형식으로 입력해 보세요.`);
+      return;
+    }
+
+    const blocksOnFloor = ((state.selectedVenue && state.selectedVenue.blocks) || []).filter(b => Number(b.floor) === floorNum);
+    if (blocksOnFloor.length === 0) {
+      this.showToast("🔍", `${venue.name}에 ${floorNum}층 정보가 없어요.`);
+      return;
+    }
+
+    this.selectVenueFloor(floorNum);
+
+    if (remainder.length === 1) {
+      this.showToast("✅", `${venue.name} ${floorNum}층으로 이동했어요.`);
+      return;
+    }
+
+    const zoneToken = remainder[1];
+    const zoneTokenBare = zoneToken.replace(/구역$/, "");
+    const targetBlock = blocksOnFloor.find(b => String(b.block_code).toUpperCase() === zoneToken.toUpperCase())
+      || blocksOnFloor.find(b => String(b.block_code).toUpperCase() === zoneTokenBare.toUpperCase());
+    if (!targetBlock) {
+      this.showToast("🔍", `${venue.name} ${floorNum}층에서 ${zoneToken}구역을 찾지 못했어요.`);
+      return;
+    }
+    const zoneCode = targetBlock.block_code;
+
+    this.selectVenueBlock(targetBlock.id);
+
+    if (remainder.length >= 4 && /^.+열$/.test(remainder[2]) && /^\d+번$/.test(remainder[3])) {
+      const rowVal = remainder[2].replace(/열$/, "");
+      const seatVal = remainder[3].replace(/번$/, "");
+      const seatId = await this.findSeatId('musical_seats', 'block_id', targetBlock.id, rowVal, seatVal);
+      if (seatId) {
+        this.openSeatDetail(seatId, { category: "musical" });
+        this.showToast("✅", `${venue.name} ${floorNum}층 ${zoneCode}구역 ${rowVal}열 ${seatVal}번으로 이동했어요.`);
+      } else {
+        this.showToast("🔍", `${zoneCode}구역에서 ${rowVal}열 ${seatVal}번 좌석을 찾지 못했어요.`);
+      }
+      return;
+    }
+
+    this.showToast("✅", `${venue.name} ${floorNum}층 ${zoneCode}구역으로 이동했어요.`);
   }
 
   setupDragScroll(elementId) {
@@ -949,6 +1075,45 @@ class SeatViewApp {
       const x = e.pageX - slider.offsetLeft;
       const walk = (x - startX) * 1.8; // scroll speed multiplier
       slider.scrollLeft = scrollLeft - walk;
+    });
+  }
+
+  // Swipe-to-navigate for the seat-detail modal carousel and the compare
+  // screen's image boxes — event-delegated on document since the compare
+  // boxes are re-created on every render. Pointer events cover touch, mouse,
+  // and pen in one code path so there's no double-handling on hybrid devices.
+  setupImageSwipeGestures() {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let target = null; // 'modal' | 'compare'
+    let compareKey = null;
+    const SWIPE_THRESHOLD = 40;
+
+    document.addEventListener("pointerdown", (e) => {
+      const modalBox = e.target.closest(".modal-image-wrapper");
+      const compareBox = e.target.closest(".compare-image-box");
+      if (!modalBox && !compareBox) return;
+      tracking = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      target = modalBox ? "modal" : "compare";
+      compareKey = compareBox ? compareBox.dataset.key : null;
+    });
+
+    document.addEventListener("pointerup", (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      // Ignore taps and mostly-vertical drags (those are page scrolling)
+      if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+
+      if (target === "modal") {
+        dx < 0 ? this.nextSeatImage() : this.prevSeatImage();
+      } else if (target === "compare" && compareKey) {
+        this.navCompareImage(compareKey, dx < 0 ? 1 : -1);
+      }
     });
   }
 
@@ -1016,6 +1181,9 @@ class SeatViewApp {
 
     // Specific Screen Initialization
     if (viewId === "ticketbook") {
+      // Default to 프로야구장 the first time mypage is visited this
+      // session; a later category switch is remembered on repeat visits.
+      if (!state.ticketbookCategory) state.ticketbookCategory = "baseball";
       this.renderTicketbook();
     } else if (viewId === "compare") {
       this.renderCompareView();
@@ -1025,8 +1193,10 @@ class SeatViewApp {
       this.renderVenueList();
     }
 
-    // Scroll to top of app content
+    // Scroll to top of app content — .app-content is the scroller on desktop
+    // (boxed phone preview), but real mobile now scrolls the actual page.
     document.getElementById("app-content").scrollTop = 0;
+    window.scrollTo(0, 0);
   }
 
   handleNavClick(el) {
@@ -1464,6 +1634,11 @@ class SeatViewApp {
 
     if (foodEl) foodEl.textContent = venue.food_info || "등록된 먹거리 정보가 없습니다.";
     if (parkingEl) parkingEl.textContent = venue.parking_info || "등록된 주차 정보가 없습니다.";
+
+    // Switch default tab — unlike loadStadiumDetail(), this was never being
+    // called here, so a stray leftover "active" class from a previous
+    // screen (or none at all) could leave neither tab visibly selected.
+    this.switchVenueDetailTab("map");
 
     // Reset STEP 2/3 UI from any previously-viewed venue
     const blockSelectorEl = document.getElementById("venue-block-selector-container");
@@ -1969,10 +2144,13 @@ class SeatViewApp {
     const isOutfield = detailedZoneName === "외야석";
     const hasFilter = detailedZoneName !== null;
 
-    // Reset grade filter view state on reload of Overall map
+    // Reset grade filter view state on reload of Overall map. Scoped to
+    // #view-stadium-detail — .grade-pill is shared with venue-detail's
+    // floor pills, and an unscoped query here would silently clear the
+    // active state on whichever floor a musical venue had selected.
     state.selectedGradeFilter = "all";
-    document.querySelectorAll(".grade-pill").forEach(p => p.classList.remove("active"));
-    const allPill = Array.from(document.querySelectorAll(".grade-pill")).find(p => p.textContent.includes("전체"));
+    document.querySelectorAll("#view-stadium-detail .grade-pill").forEach(p => p.classList.remove("active"));
+    const allPill = Array.from(document.querySelectorAll("#view-stadium-detail .grade-pill")).find(p => p.textContent.includes("전체"));
     if (allPill) allPill.classList.add("active");
 
     const stadiumObj = state.selectedStadium;
@@ -2082,13 +2260,14 @@ class SeatViewApp {
 
   // Filter map sectors by clicked grade
   filterMapByGrade(gradeName, shouldScroll = true) {
-    // 1. Update active class on filter pills
-    document.querySelectorAll(".grade-pill").forEach(pill => {
+    // 1. Update active class on filter pills — scoped to #view-stadium-detail
+    // for the same reason as injectStadiumMap() above.
+    document.querySelectorAll("#view-stadium-detail .grade-pill").forEach(pill => {
       pill.classList.remove("active");
     });
-    
+
     // Find clicked pill by data-grade attribute
-    const clickedPill = document.querySelector(`.grade-pill[data-grade="${gradeName}"]`);
+    const clickedPill = document.querySelector(`#view-stadium-detail .grade-pill[data-grade="${gradeName}"]`);
     if (clickedPill) {
       clickedPill.classList.add("active");
     }
@@ -2239,6 +2418,7 @@ class SeatViewApp {
     // Scroll to top of the view content
     const appContent = document.getElementById("app-content");
     if (appContent) appContent.scrollTop = 0;
+    window.scrollTo(0, 0);
   }
 
   getBlocksForZone(stadium, zoneName) {
@@ -2429,12 +2609,13 @@ class SeatViewApp {
     state.selectedBlock = block;
 
     // Update active grade filter to match the selected block's category
+    // (scoped to #view-stadium-detail — same shared-class concern as above)
     if (block.category && block.category !== state.selectedGradeFilter) {
       state.selectedGradeFilter = block.category;
-      document.querySelectorAll(".grade-pill").forEach(pill => {
+      document.querySelectorAll("#view-stadium-detail .grade-pill").forEach(pill => {
         pill.classList.remove("active");
       });
-      const activePill = Array.from(document.querySelectorAll(".grade-pill")).find(pill => 
+      const activePill = Array.from(document.querySelectorAll("#view-stadium-detail .grade-pill")).find(pill =>
         pill.getAttribute("data-grade") === block.category
       );
       if (activePill) {
@@ -3347,16 +3528,21 @@ class SeatViewApp {
 
   // --- 1:1 Side-by-Side Comparison ---
   addCurrentSeatToCompare() {
-    if (!state.activeModalSeatKey) return;
-    
-    const seatInfo = SEAT_VIEWS_DB[state.activeModalSeatKey];
-    if (!seatInfo) return;
+    // SEAT_VIEWS_DB only ever holds baseball's legacy placeholder data —
+    // musical seats never get an entry there, which silently no-op'd this
+    // whole function for them. state.activeModalDisplayInfo and
+    // this.modalImages are populated by openSeatDetail() for both
+    // categories, so use those instead as the single source of truth.
+    if (!state.activeModalSeatKey || !state.activeModalDisplayInfo) return;
+
+    const { stadiumName, blockName, seatName } = state.activeModalDisplayInfo;
+    const images = Array.isArray(this.modalImages) ? this.modalImages : [];
 
     // Check if already in comparisons
-    const alreadyAdded = state.comparisons.some(item => 
-      item.stadiumName === seatInfo.stadiumName && 
-      item.blockName === seatInfo.blockName && 
-      item.seatName === seatInfo.seatName
+    const alreadyAdded = state.comparisons.some(item =>
+      item.stadiumName === stadiumName &&
+      item.blockName === blockName &&
+      item.seatName === seatName
     );
 
     if (alreadyAdded) {
@@ -3373,12 +3559,16 @@ class SeatViewApp {
 
     state.comparisons.push({
       key: state.activeModalSeatKey,
-      ...seatInfo
+      category: state.activeModalCategory,
+      stadiumName,
+      blockName,
+      seatName,
+      images
     });
 
     this.saveComparisons();
     this.updateCompareBadge();
-    this.showToast("🛒", `${seatInfo.blockName} ${seatInfo.seatName}이 비교함에 담겼습니다!`);
+    this.showToast("🛒", `${blockName} ${seatName}이 비교함에 담겼습니다!`);
     this.closeModal("modal-seat-detail");
 
     // Two seats is the max comparison supports — once the 2nd one lands,
@@ -3404,6 +3594,7 @@ class SeatViewApp {
     try {
       const lightweight = state.comparisons.map(item => ({
         key: item.key,
+        category: item.category === "musical" ? "musical" : "baseball",
         stadiumName: item.stadiumName,
         blockName: item.blockName,
         seatName: item.seatName,
@@ -3449,8 +3640,9 @@ class SeatViewApp {
         continue;
       }
       try {
+        const isMusical = item.category === "musical";
         const { data: reviews } = await supabaseClient
-          .from('baseball_seat_reviews')
+          .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .select('*, profiles(*)')
           .in('id', item.reviewIds);
 
@@ -3512,8 +3704,8 @@ class SeatViewApp {
         <span class="compare-seat-badge">${item.stadiumName}</span>
         <div class="compare-seat-name">${item.blockName} ${item.seatName}</div>
       </div>
-      <div class="compare-image-box">
-        ${current ? `<img src="${current.url}" alt="Seat View">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:0.72rem;">등록된 사진이 없습니다</div>`}
+      <div class="compare-image-box" data-key="${item.key}">
+        ${current ? `<img src="${current.url}" alt="좌석 시야">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color: var(--text-muted); font-size:0.72rem;">등록된 사진이 없습니다</div>`}
         ${images.length > 1 ? `
           <button class="carousel-nav-btn prev" style="width: 36px; height: 36px;" onclick="app.navCompareImage('${item.key}', -1)"><i data-lucide="chevron-left"></i></button>
           <button class="carousel-nav-btn next" style="width: 36px; height: 36px;" onclick="app.navCompareImage('${item.key}', 1)"><i data-lucide="chevron-right"></i></button>
@@ -3703,6 +3895,8 @@ class SeatViewApp {
     const heading = document.getElementById("ticketbook-heading");
     const archiveContainer = document.getElementById("tickets-archive-container");
     const footer = document.getElementById("my-page-footer");
+    const categoryTabs = document.getElementById("ticketbook-category-tabs");
+    const viewToggleBtn = document.getElementById("btn-ticket-view-toggle");
 
     if (!state.isLoggedIn) {
       if (loginPrompt) loginPrompt.style.display = "flex";
@@ -3710,6 +3904,8 @@ class SeatViewApp {
       if (heading) heading.style.display = "none";
       if (archiveContainer) archiveContainer.innerHTML = "";
       if (footer) footer.style.display = "none";
+      if (categoryTabs) categoryTabs.style.display = "none";
+      if (viewToggleBtn) viewToggleBtn.style.display = "none";
       lucide.createIcons();
       return;
     }
@@ -3718,6 +3914,8 @@ class SeatViewApp {
     if (statsCard) statsCard.style.display = "";
     if (heading) heading.style.display = "";
     if (footer) footer.style.display = "block";
+    if (categoryTabs) categoryTabs.style.display = "flex";
+    if (viewToggleBtn) viewToggleBtn.style.display = "flex";
 
     if (!archiveContainer) return;
 
@@ -3725,6 +3923,18 @@ class SeatViewApp {
     archiveContainer.innerHTML = "";
 
     const activeCategory = state.ticketbookCategory === "musical" ? "musical" : "baseball";
+
+    // Keep the tab buttons' visual state in sync with activeCategory on
+    // every render, not just when switchTicketbookCategory() runs a click —
+    // otherwise a stray "active" class left over from elsewhere (e.g. an
+    // unrelated tab group sharing the same .tab-btn class) can leave both
+    // tabs unhighlighted until the user clicks one.
+    if (categoryTabs) {
+      categoryTabs.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.category === activeCategory);
+      });
+    }
+
     const sourceTickets = activeCategory === "musical" ? (state.musicalTickets || []) : state.tickets;
     const sortedTickets = [...sourceTickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
     const total = sortedTickets.length;
@@ -3844,7 +4054,7 @@ class SeatViewApp {
     // Populate stadium dropdown list first
     const stadiumSelect = document.getElementById("form-stadium");
     if (stadiumSelect) {
-      stadiumSelect.innerHTML = `<option value="">경기장을 선택하세요</option>` + 
+      stadiumSelect.innerHTML = `<option value="">야구장을 선택하세요</option>` +
         STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
     }
 
@@ -4120,7 +4330,7 @@ class SeatViewApp {
     const hasPhotos = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0;
     if (!hasPhotos && !state.currentUploadedPhotoBase64) {
       this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
-      await this.showAlertDialog("사진 업로드 필요", "시야 제보 및 직관 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
+      await this.showAlertDialog("사진 업로드 필요", "시야 제보 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnHtml;
@@ -4346,12 +4556,12 @@ class SeatViewApp {
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       if (diffDays > 3) {
         this.showToast("⚠️", "등록 후 3일이 경과한 기록은 이메일로 삭제 요청해주세요.");
-        await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 직관 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+        await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 시야 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
         return;
       }
     }
 
-    const confirmed = await this.showConfirmDialog("기록 삭제", "정말 이 직관 티켓 기록을 삭제하시겠습니까?", { okText: "삭제", cancelText: "취소" });
+    const confirmed = await this.showConfirmDialog("기록 삭제", "정말 이 시야 기록을 삭제하시겠습니까?", { okText: "삭제", cancelText: "취소" });
     if (!confirmed) return;
 
     if (supabaseClient && state.userId) {
@@ -4653,7 +4863,7 @@ class SeatViewApp {
             <i data-lucide="lock" style="width: 22px; height: 22px;"></i>
           </div>
           <h4>1초 소셜 로그인</h4>
-          <p>로그인 시 나만의 직관 티켓북 관리, 시야 투표(추천/비추천) 참여, 비교함 정보 영구 동기화와 포인트 혜택을 받으실 수 있습니다.</p>
+          <p>로그인 시 나만의 시야 기록 관리, 시야 투표(추천/비추천) 참여, 비교함 정보 영구 동기화와 포인트 혜택을 받으실 수 있습니다.</p>
           
           <button class="login-btn-social kakao" onclick="app.simulateSocialLogin('Kakao')">
             <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: currentColor;"></i> 카카오로 1초 로그인
@@ -5026,12 +5236,15 @@ class SeatViewApp {
   // Tab switching in Stadium details
   switchDetailTab(tabName) {
     state.activeDetailTab = tabName;
-    
-    // Toggle active tab buttons
-    document.querySelectorAll(".detail-tabs .tab-btn").forEach(btn => {
+
+    // Scoped to #view-stadium-detail — an unscoped ".detail-tabs .tab-btn"
+    // query hits every tab group on the page (mypage's category tabs and
+    // venue-detail's own tabs also use the same shared classes), silently
+    // wiping their "active" state whenever this ran.
+    document.querySelectorAll("#view-stadium-detail .detail-tabs .tab-btn").forEach(btn => {
       btn.classList.remove("active");
     });
-    const clickedBtn = document.querySelector(`.detail-tabs .tab-btn[onclick*="${tabName}"]`);
+    const clickedBtn = document.querySelector(`#view-stadium-detail .detail-tabs .tab-btn[onclick*="${tabName}"]`);
     if (clickedBtn) clickedBtn.classList.add("active");
 
     // Toggle panels
