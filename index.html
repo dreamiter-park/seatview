@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>잘보여유 - 좌석별 시야 공유 서비스</title>
+  <meta name="description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
+
+  <!-- Favicon / App Icons -->
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#080a0f">
+
+  <!-- Open Graph / KakaoTalk Link Preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="잘보여유 - 좌석별 시야 공유 서비스">
+  <meta property="og:description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
+  <meta property="og:image" content="https://goodseatview.netlify.app/assets/og-image.png">
+  <meta property="og:url" content="https://goodseatview.netlify.app">
+
   <!-- Global Debug Error Logger -->
   <script>
     window.errors = [];
@@ -43,7 +58,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.4">
+  <link rel="stylesheet" href="style_v6.css?v=5.7">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -61,7 +76,7 @@
             <i data-lucide="chevron-left"></i>
           </button>
           <div class="header-logo" id="header-logo" onclick="app.navigateTo('main')">
-            <span class="logo-text">잘보여</span><span class="logo-bubble">유</span>
+            <img src="assets/header-logo.png" alt="잘보여유" class="header-logo-img">
           </div>
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
@@ -754,7 +769,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.1"></script>
+  <script src="app_v6.js?v=8.5"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

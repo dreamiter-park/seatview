@@ -473,6 +473,12 @@ const DEFAULT_TICKETS = [
 // --- 2. Application State ---
 const state = {
   currentView: "main",
+  // App-internal back stack for the header's back arrow. Doesn't rely on
+  // window.history — after an OAuth redirect (Kakao login), the browser's
+  // real history stack has extra cross-origin entries mixed in, so
+  // history.back() can land somewhere unexpected instead of the screen the
+  // user actually came from within the app.
+  viewHistory: [],
   selectedStadium: null,
   selectedBlock: null,
   selectedGradeFilter: "all", // Seat grade filter state (all, premium, table, etc.)
@@ -1119,6 +1125,13 @@ class SeatViewApp {
 
   // --- Router ---
   navigateTo(viewId, pushHistory = true) {
+    // Track the app-internal back stack for handleHeaderBack() — only for
+    // genuine forward navigations (pushHistory=true means "the app decided
+    // to go here", as opposed to popstate replaying a browser history entry).
+    if (pushHistory && state.currentView && state.currentView !== viewId) {
+      state.viewHistory.push(state.currentView);
+    }
+
     if (pushHistory) {
       if (!history.state || history.state.view !== viewId) {
         history.pushState({ view: viewId }, "", "#" + viewId);
@@ -1210,13 +1223,13 @@ class SeatViewApp {
     } else if (state.currentView === "venue-detail") {
       state.selectedVenueBlock = null;
     }
-    
-    // Go back using browser history so it matches physical back button
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      this.navigateTo("main");
-    }
+
+    // Use the app's own back stack rather than window.history.back() — see
+    // the comment on state.viewHistory for why the browser's real history
+    // can't be trusted here after an OAuth redirect. pushHistory=false so
+    // this doesn't push the view we're leaving right back onto the stack.
+    const previousView = state.viewHistory.pop();
+    this.navigateTo(previousView || "main", false);
   }
 
 
@@ -3715,7 +3728,7 @@ class SeatViewApp {
       <div class="compare-content">
         <div class="compare-comment">
           <h5>💬 코멘트</h5>
-          <p>${current && current.comment ? this.truncateComment(current.comment) : "등록된 코멘트가 없습니다."}</p>
+          <p>${current && current.comment ? this.escapeHtml(this.truncateComment(current.comment)) : "등록된 코멘트가 없습니다."}</p>
         </div>
       </div>
     `;
@@ -3766,7 +3779,7 @@ class SeatViewApp {
           </div>
           <h3>비교함이 비어 있습니다</h3>
           <p>각 좌석 상세정보 창에서 '1:1 비교함 담기' 버튼을 클릭하면 한눈에 시야를 비교해볼 수 있습니다.</p>
-          <button class="btn btn-primary" onclick="app.navigateTo('stadiums')">구장 탐색하러 가기</button>
+          <button class="btn btn-primary" onclick="app.navigateTo('main')">좌석 둘러보러 가기</button>
         </div>
       `;
     } else if (state.comparisons.length === 1) {
@@ -3980,7 +3993,7 @@ class SeatViewApp {
 
     if (sortedTickets.length === 0) {
       const emptyNavTarget = activeCategory === "musical" ? "venues" : "stadiums";
-      const emptyLabel = activeCategory === "musical" ? "\uACF5\uC5F0\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30" : "\uC2DC\uC57C \uC81C\uBCF4\uD558\uB7EC \uAC00\uAE30";
+      const emptyLabel = activeCategory === "musical" ? "\uACF5\uC5F0\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30" : "\uC57C\uAD6C\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30";
       archiveContainer.innerHTML = `
         <div class="compare-empty" style="border-style: solid;">
           <div class="compare-empty-icon">
@@ -4015,7 +4028,7 @@ class SeatViewApp {
             <span class="ticket-date">${ticket.ins_dtm ? new Date(ticket.ins_dtm).toISOString().split('T')[0].slice(2).replace(/-/g, '.') : ''}</span>
           </div>
           <h4 class="ticket-seat-info">${ticket.blockName} ${ticket.seatName}</h4>
-          <p class="ticket-comment-preview">${ticket.comment || "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+          <p class="ticket-comment-preview">${ticket.comment ? this.escapeHtml(ticket.comment) : "\uB4F1\uB85D\uB41C \uAD00\uB78C\uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
         </div>
       `;
       if (ticket.seatId) {
@@ -4029,14 +4042,14 @@ class SeatViewApp {
   // Shopping-mall-style 1열/2열 toggle for the ticketbook grid. Defaults to
   // 2 columns; the choice is remembered in localStorage across visits.
   toggleTicketViewMode() {
-    const current = localStorage.getItem("seatview_ticket_view") || "2col";
+    const current = localStorage.getItem("seatview_ticket_view") || "1col";
     const next = current === "2col" ? "1col" : "2col";
     localStorage.setItem("seatview_ticket_view", next);
     this.applyTicketViewMode();
   }
 
   applyTicketViewMode() {
-    const mode = localStorage.getItem("seatview_ticket_view") || "2col";
+    const mode = localStorage.getItem("seatview_ticket_view") || "1col";
     const container = document.getElementById("tickets-archive-container");
     const btn = document.getElementById("btn-ticket-view-toggle");
     if (container) container.classList.toggle("view-list", mode === "1col");
@@ -4166,6 +4179,37 @@ class SeatViewApp {
     }
   }
 
+  // Tiled diagonal watermark, repeated across the whole image rather than
+  // stamped once in a corner — a corner mark is trivial to crop out before
+  // reposting, a repeating diagonal pattern isn't. Stroke+fill in opposite
+  // tones so it stays legible on both bright and dark seat-view photos.
+  drawDiagonalWatermark(ctx, width, height) {
+    const text = "잘보여유";
+    ctx.save();
+    ctx.font = `${Math.max(14, Math.round(width * 0.045))}px 'Noto Sans KR', sans-serif`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.lineWidth = 1;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-Math.PI / 6);
+
+    const textWidth = ctx.measureText(text).width;
+    const stepX = textWidth + 60;
+    const stepY = 70;
+    // Tile well past the canvas bounds so rotation doesn't leave gaps at
+    // the corners.
+    const diag = Math.sqrt(width * width + height * height);
+    for (let y = -diag; y <= diag; y += stepY) {
+      for (let x = -diag; x <= diag; x += stepX) {
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+      }
+    }
+    ctx.restore();
+  }
+
   compressImageToWebP(file, maxWidth = 1024, quality = 0.7) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -4186,6 +4230,7 @@ class SeatViewApp {
 
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
+          this.drawDiagonalWatermark(ctx, width, height);
 
           const webpBase64 = canvas.toDataURL("image/webp", quality);
           resolve(webpBase64);
@@ -4219,6 +4264,7 @@ class SeatViewApp {
 
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
+          this.drawDiagonalWatermark(ctx, width, height);
 
           canvas.toBlob((blob) => {
             if (blob) resolve(blob);
@@ -5311,6 +5357,19 @@ class SeatViewApp {
   truncateComment(text, max = 120) {
     if (!text) return text;
     return text.length > max ? text.slice(0, max) + "…" : text;
+  }
+
+  // Escapes user-supplied text (review comments, nicknames, etc.) before it
+  // is interpolated into an innerHTML template, so stored content can never
+  // be parsed as markup/script by the browser.
+  escapeHtml(text) {
+    if (text === null || text === undefined) return "";
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   autoResizeTextarea(textarea) {

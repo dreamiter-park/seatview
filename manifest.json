@@ -1,0 +1,16 @@
+{
+  "name": "잘보여유 - 좌석별 시야 공유 서비스",
+  "short_name": "잘보여유",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#080a0f",
+  "theme_color": "#080a0f",
+  "icons": [
+    {
+      "src": "assets/app-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

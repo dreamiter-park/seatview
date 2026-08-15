@@ -117,12 +117,27 @@ img {
      actual page/document scrolls — never when an inner div scrolls, which
      is what trapping everything inside a fixed-height .app-content did.
      Let the page scroll normally on mobile instead (desktop keeps the
-     boxed "floating phone" preview look, which has no such issue). */
+     boxed "floating phone" preview look, which has no such issue).
+     overscroll-behavior-y prevents that from re-introducing the native
+     rubber-band bounce, which showed as a gap opening above the header
+     while scrolling. */
   body {
     overflow: auto;
+    overscroll-behavior-y: none;
   }
   body.modal-open {
     overflow: hidden;
+  }
+
+  /* position:sticky + backdrop-filter has known jitter/gap bugs on mobile
+     Chromium (Samsung Internet included) during fast or continuous scroll.
+     Pin the header to the viewport instead, same as .app-nav/.modal below.
+     (.app-header's base rule comes later in this file, hence !important.) */
+  .app-header {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
   }
   .phone-frame {
     border-radius: 0;
@@ -139,6 +154,9 @@ img {
     flex: none !important;
     overflow-y: visible !important;
     padding-bottom: calc(64px + 8px + env(safe-area-inset-bottom));
+    /* Header is now position:fixed instead of sitting in flow above this
+       flex sibling, so its height has to be reserved here instead. */
+    padding-top: calc(56px + env(safe-area-inset-top));
   }
 
   /* .phone-frame can now be taller than the viewport (it grows with page
@@ -162,6 +180,16 @@ img {
     right: 0;
     bottom: 0;
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  /* Same .phone-frame-can-be-taller-than-viewport issue as .modal above —
+     an absolute-positioned toast container would anchor to the bottom of
+     the (possibly much taller) page instead of the visible screen.
+     (.toast-container's base rule is declared later in this file, hence
+     !important.) */
+  .toast-container {
+    position: fixed !important;
+    bottom: calc(64px + 8px + env(safe-area-inset-bottom) + 20px);
   }
 }
 
@@ -218,6 +246,12 @@ img {
   align-items: center;
   cursor: pointer;
   user-select: none;
+}
+
+.header-logo-img {
+  height: 18px;
+  width: auto;
+  display: block;
 }
 
 .header-logo .logo-text {
@@ -2192,7 +2226,7 @@ img {
 /* Toast Notifications */
 .toast-container {
   position: absolute;
-  top: 60px;
+  bottom: calc(64px + 8px + 12px);
   left: 20px;
   right: 20px;
   display: flex;
@@ -2219,11 +2253,11 @@ img {
   align-items: center;
   gap: 10px;
   pointer-events: auto;
-  animation: slideInDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  animation: slideInUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 }
 
-@keyframes slideInDown {
-  from { transform: translateY(-20px); opacity: 0; }
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
