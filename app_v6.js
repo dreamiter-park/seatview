@@ -1184,7 +1184,7 @@ class SeatViewApp {
         } else if (viewId === "compare") {
           titleEl.textContent = "1:1 시야 비교";
         } else if (viewId === "ticketbook") {
-          titleEl.textContent = "마이페이지";
+          titleEl.textContent = state.userId ? "마이페이지" : "로그인";
         } else if (viewId === "stadium-detail" && state.selectedStadium) {
           titleEl.textContent = state.selectedStadium.name;
         } else {
@@ -1205,6 +1205,14 @@ class SeatViewApp {
       this.renderStadiumList();
     } else if (viewId === "venues") {
       this.renderVenueList();
+    } else if (viewId === "stadium-detail" && state.selectedBlock) {
+      // Re-fetch the seat grid when the back-stack lands us back on a
+      // block that was already open — otherwise a seat just registered
+      // (from this block, then away to ticketbook, then back) still shows
+      // as unregistered because the DOM was never re-rendered.
+      this.renderSeatingGrid(state.selectedBlock.id);
+    } else if (viewId === "venue-detail" && state.selectedVenueBlock) {
+      this.renderVenueSeatingGrid(state.selectedVenueBlock.id);
     }
 
     // Scroll to top of app content — .app-content is the scroller on desktop
@@ -3414,7 +3422,7 @@ class SeatViewApp {
     if (!reviewId) return;
 
     if (!this.isWithinEditWindow(current.insDtm)) {
-      await this.showAlertDialog("수정할 수 없어요", "등록 후 3일이 경과한 기록은 직접 수정이 불가능합니다.\n\n수정이 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+      await this.showAlertDialog("수정할 수 없어요", "등록 후 3일이 경과한 기록은 직접 수정이 불가능합니다.\n\n수정이 필요하신 경우 고객센터 이메일(j2mi.help@gmail.com)로 요청주시기 바랍니다.");
       return;
     }
 
@@ -4228,20 +4236,27 @@ class SeatViewApp {
   // reposting, a repeating diagonal pattern isn't. Stroke+fill in opposite
   // tones so it stays legible on both bright and dark seat-view photos.
   drawDiagonalWatermark(ctx, width, height) {
-    const text = "잘보여유";
+    const text = "잘보여유.com";
+    // Photos display inside a fixed 1:1 square with object-fit: contain, so
+    // the on-screen scale is governed by whichever dimension is longer, not
+    // by width alone — size off that dimension so the watermark reads the
+    // same regardless of the photo's orientation.
+    const fontSize = Math.max(14, Math.round(Math.max(width, height) * 0.025));
     ctx.save();
-    ctx.font = `${Math.max(14, Math.round(width * 0.045))}px 'Noto Sans KR', sans-serif`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.font = `${fontSize}px 'Noto Sans KR', sans-serif`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.13)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.10)";
     ctx.lineWidth = 1;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-Math.PI / 6);
 
+    // ~1/3 the tile density of the original spacing (area scales with the
+    // square of the step, so ~1.7x the linear gap gives ~3x fewer repeats).
     const textWidth = ctx.measureText(text).width;
-    const stepX = textWidth + 60;
-    const stepY = 70;
+    const stepX = (textWidth + 60) * 1.7;
+    const stepY = fontSize * 5 * 1.7;
     // Tile well past the canvas bounds so rotation doesn't leave gaps at
     // the corners.
     const diag = Math.sqrt(width * width + height * height);
@@ -4646,7 +4661,7 @@ class SeatViewApp {
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       if (diffDays > 3) {
         this.showToast("⚠️", "등록 후 3일이 경과한 기록은 이메일로 삭제 요청해주세요.");
-        await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 시야 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(help@seatview.com)로 요청주시기 바랍니다.");
+        await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 시야 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(j2mi.help@gmail.com)로 요청주시기 바랍니다.");
         return;
       }
     }
