@@ -80,7 +80,14 @@
           </div>
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
-        <div class="header-right"></div>
+        <div class="header-right">
+          <button class="icon-btn" onclick="app.navigateTo('compare')" aria-label="1:1 시야 비교">
+            <i data-lucide="columns"></i>
+          </button>
+          <button class="icon-btn" onclick="app.navigateTo('ticketbook')" aria-label="마이페이지">
+            <i data-lucide="user"></i>
+          </button>
+        </div>
       </header>
 
       <!-- Main Scrollable Content Area -->
@@ -118,19 +125,14 @@
               <a href="terms.html">이용약관</a>
               <span class="site-footer-divider">·</span>
               <a href="privacy.html">개인정보처리방침</a>
-              <span class="site-footer-divider">·</span>
-              <a href="event-terms.html">이벤트 참여규정</a>
             </div>
+            <p class="site-footer-business">상호: 제이투미(J2MI) · 사업자등록번호: 481-51-01194 · 이메일: help@seatview.com</p>
             <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
           </footer>
         </section>
 
         <!-- 2. STADIUM SELECTION VIEW -->
         <section id="view-stadiums" class="view">
-
-          <div class="stadium-intro">
-            <p>시야 정보를 확인하고 싶은 야구장을 선택하세요.</p>
-          </div>
 
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
@@ -141,14 +143,18 @@
           <div class="stadium-grid" id="stadium-grid-container">
             <!-- Dynamically populated -->
           </div>
+
+          <!-- Kakao AdFit Banner (stadium list bottom) -->
+          <div style="display: flex; justify-content: center; margin-top: 16px;">
+            <ins class="kakao_ad_area" style="display:none;"
+            data-ad-unit = "DAN-s5TVswEKTjWizhKG"
+            data-ad-width = "320"
+            data-ad-height = "50"></ins>
+          </div>
         </section>
 
         <!-- 2b. VENUE (공연장) LIST VIEW -->
         <section id="view-venues" class="view">
-          <div class="stadium-intro">
-            <p>시야 정보를 확인하고 싶은 공연장을 선택하세요.</p>
-          </div>
-
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
             <input type="text" placeholder="공연장 + 층/구역 검색 (예: 세종 1층 A)" id="venue-search-input">
@@ -156,6 +162,14 @@
 
           <div class="stadium-grid" id="venue-grid-container">
             <!-- Dynamically populated -->
+          </div>
+
+          <!-- Kakao AdFit Banner (venue list bottom) -->
+          <div style="display: flex; justify-content: center; margin-top: 16px;">
+            <ins class="kakao_ad_area" style="display:none;"
+            data-ad-unit = "DAN-q7wvACDOR44sJjcy"
+            data-ad-width = "320"
+            data-ad-height = "50"></ins>
           </div>
         </section>
 
@@ -448,26 +462,6 @@
 
       </main>
 
-      <!-- Bottom Global Navigation Bar -->
-      <nav class="app-nav">
-        <button class="nav-item active" data-target="main" onclick="app.navigateTo('main')">
-          <i data-lucide="home"></i>
-          <span>홈</span>
-        </button>
-        <button class="nav-item" data-target="stadiums" onclick="app.navigateTo('stadiums')">
-          <i data-lucide="camera"></i>
-          <span>시야조회/등록</span>
-        </button>
-        <button class="nav-item" data-target="compare" onclick="app.navigateTo('compare')">
-          <i data-lucide="columns"></i>
-          <span>1:1 시야 비교</span>
-        </button>
-        <button class="nav-item" data-target="ticketbook" onclick="app.navigateTo('ticketbook')">
-          <i data-lucide="user"></i>
-          <span>마이페이지</span>
-        </button>
-      </nav>
-
       <!-- MODALS -->
 
       <!-- A. Seat Detail View Modal -->
@@ -491,7 +485,7 @@
                 <i data-lucide="camera-off" style="width: 32px; height: 32px;"></i>
               </div>
               <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">등록된 시야 사진이 없습니다</h4>
-              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 220px; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진을 제보하고 이벤트에 자동으로 응모해 보세요!</p>
+              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 220px; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진과 후기를 제보해주세요.</p>
             </div>
 
             <!-- Seat View Image Carousel -->
@@ -645,15 +639,15 @@
       <!-- F. Coming Soon Modal (준비 중 안내 팝업) -->
       <div class="modal modal-center" id="modal-coming-soon">
         <div class="modal-backdrop" onclick="app.closeModal('modal-coming-soon')"></div>
-        <div class="modal-content" style="max-width: 320px; text-align: center; padding: 32px 24px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); box-shadow: var(--shadow-lg);">
-          <div class="coming-soon-icon-wrapper" style="margin: 0 auto 20px auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center; color: var(--accent-blue);">
-            <i data-lucide="sparkles" style="width: 32px; height: 32px; animation: pulse 2s infinite;"></i>
+        <div class="modal-content" style="max-width: 320px; padding: 24px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); text-align: center; border: 1px solid var(--border-color);">
+          <div class="coming-soon-icon-wrapper" style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+            <i data-lucide="sparkles" style="width: 28px; height: 28px; animation: pulse 2s infinite;"></i>
           </div>
-          <h3 class="modal-title" id="coming-soon-title" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">준비 중인 구장입니다</h3>
-          <p id="coming-soon-desc" style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+          <h3 class="modal-title" id="coming-soon-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">준비 중인 구장입니다</h3>
+          <p id="coming-soon-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px;">
             선택하신 구장의 구역 정보 및<br>시야 데이터를 열심히 준비하고 있습니다.<br>더 나은 서비스로 빠르게 찾아뵙겠습니다!
           </p>
-          <button class="btn btn-primary" onclick="app.closeModal('modal-coming-soon')" style="width: 100%; padding: 12px; font-weight: 700; border-radius: 12px; font-size: 0.95rem; cursor: pointer; transition: var(--transition-normal);">확인</button>
+          <button class="btn btn-primary" onclick="app.closeModal('modal-coming-soon')" style="width: 100%; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">확인</button>
         </div>
       </div>
 

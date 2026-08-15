@@ -770,7 +770,8 @@ class SeatViewApp {
               amenities: amenitiesFallback[mappedId] || { toilet: [], snack: [], exit: [], medical: [] },
               food_info: dbStadium.food_info,
               parking_info: dbStadium.parking_info,
-              sunlight_info: dbStadium.sunlight_info
+              sunlight_info: dbStadium.sunlight_info,
+              status: dbStadium.status || 'open'
             };
             STADIUMS_DB.push(newStadium);
           });
@@ -1483,27 +1484,38 @@ class SeatViewApp {
       return orderA - orderB;
     });
 
-    // Product ad slot: inserted right before whichever stadium currently sits
-    // in the "daegu" position, so it always shows mid-grid rather than at a
-    // hardcoded index that could drift if display_order changes later.
-    const adInsertBeforeIndex = sortedStadiums.findIndex(st => st.id === "daegu");
+    // Product ad slots: land on visual position 4, 8 and 12 in the 2-column
+    // grid (1 2 / 3 4 / 5 6 / 7 8 / 9 10 / 11 12 ...), so inserted before
+    // the 4th, 7th and 10th stadium respectively (0-indexed: 3, 6, 9).
+    const adInsertBeforeIndices = [3, 6, 9];
 
     sortedStadiums.forEach((st, index) => {
-      if (index === adInsertBeforeIndex) {
+      if (adInsertBeforeIndices.includes(index)) {
         container.appendChild(this.buildShoppingAdCard());
       }
 
       const card = document.createElement("div");
-      card.className = "stadium-card";
-      // Apply gradient overlay + background image photo
-      card.style.backgroundImage = `${st.gradient}, url('${st.bg}')`;
-      card.onclick = () => this.loadStadiumDetail(st.id);
+      const isPreparing = st.status === "preparing";
+      card.className = isPreparing ? "stadium-card preparing" : "stadium-card";
+      // Open cards use each stadium's own team-color gradient over its photo.
+      // Preparing cards keep the photo (for texture) but use one fixed neutral
+      // gradient instead of st.gradient, so the team color isn't what was
+      // making some of them stand out — plus a grayscale filter (in CSS) as
+      // a second layer of insurance against the photos' own natural hues.
+      card.style.backgroundImage = isPreparing
+        ? `linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(8, 10, 15, 0.88)), url('${st.bg}')`
+        : `${st.gradient}, url('${st.bg}')`;
+      card.onclick = isPreparing
+        ? () => this.showItemPreparing(st.name)
+        : () => this.loadStadiumDetail(st.id);
 
       const teamsHtml = st.team
         ? st.team.split(" / ").map(t => `<span class="stadium-card-team">[${t.replace(/\s+/g, "")}]</span>`).join("")
         : "";
 
-      card.innerHTML = `
+      card.innerHTML = isPreparing
+        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${st.name}</span></div>`
+        : `
         <div class="stadium-card-main">
           <div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">
             ${teamsHtml}
@@ -1514,6 +1526,12 @@ class SeatViewApp {
       `;
       container.appendChild(card);
     });
+    // An ad slot that lands exactly at the end of the list (nothing after
+    // it to trigger the "insert before" check in the loop above) needs to
+    // be appended here instead.
+    if (adInsertBeforeIndices.includes(sortedStadiums.length)) {
+      container.appendChild(this.buildShoppingAdCard());
+    }
     lucide.createIcons();
   }
 
@@ -1525,7 +1543,7 @@ class SeatViewApp {
     card.className = "stadium-card";
     card.style.backgroundImage = "linear-gradient(135deg, rgba(51, 41, 82, 0.9), rgba(15, 23, 42, 0.9))";
     card.style.border = "1px dashed rgba(255, 255, 255, 0.2)";
-    card.onclick = () => this.showToast("🛍️", "광고 상품 페이지 연결 예정입니다.");
+    card.style.cursor = "default";
 
     card.innerHTML = `
       <span style="position: absolute; top: 10px; right: 10px; font-size: 0.6rem; background: rgba(255, 255, 255, 0.15); color: var(--text-secondary); padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em;">AD</span>
@@ -1560,7 +1578,8 @@ class SeatViewApp {
           food_info: v.food_info,
           parking_info: v.parking_info,
           currentShows: v.current_shows || [],
-          display_order: v.display_order
+          display_order: v.display_order,
+          status: v.status || 'open'
         }));
       }
     } catch (e) {
@@ -1585,15 +1604,30 @@ class SeatViewApp {
       return;
     }
 
-    VENUES_DB.forEach(venue => {
+    // Product ad slots: land on visual position 3 and 6 in this single-column
+    // list, so inserted before the 3rd and 5th venue (0-indexed: 2 and 4).
+    const venueAdInsertBeforeIndices = [2, 4];
+
+    VENUES_DB.forEach((venue, index) => {
+      if (venueAdInsertBeforeIndices.includes(index)) {
+        container.appendChild(this.buildShoppingAdCard());
+      }
+
       const card = document.createElement("div");
-      card.className = "stadium-card";
+      const isPreparing = venue.status === "preparing";
+      card.className = isPreparing ? "stadium-card preparing" : "stadium-card";
+      // Venues already share one fixed gradient regardless of status (no
+      // per-venue team color to cause the same inconsistency stadiums had).
       card.style.backgroundImage = `linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75)), url('${venue.bg}')`;
-      card.onclick = () => this.loadVenueDetail(venue.id);
+      card.onclick = isPreparing
+        ? () => this.showItemPreparing(venue.name)
+        : () => this.loadVenueDetail(venue.id);
       const showsHtml = (venue.currentShows || [])
         .map(s => `<span class="stadium-card-team">[${s}]</span>`)
         .join("");
-      card.innerHTML = `
+      card.innerHTML = isPreparing
+        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${venue.name}</span></div>`
+        : `
         <div class="stadium-card-main">
           ${showsHtml ? `<div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">${showsHtml}</div>` : ""}
           <h3 class="stadium-card-name">${venue.name}</h3>
@@ -1608,6 +1642,10 @@ class SeatViewApp {
   async loadVenueDetail(venueId) {
     const venue = VENUES_DB.find(v => String(v.id) === String(venueId));
     if (!venue) return;
+    if (venue.status === "preparing") {
+      this.showItemPreparing(venue.name);
+      return;
+    }
     state.selectedVenue = venue;
     state.selectedVenueFloor = null;
     state.selectedVenueBlock = null;
@@ -1672,6 +1710,7 @@ class SeatViewApp {
         .from('musical_blocks')
         .select('*')
         .eq('venue_id', venue.id)
+        .eq('is_visible', true)
         .order('floor', { ascending: true })
         .order('block_code', { ascending: true });
       if (error) throw error;
@@ -1910,6 +1949,10 @@ class SeatViewApp {
   async loadStadiumDetail(stadiumId) {
     const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
     if (!stadium) return;
+    if (stadium.status === "preparing") {
+      this.showItemPreparing(stadium.name);
+      return;
+    }
 
     state.selectedStadium = stadium;
     state.selectedZone = null;
@@ -1955,7 +1998,8 @@ class SeatViewApp {
           const { data: blocks, error } = await supabaseClient
             .from('baseball_blocks')
             .select('*')
-            .eq('stadium_id', dbId);
+            .eq('stadium_id', dbId)
+            .eq('is_visible', true);
 
           if (!error && blocks && blocks.length > 0) {
             hasBlocks = true;
@@ -4820,8 +4864,7 @@ class SeatViewApp {
   showSubmissionPolicyDetail() {
     this.showAlertDialog(
       "시야 제보 정책 및 유의사항",
-      "• 시야 사진을 제보하면 3일 뒤 자동으로 이벤트 응모권이 지급됩니다.\n\n" +
-      "• 이벤트 참여 이후 및 회원탈퇴 시에도 제보해 주신 시야 사진 및 관람평은 다른 이용자들을 위해 삭제되지 않고 영구적으로 보존됩니다.\n\n" +
+      "• 등록 후 3일이 지난 시야 사진 및 관람평은 서비스 특성상 직접 삭제할 수 없으며, 회원 탈퇴 시에도 다른 이용자들을 위해 삭제되지 않고 유지될 수 있습니다.\n\n" +
       "• 좌석 시야와 무관하거나 부적절한 사진이 제보된 경우, 운영자가 임의로 삭제하거나 노출을 제한할 수 있습니다.\n\n" +
       "• 사진에 타인의 얼굴이 포함된 경우, 초상권 보호를 위해 모자이크 처리 등 식별이 어렵게 조치해 주세요."
     );
@@ -5219,6 +5262,20 @@ class SeatViewApp {
         downvoteBtn.classList.add("active");
       }
     }
+  }
+
+  // Individual stadium/venue not ready yet (status='preparing'), as opposed
+  // to showCategoryComingSoon() which is for an entire category. Reuses the
+  // same modal with wording that doesn't tell the user to go look at baseball
+  // data — they're already inside an open category, just this one item isn't ready.
+  showItemPreparing(itemName) {
+    const titleEl = document.getElementById("coming-soon-title");
+    const descEl = document.getElementById("coming-soon-desc");
+    if (titleEl) titleEl.textContent = "시야 정보 준비 중입니다";
+    if (descEl) {
+      descEl.innerHTML = `${itemName}은(는) 아직 좌석 시야 데이터를<br>준비하고 있어요. 조금만 기다려 주세요!`;
+    }
+    this.openModal("modal-coming-soon");
   }
 
   showCategoryComingSoon(categoryName) {

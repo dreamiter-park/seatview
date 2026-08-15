@@ -153,7 +153,7 @@ img {
        these two properties without !important. */
     flex: none !important;
     overflow-y: visible !important;
-    padding-bottom: calc(64px + 8px + env(safe-area-inset-bottom));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
     /* Header is now position:fixed instead of sitting in flow above this
        flex sibling, so its height has to be reserved here instead. */
     padding-top: calc(56px + env(safe-area-inset-top));
@@ -189,7 +189,7 @@ img {
      !important.) */
   .toast-container {
     position: fixed !important;
-    bottom: calc(64px + 8px + env(safe-area-inset-bottom) + 20px);
+    bottom: calc(20px + env(safe-area-inset-bottom));
   }
 }
 
@@ -249,7 +249,7 @@ img {
 }
 
 .header-logo-img {
-  height: 18px;
+  height: 26px;
   width: auto;
   display: block;
 }
@@ -290,6 +290,7 @@ img {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 0;
 }
 
 .app-header .back-btn {
@@ -319,8 +320,8 @@ img {
   background: transparent;
   border: none;
   color: var(--text-primary);
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -563,6 +564,7 @@ img {
   font-size: 0.9rem;
   line-height: 1;
   width: 100%;
+  height: 100%;
   outline: none;
 }
 
@@ -818,8 +820,8 @@ img {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  height: 110px;
+  justify-content: center;
+  height: 100px;
   cursor: pointer;
   transition: var(--transition-normal);
   position: relative;
@@ -845,6 +847,57 @@ img {
 
 .stadium-card:hover::before {
   background: linear-gradient(to top, rgba(8, 10, 15, 0.98) 40%, rgba(8, 10, 15, 0.4) 100%);
+}
+
+/* Seat data not set up yet for this stadium/venue — shown dimmed with a
+   centered "준비중" overlay label in the list, and blocked from opening
+   (see loadStadiumDetail / loadVenueDetail's status guard) rather than
+   silently hidden. Strong grayscale + dark tint so it visually reads as
+   "not clickable" at a glance, distinct from the open cards next to it. */
+.stadium-card.preparing {
+  filter: grayscale(1);
+  cursor: default;
+}
+
+.stadium-card.preparing::before {
+  background: none;
+}
+
+.stadium-card.preparing:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-color);
+}
+
+.stadium-card-preparing-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 4;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0 12px;
+}
+
+.stadium-card-preparing-overlay i {
+  width: 18px;
+  height: 18px;
+  margin-bottom: 2px;
+}
+
+.stadium-card-preparing-overlay .preparing-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.stadium-card-preparing-overlay .preparing-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 .stadium-card-main {
@@ -2226,7 +2279,7 @@ img {
 /* Toast Notifications */
 .toast-container {
   position: absolute;
-  bottom: calc(64px + 8px + 12px);
+  bottom: 20px;
   left: 20px;
   right: 20px;
   display: flex;
@@ -3279,6 +3332,12 @@ input[type="date"]:focus {
 .site-footer-divider {
   color: var(--text-muted);
   font-size: 0.76rem;
+}
+
+.site-footer-business {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin: 0 0 4px;
 }
 
 .site-footer-copy {
