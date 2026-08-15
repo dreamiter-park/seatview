@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>잘보여유 - 관리자 좌석 설정</title>
+  <!-- Noto Sans KR Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  
+  <!-- On-Screen Debug Console for Diagnostics -->
+  <script>
+    function showDebugMessage(html, type = 'error') {
+      let consoleDiv = document.getElementById('debug-console');
+      if (!consoleDiv) {
+        consoleDiv = document.createElement('div');
+        consoleDiv.id = 'debug-console';
+        consoleDiv.style.position = 'fixed';
+        consoleDiv.style.bottom = '80px';
+        consoleDiv.style.left = '24px';
+        consoleDiv.style.right = '24px';
+        consoleDiv.style.maxHeight = '150px';
+        consoleDiv.style.overflowY = 'auto';
+        consoleDiv.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+        consoleDiv.style.border = '2px solid #ef4444';
+        consoleDiv.style.borderRadius = '8px';
+        consoleDiv.style.padding = '16px';
+        consoleDiv.style.fontSize = '0.8rem';
+        consoleDiv.style.fontFamily = 'monospace';
+        consoleDiv.style.zIndex = '9999';
+        consoleDiv.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+        document.body.appendChild(consoleDiv);
+      }
+      const color = type === 'error' ? '#ef4444' : '#f59e0b';
+      const icon = type === 'error' ? '❌' : '⚠️';
+      consoleDiv.innerHTML += `<div style="color: ${color}; margin-bottom: 6px; line-height: 1.4;">${icon} ${html}</div>`;
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    window.addEventListener('error', function(e) {
+      showDebugMessage(`[JS Error] ${e.message} at ${e.filename}:${e.lineno}`);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      showDebugMessage(`[Unhandled Promise Rejection] ${e.reason && e.reason.message ? e.reason.message : e.reason}`, 'warn');
+      if (String(e.reason).includes('Failed to fetch') || String(e.reason.message).includes('Failed to fetch')) {
+        showDebugMessage(`💡 <b>도움말</b>: 브라우저가 file:// 프로토콜 보안 정책(CORS) 때문에 Supabase DB 요청을 차단했을 수 있습니다. <br> 실행 중이신 로컬 웹 서버 주소인 <b><a href="http://localhost:8000/admin.html" target="_blank" style="color: #60a5fa; text-decoration: underline;">http://localhost:8000/admin.html</a></b> 경로로 열어보세요!`, 'warn');
+      }
+    });
+  </script>
+
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: #151d30;
+      --border-color: #22304d;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 i {
+      color: var(--accent-purple);
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .selector-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    select, input[type="number"], input[type="text"] {
+      background-color: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent-blue);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      padding-bottom: 2px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      color: var(--accent-blue);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: var(--accent-blue);
+      border-radius: 2px;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Grid Area */
+    .grid-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      background-color: rgba(255, 255, 255, 0.02);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .btn {
+      background-color: var(--accent-blue);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: #2563eb;
+    }
+
+    .btn.btn-success {
+      background-color: var(--success);
+    }
+
+    .btn.btn-success:hover {
+      background-color: #059669;
+    }
+
+    .btn:disabled {
+      background-color: var(--border-color);
+      color: var(--text-secondary);
+      cursor: not-allowed;
+    }
+
+    /* Grid Table styling */
+    .grid-wrapper {
+      overflow: auto;
+      max-height: 600px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background-color: var(--bg-dark);
+      margin-bottom: 20px;
+      padding: 10px;
+    }
+
+    table {
+      border-collapse: collapse;
+      margin: 0 auto;
+    }
+
+    th, td {
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      text-align: center;
+      user-select: none;
+    }
+
+    /* Headers */
+    th.col-header {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background-color: var(--bg-card);
+      min-width: 44px;
+      padding: 4px;
+    }
+
+    th.row-header {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background-color: var(--bg-card);
+      min-width: 60px;
+      padding: 4px;
+      text-align: left;
+    }
+
+    /* Cell styles */
+    .cell-seat {
+      width: 44px;
+      height: 44px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.15s;
+    }
+
+    /* Tab A cell statuses */
+    .cell-seat.status-active {
+      background-color: rgba(59, 130, 246, 0.2);
+      border: 1px solid var(--accent-blue);
+      color: #60a5fa;
+    }
+
+    .cell-seat.status-active::after {
+      content: '좌석';
+      font-size: 0.55rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .cell-seat.status-walkway {
+      background-color: #1a1e2b;
+      border: 1px solid #2e354a;
+      color: #57607a;
+    }
+
+    .cell-seat.status-walkway::after {
+      content: '통로';
+      font-size: 0.55rem;
+      font-weight: 500;
+      color: #474f66;
+      margin-top: 2px;
+    }
+
+    /* Tab B cell statuses */
+    .cell-seat.tabb-active {
+      background-color: rgba(139, 92, 246, 0.15);
+      border: 1px solid var(--accent-purple);
+      color: var(--text-primary);
+    }
+    
+    .cell-seat.tabb-active.has-num {
+      background-color: var(--accent-purple);
+      color: white;
+    }
+
+    .cell-seat.tabb-disabled {
+      background-color: #11141d;
+      border: 1px dashed #242936;
+      color: #3b4252;
+      cursor: not-allowed;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-blue);
+      border-radius: 8px;
+      padding: 16px 24px;
+      color: var(--text-primary);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      transform: translateY(150%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    .toast.toast-success {
+      border-left-color: var(--success);
+    }
+
+    .toast.toast-danger {
+      border-left-color: var(--danger);
+    }
+
+    /* Checkbox headers */
+    .header-chk-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .row-chk-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    input[type="checkbox"] {
+      cursor: pointer;
+      width: 13px;
+      height: 13px;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(11, 15, 25, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      border-radius: 12px;
+      z-index: 50;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(139, 92, 246, 0.1);
+      border-top-color: var(--accent-purple);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .seat-config-area {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="api-key-status" style="background: rgba(139, 92, 246, 0.1); padding: 8px 16px; font-size: 0.8rem; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-family: sans-serif;">
+    <span>🔑 활성화된 Supabase Key: <strong id="active-key-label" style="color: #a78bfa; font-family: monospace;">조회 중...</strong></span>
+    <span style="font-size: 0.75rem; color: var(--text-muted);">* 입력된 키는 로컬 브라우저에만 암호화 저장됩니다.</span>
+  </div>
+
+  <header style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+    <div>
+      <h1><i data-lucide="settings"></i> 잘보여유 - 관리자 좌석 설정</h1>
+      <p class="subtitle">구역을 선택하고 마우스 클릭과 일괄 설정을 통해 좌석 여부 및 번호를 편리하게 세팅하세요.</p>
+    </div>
+    <div>
+      <button class="btn" style="background-color: #3b2f2f; color: #ff8888; border: 1px solid rgba(255, 136, 136, 0.2); padding: 8px 12px; font-weight: 700; font-size: 0.8rem; white-space: nowrap;" onclick="localStorage.removeItem('seatview_admin_key_encrypted'); sessionStorage.removeItem('seatview_admin_key_session'); location.reload();">
+        보안 키 초기화 (재입력)
+      </button>
+    </div>
+  </header>
+
+  <!-- Step 1: Selection Area -->
+  <div class="selector-container" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+    <div class="card form-group">
+      <label for="category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+      <select id="category-select">
+        <option value="baseball">⚾ 야구장</option>
+        <option value="musical">🎭 공연장</option>
+      </select>
+    </div>
+
+    <div class="card form-group">
+      <label for="stadium-select"><i data-lucide="map"></i> <span id="stadium-select-label">야구장 선택</span></label>
+      <select id="stadium-select">
+        <option value="">야구장을 선택하세요...</option>
+      </select>
+    </div>
+
+    <div class="card form-group">
+      <label for="grade-select"><i data-lucide="tag"></i> 등급 선택</label>
+      <select id="grade-select" disabled>
+        <option value="">야구장을 먼저 선택하세요...</option>
+      </select>
+    </div>
+
+    <div class="card form-group">
+      <label for="block-select"><i data-lucide="grid"></i> 구역(블록) 선택</label>
+      <select id="block-select" disabled>
+        <option value="">구역을 선택하세요...</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Step 2: Seating Settings Panel (Hidden initially) -->
+  <div class="card seat-config-area" id="config-panel" style="display: none;">
+    
+    <!-- Loader inside config panel -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+      <div class="spinner"></div>
+      <span id="loading-text">좌석 데이터를 불러오는 중...</span>
+    </div>
+
+    <!-- Tabs header -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="app.switchTab('availability')"><i data-lucide="check-square"></i> 좌석여부 설정</button>
+      <button class="tab-btn" onclick="app.switchTab('numbering')"><i data-lucide="hash"></i> 좌석번호 설정</button>
+    </div>
+
+    <!-- Row Name & Numbering Configuration -->
+    <div style="display: flex; gap: 24px; align-items: center; margin: 12px 0 16px 4px; padding: 10px 16px; background-color: #1e2436; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); flex-wrap: wrap;">
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; user-select: none;">
+        <input type="checkbox" id="chk-use-alphabet-rows" onchange="app.handleAlphabetRowsChange(this.checked)" style="width: 16px; height: 16px; accent-color: var(--accent-purple);">
+        🔤 알파벳 행 레이블 사용 (A, B, C...행)
+      </label>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">
+        <span>시작 행 레이블:</span>
+        <input type="text" id="txt-start-row-label" value="1" oninput="app.handleStartRowLabelChange(this.value)" style="width: 50px; padding: 4px 8px; text-align: center; font-weight: 700; background-color: #2e354a; color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px;">
+      </div>
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; user-select: none;">
+        <input type="checkbox" id="chk-auto-reset-number" onchange="app.handleAutoResetNumberChange(this.checked)" style="width: 16px; height: 16px; accent-color: var(--accent-blue);">
+        🔄 행 변경 시 번호 1로 자동 초기화
+      </label>
+      <span style="font-size: 0.8rem; color: var(--text-muted);">
+        * 고척 스카이돔 등 알파벳 행이나 시작 행이 1이 아닌 경우 설정해 주세요.
+      </span>
+    </div>
+
+    <!-- TAB A: Availability -->
+    <div id="tab-availability" class="tab-content active">
+      <div class="grid-actions">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">
+            💡 셀을 클릭하여 <b style="color: var(--accent-blue);">좌석</b>과 <b style="color: #474f66;">통로/공백</b> 상태를 토글하세요. <br>
+            행/열 상단의 체크박스를 이용해 줄 단위로 일괄 토글할 수도 있습니다.
+          </span>
+          <span id="availability-counter" style="font-size: 0.95rem; font-weight: 700; color: var(--accent-blue); background: rgba(59, 130, 246, 0.12); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2);"></span>
+        </div>
+        <button class="btn btn-success" onclick="app.saveAvailability()">
+          <i data-lucide="save"></i> 좌석여부 저장
+        </button>
+      </div>
+
+      <div class="grid-wrapper">
+        <table id="table-availability">
+          <!-- Dynamically populated -->
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB B: Numbering -->
+    <div id="tab-numbering" class="tab-content">
+      <div class="grid-actions" style="flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+            <label for="next-number-input">현재 채울 좌석 번호:</label>
+            <button class="btn" style="padding: 4px 8px; background-color: #2e354a; min-width: 28px;" onclick="app.adjustNextNumber(-1)">-</button>
+            <input type="number" id="next-number-input" value="1" min="1" style="width: 70px; padding: 6px 10px; text-align: center; font-weight: 700; background-color: #2e354a; color: white; border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 4px;">
+            <button class="btn" style="padding: 4px 8px; background-color: #2e354a; min-width: 28px;" onclick="app.adjustNextNumber(1)">+</button>
+            <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; font-weight: 600; background-color: #3b82f6; border-color: #2563eb;" onclick="app.resetNextNumberTo1()">
+              <i data-lucide="rotate-ccw" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i>1로 세팅
+            </button>
+          </div>
+          <button class="btn" style="background-color: #3b2f2f; color: #ff8888; border: 1px solid rgba(255, 136, 136, 0.2);" onclick="app.clearAllSeatNumbers()">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;"></i>전체번호 초기화
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="btn btn-success" onclick="app.saveNumbering()">
+            <i data-lucide="save"></i> 좌석번호 저장
+          </button>
+          <span id="numbering-counter" style="font-size: 0.95rem; font-weight: 700; color: var(--accent-purple); background: rgba(139, 92, 246, 0.12); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.2);"></span>
+        </div>
+        <div style="width: 100%; font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+          💡 활성화된 좌석(보라색)을 차례대로 클릭하면 시작 번호부터 1씩 증가하며 번호가 채워집니다. <br>
+          한 번 채워진 셀을 다시 클릭하면 번호가 지워지며, 셀 내부 입력 칸을 통해 숫자를 수동 수정할 수도 있습니다.
+        </div>
+      </div>
+
+      <div class="grid-wrapper">
+        <table id="table-numbering">
+          <!-- Dynamically populated -->
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast Notification element -->
+  <div class="toast" id="toast">
+    <i data-lucide="bell" style="width: 18px; height: 18px;"></i>
+    <span id="toast-message">알림 메시지</span>
+  </div>
+
+  <!-- Main script logic -->
+  <script>
+    // --- Supabase Config & Client ---
+    const SUPABASE_URL = 'https://zgdumfqkhqroehaszmau.supabase.co';
+
+    // --- Password-protected key storage (Web Crypto: PBKDF2 + AES-GCM) ---
+    // The service_role key is never stored in plain text. It's encrypted with
+    // a password only the admin knows, and the encrypted blob (useless without
+    // the password) is what actually sits in localStorage.
+    const ADMIN_KEY_STORAGE = "seatview_admin_key_encrypted";
+    const ADMIN_KEY_SESSION_CACHE = "seatview_admin_key_session";
+
+    async function deriveCryptoKey(password, saltB64) {
+      const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    function bytesToB64(bytes) {
+      return btoa(String.fromCharCode(...bytes));
+    }
+
+    async function encryptWithPassword(password, plainText) {
+      const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+      const saltB64 = bytesToB64(saltBytes);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveCryptoKey(password, saltB64);
+      const enc = new TextEncoder();
+      const cipherBuf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainText));
+      return {
+        salt: saltB64,
+        iv: bytesToB64(iv),
+        data: bytesToB64(new Uint8Array(cipherBuf))
+      };
+    }
+
+    async function decryptWithPassword(password, payload) {
+      const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+      const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+      const key = await deriveCryptoKey(password, payload.salt);
+      const plainBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+      return new TextDecoder().decode(plainBuf);
+    }
+
+    // Resolves the service_role key: reuse this tab's session cache if present,
+    // otherwise decrypt the stored blob with a password prompt, otherwise walk
+    // the admin through first-time setup (enter key once, choose a password).
+    async function resolveAdminKey() {
+      const cached = sessionStorage.getItem(ADMIN_KEY_SESSION_CACHE);
+      if (cached) return cached;
+
+      const storedRaw = localStorage.getItem(ADMIN_KEY_STORAGE);
+      if (storedRaw) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const password = prompt("관리자 비밀번호를 입력해 주세요:");
+          if (!password) return null;
+          try {
+            const key = await decryptWithPassword(password, JSON.parse(storedRaw));
+            sessionStorage.setItem(ADMIN_KEY_SESSION_CACHE, key);
+            return key;
+          } catch (e) {
+            alert("비밀번호가 올바르지 않습니다. 다시 시도해 주세요.");
+          }
+        }
+        alert("비밀번호를 계속 잘못 입력했습니다. 비밀번호를 잊으셨다면 '보안 키 초기화' 버튼으로 재설정해 주세요.");
+        return null;
+      }
+
+      // First-time setup: no encrypted key stored yet.
+      const serviceKey = prompt("[최초 설정] Supabase Service Role Key를 입력해 주세요:");
+      if (!serviceKey) return null;
+      const password = prompt("[최초 설정] 앞으로 사용할 관리자 비밀번호를 정해주세요. (잊어버리면 키를 다시 입력해야 합니다)");
+      if (!password) return null;
+
+      const trimmedKey = serviceKey.trim();
+      const encrypted = await encryptWithPassword(password, trimmedKey);
+      localStorage.setItem(ADMIN_KEY_STORAGE, JSON.stringify(encrypted));
+      sessionStorage.setItem(ADMIN_KEY_SESSION_CACHE, trimmedKey);
+      return trimmedKey;
+    }
+
+    let supabaseKey = null;
+    let supabaseClient = null;
+
+    class AdminApp {
+      constructor() {
+        this.category = 'baseball'; // 'baseball' | 'musical'
+        this.stadiums = [];
+        this.selectedStadium = null;
+        this.selectedBlock = null;
+        this.allBlocks = []; // To store all blocks of selected stadium in memory
+        
+        this.seatsCache = {}; // DB seats map indexed by "row_col"
+        this.gridStatus = {}; // In-memory status state (1 for Seat, 3 for Walkway)
+        this.gridSeatNums = {}; // In-memory seat numbers map
+        
+        this.activeTab = 'availability';
+        this.nextSeatNumber = 1;
+        this.useAlphabetRows = false;
+        this.startRowLabel = "1";
+        this.autoResetNumberOnRowChange = false;
+        this.lastClickedRow = null;
+
+        this.init();
+      }
+
+      async init() {
+        const activeKeyLabel = document.getElementById("active-key-label");
+        if (activeKeyLabel) {
+          if (supabaseKey) {
+            let role = "알 수 없음";
+            try {
+              role = JSON.parse(atob(supabaseKey.split(".")[1])).role || role;
+            } catch (e) {}
+            const preview = supabaseKey.substring(0, 10) + "..." + supabaseKey.substring(supabaseKey.length - 10);
+            if (role === "service_role") {
+              activeKeyLabel.textContent = `${preview} (role: service_role ✅)`;
+              activeKeyLabel.style.color = "#a78bfa";
+            } else {
+              activeKeyLabel.textContent = `${preview} (role: ${role} ⚠️ service_role 아님!)`;
+              activeKeyLabel.style.color = "#ef4444";
+            }
+          } else {
+            activeKeyLabel.textContent = "설정되지 않음 (보안 키 초기화 클릭)";
+            activeKeyLabel.style.color = "#ef4444";
+          }
+        }
+
+        if (!supabaseClient) {
+          this.showToast("오류", "Supabase 클라이언트가 초기화되지 않았습니다.", "danger");
+          return;
+        }
+        
+        this.bindEvents();
+        await this.loadStadiums();
+        lucide.createIcons();
+      }
+
+      // Table/column names differ by category but the shape of the data
+      // (block: block_code/full_name/total_rows/max_seats, seat: grid_x/
+      // grid_y/status/seat_num/offset_type) is identical, so the rest of
+      // the editor doesn't need to know which category it's editing.
+      getTopTable() { return this.category === 'musical' ? 'venues' : 'stadiums'; }
+      getBlocksTable() { return this.category === 'musical' ? 'musical_blocks' : 'baseball_blocks'; }
+      getBlocksFkCol() { return this.category === 'musical' ? 'venue_id' : 'stadium_id'; }
+      getSeatsTable() { return this.category === 'musical' ? 'musical_seats' : 'baseball_seats'; }
+
+      handleCategoryChange(category) {
+        this.category = category;
+        this.stadiums = [];
+        this.selectedStadium = null;
+        this.selectedBlock = null;
+        this.allBlocks = [];
+
+        const stadiumLabel = document.getElementById("stadium-select-label");
+        if (stadiumLabel) stadiumLabel.textContent = category === 'musical' ? '공연장 선택' : '야구장 선택';
+
+        const gradeSelect = document.getElementById("grade-select");
+        const blockSelect = document.getElementById("block-select");
+        const configPanel = document.getElementById("config-panel");
+        gradeSelect.innerHTML = '<option value="">공연장/야구장을 먼저 선택하세요...</option>';
+        gradeSelect.disabled = true;
+        blockSelect.innerHTML = '<option value="">구역을 선택하세요...</option>';
+        blockSelect.disabled = true;
+        configPanel.style.display = "none";
+
+        this.loadStadiums();
+      }
+
+      bindEvents() {
+        document.getElementById("category-select").addEventListener("change", (e) => this.handleCategoryChange(e.target.value));
+        document.getElementById("stadium-select").addEventListener("change", (e) => this.handleStadiumChange(e.target.value));
+        document.getElementById("grade-select").addEventListener("change", (e) => this.handleGradeChange(e.target.value));
+        document.getElementById("block-select").addEventListener("change", (e) => this.handleBlockChange(e.target.value));
+        document.getElementById("next-number-input").addEventListener("change", (e) => {
+          this.nextSeatNumber = Math.max(1, parseInt(e.target.value) || 1);
+        });
+      }
+
+      // Show temporary custom toast alert
+      showToast(title, message, type = "success") {
+        const toast = document.getElementById("toast");
+        const msgEl = document.getElementById("toast-message");
+        if (!toast || !msgEl) return;
+
+        toast.className = `toast toast-${type} show`;
+        msgEl.textContent = `[${title}] ${message}`;
+
+        setTimeout(() => {
+          toast.classList.remove("show");
+        }, 3000);
+      }
+
+      showLoading(show, text = "불러오는 중...") {
+        const overlay = document.getElementById("loading-overlay");
+        const textEl = document.getElementById("loading-text");
+        if (!overlay) return;
+        overlay.style.display = show ? "flex" : "none";
+        if (textEl) textEl.textContent = text;
+      }
+
+      // Load stadium list
+      async fnFetchStadiums() {
+        const { data, error } = await supabaseClient
+          .from(this.getTopTable())
+          .select('id, name')
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true });
+        if (error) throw error;
+        return data;
+      }
+
+      async loadStadiums() {
+        const placeholder = this.category === 'musical' ? '공연장을 선택하세요...' : '야구장을 선택하세요...';
+        try {
+          const list = await this.fnFetchStadiums();
+          this.stadiums = list;
+          const select = document.getElementById("stadium-select");
+          if (select) {
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+            list.forEach(st => {
+              const opt = document.createElement("option");
+              opt.value = st.id;
+              opt.textContent = st.name;
+              select.appendChild(opt);
+            });
+          }
+        } catch (e) {
+          console.error("loadStadiums failed:", e);
+          this.showToast("오류", "목록을 가져오지 못했습니다.", "danger");
+          
+          // Clear only this tab's cached key so a reload re-prompts for the
+          // password (not the raw key) — if the key is genuinely bad, use
+          // "보안 키 초기화" to reset it from scratch.
+          sessionStorage.removeItem(ADMIN_KEY_SESSION_CACHE);
+          alert("⚠️ 야구장 목록 로드 실패!\n\n입력하신 Supabase Key가 올바르지 않거나 만료되었습니다. [F5]로 새로고침한 뒤 비밀번호를 다시 입력해 주세요. 키 자체가 잘못됐다면 '보안 키 초기화' 버튼을 눌러주세요.");
+        }
+      }
+
+      // Stadium dropdown selection change
+      async handleStadiumChange(stadiumId) {
+        const gradeSelect = document.getElementById("grade-select");
+        const blockSelect = document.getElementById("block-select");
+        const configPanel = document.getElementById("config-panel");
+        
+        gradeSelect.innerHTML = '<option value="">선택 중...</option>';
+        gradeSelect.disabled = true;
+        blockSelect.innerHTML = '<option value="">선택 중...</option>';
+        blockSelect.disabled = true;
+        configPanel.style.display = "none";
+
+        if (!stadiumId) {
+          gradeSelect.innerHTML = '<option value="">야구장을 먼저 선택하세요...</option>';
+          blockSelect.innerHTML = '<option value="">구역을 선택하세요...</option>';
+          return;
+        }
+
+        this.selectedStadium = this.stadiums.find(st => String(st.id) === String(stadiumId));
+        this.selectedBlock = null;
+
+        try {
+          const isMusical = this.category === 'musical';
+          const selectCols = isMusical
+            ? 'id, block_code, full_name, total_rows, max_seats'
+            : 'id, block_code, full_name, seat_grade, total_rows, max_seats';
+
+          const { data: blocks, error } = await supabaseClient
+            .from(this.getBlocksTable())
+            .select(selectCols)
+            .eq(this.getBlocksFkCol(), stadiumId)
+            .order('block_code', { ascending: true });
+
+          if (error) throw error;
+
+          this.allBlocks = blocks;
+
+          if (isMusical) {
+            // musical_blocks has no block-level grade (grade lives on the
+            // seat itself), so there's nothing to filter by here.
+            gradeSelect.innerHTML = '<option value="">등급 구분 없음 (좌석 단위)</option>';
+            gradeSelect.disabled = true;
+          } else {
+            // Extract unique grades
+            const grades = [...new Set(blocks.map(b => b.seat_grade).filter(Boolean))];
+
+            gradeSelect.innerHTML = '<option value="">전체 등급</option>';
+            grades.forEach(g => {
+              const opt = document.createElement("option");
+              opt.value = g;
+              opt.textContent = g;
+              gradeSelect.appendChild(opt);
+            });
+            gradeSelect.disabled = false;
+          }
+
+          // Initially show all blocks
+          this.populateBlocks(blocks);
+
+        } catch (e) {
+          console.error("Fetch blocks failed:", e);
+          this.showToast("오류", "구역 리스트를 불러오는 데 실패했습니다.", "danger");
+        }
+      }
+
+      handleGradeChange(grade) {
+        const configPanel = document.getElementById("config-panel");
+        configPanel.style.display = "none";
+        this.selectedBlock = null;
+
+        const filteredBlocks = grade === "" 
+          ? this.allBlocks 
+          : this.allBlocks.filter(b => b.seat_grade === grade);
+
+        this.populateBlocks(filteredBlocks);
+      }
+
+      populateBlocks(blocks) {
+        const blockSelect = document.getElementById("block-select");
+        if (blocks.length === 0) {
+          blockSelect.innerHTML = '<option value="">해당 등급의 구역이 없습니다.</option>';
+          blockSelect.disabled = true;
+          return;
+        }
+
+        blockSelect.innerHTML = '<option value="">구역(블록)을 선택하세요...</option>';
+        blocks.forEach(bl => {
+          const opt = document.createElement("option");
+          opt.value = bl.id;
+          opt.textContent = bl.full_name || `${bl.block_code}블록`;
+          opt.dataset.rows = bl.total_rows;
+          opt.dataset.cols = bl.max_seats;
+          blockSelect.appendChild(opt);
+        });
+        blockSelect.disabled = false;
+      }
+
+      // Block selection changed
+      async handleBlockChange(blockId) {
+        const configPanel = document.getElementById("config-panel");
+        if (!blockId) {
+          configPanel.style.display = "none";
+          this.selectedBlock = null;
+          return;
+        }
+
+        const select = document.getElementById("block-select");
+        const activeOpt = select.options[select.selectedIndex];
+        
+        this.selectedBlock = {
+          id: blockId,
+          name: activeOpt.textContent,
+          total_rows: parseInt(activeOpt.dataset.rows) || 10,
+          max_seats: parseInt(activeOpt.dataset.cols) || 10
+        };
+
+        configPanel.style.display = "block";
+        await this.loadSeatsData();
+      }
+
+      // Load seats from Supabase for active block
+      async loadSeatsData() {
+        this.showLoading(true, "좌석 데이터를 불러오는 중...");
+        this.seatsCache = {};
+        this.gridStatus = {};
+        this.gridSeatNums = {};
+
+        try {
+          const { data: seats, error } = await supabaseClient
+            .from(this.getSeatsTable())
+            .select('*')
+            .eq('block_id', this.selectedBlock.id);
+
+          if (error) throw error;
+
+          // Populate cache map using grid_y as the integer row coordinate key
+          let hasAlphabetRows = false;
+          let detectedStartLabel = "";
+          let minGridYSeat = null;
+
+          seats.forEach(s => {
+            const key = `${s.grid_y}_${s.grid_x}`;
+            this.seatsCache[key] = s;
+            
+            const isWalkway = (s.status == 3 || s.status === "3" || s.status === "WALKWAY");
+            this.gridStatus[key] = isWalkway ? 3 : 1;
+            this.gridSeatNums[key] = s.seat_num !== null ? s.seat_num : "";
+
+            if (s.grid_y !== null) {
+              if (!minGridYSeat || s.grid_y < minGridYSeat.grid_y) {
+                minGridYSeat = s;
+              }
+            }
+
+            if (s.row_num && isNaN(Number(s.row_num))) {
+              hasAlphabetRows = true;
+            }
+          });
+
+          if (minGridYSeat && minGridYSeat.row_num) {
+            detectedStartLabel = minGridYSeat.row_num;
+          } else {
+            detectedStartLabel = hasAlphabetRows ? "A" : "1";
+          }
+
+          this.useAlphabetRows = hasAlphabetRows;
+          this.startRowLabel = detectedStartLabel;
+
+          const chkAlphabet = document.getElementById("chk-use-alphabet-rows");
+          if (chkAlphabet) {
+            chkAlphabet.checked = hasAlphabetRows;
+          }
+          const txtStart = document.getElementById("txt-start-row-label");
+          if (txtStart) {
+            txtStart.value = detectedStartLabel;
+          }
+
+          // Pre-fill empty cells in memory
+          for (let r = 1; r <= this.selectedBlock.total_rows; r++) {
+            for (let c = 1; c <= this.selectedBlock.max_seats; c++) {
+              const key = `${r}_${c}`;
+              if (this.gridStatus[key] === undefined) {
+                this.gridStatus[key] = 1; // Default to Seat exists (1)
+                this.gridSeatNums[key] = "";
+              }
+            }
+          }
+
+          // Render grids
+          this.renderGrids();
+          
+          // Reset starting numbering sequence to 1 when loading a new block
+          this.nextSeatNumber = 1;
+          this.lastClickedRow = null;
+          this.updateNextNumberBadge();
+          this.updateSeatCounters();
+
+        } catch (e) {
+          console.error("loadSeatsData failed:", e);
+          this.showToast("오류", "구역 좌석 정보를 읽지 못했습니다.", "danger");
+        } finally {
+          this.showLoading(false);
+        }
+      }
+
+      // Render grid layouts in both Tab panels
+      renderGrids() {
+        this.renderAvailabilityGrid();
+        this.renderNumberingGrid();
+      }
+
+      // Renders Table grid for Tab A (Availability)
+      renderAvailabilityGrid() {
+        const table = document.getElementById("table-availability");
+        if (!table) return;
+        table.innerHTML = "";
+
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+
+        // 1. Column header row (Top border)
+        const headerTr = document.createElement("tr");
+        const emptyTh = document.createElement("th");
+        emptyTh.style.backgroundColor = "var(--bg-dark)";
+        headerTr.appendChild(emptyTh);
+
+        for (let c = 1; c <= maxSeats; c++) {
+          const th = document.createElement("th");
+          th.className = "col-header";
+          
+          th.innerHTML = `
+            <span>${c}열</span>
+            <div class="header-chk-wrap">
+              <input type="checkbox" id="col-chk-${c}" onchange="app.toggleColumnAvailability(${c}, this.checked)">
+            </div>
+          `;
+          headerTr.appendChild(th);
+        }
+        table.appendChild(headerTr);
+
+        // 2. Rows
+        for (let r = 1; r <= totalRows; r++) {
+          const tr = document.createElement("tr");
+          
+          // Row header (Left border)
+          const rowTh = document.createElement("th");
+          rowTh.className = "row-header";
+          rowTh.innerHTML = `
+            <div class="row-chk-wrap">
+              <input type="checkbox" id="row-chk-${r}" onchange="app.toggleRowAvailability(${r}, this.checked)">
+              <span>${this.getRowLabel(r)}행</span>
+            </div>
+          `;
+          tr.appendChild(rowTh);
+
+          // Row cells
+          for (let c = 1; c <= maxSeats; c++) {
+            const td = document.createElement("td");
+            const key = `${r}_${c}`;
+            const status = this.gridStatus[key];
+
+            const cellDiv = document.createElement("div");
+            cellDiv.className = `cell-seat ${status === 1 ? 'status-active' : 'status-walkway'}`;
+            cellDiv.id = `cell-a-${r}-${c}`;
+            cellDiv.innerHTML = `<span style="font-size: 0.8rem; font-weight: 700;">${r}-${c}</span>`;
+            cellDiv.onclick = () => this.toggleSeatAvailability(r, c);
+
+            td.appendChild(cellDiv);
+            tr.appendChild(td);
+          }
+          table.appendChild(tr);
+        }
+        
+        // Reset checkbox states on load
+        this.updateHeaderCheckboxes('table-availability');
+      }
+
+      // Renders Table grid for Tab B (Numbering)
+      renderNumberingGrid() {
+        const table = document.getElementById("table-numbering");
+        if (!table) return;
+        table.innerHTML = "";
+
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+
+        // 1. Column header row
+        const headerTr = document.createElement("tr");
+        const emptyTh = document.createElement("th");
+        emptyTh.style.backgroundColor = "var(--bg-dark)";
+        headerTr.appendChild(emptyTh);
+
+        for (let c = 1; c <= maxSeats; c++) {
+          const th = document.createElement("th");
+          th.className = "col-header";
+          th.textContent = `${c}열`;
+          headerTr.appendChild(th);
+        }
+        table.appendChild(headerTr);
+
+        // 2. Rows
+        for (let r = 1; r <= totalRows; r++) {
+          const tr = document.createElement("tr");
+          
+          // Row header
+          const rowTh = document.createElement("th");
+          rowTh.className = "row-header";
+          rowTh.textContent = `${this.getRowLabel(r)}행`;
+          tr.appendChild(rowTh);
+
+          // Row cells
+          for (let c = 1; c <= maxSeats; c++) {
+            const td = document.createElement("td");
+            const key = `${r}_${c}`;
+            const status = this.gridStatus[key];
+            const seatNum = this.gridSeatNums[key];
+
+            const cellDiv = document.createElement("div");
+            
+            if (status === 3) {
+              // Walkway: disabled
+              cellDiv.className = "cell-seat tabb-disabled";
+              cellDiv.textContent = "-";
+            } else {
+              // Active seat: editable
+              cellDiv.className = `cell-seat tabb-active ${seatNum !== "" ? 'has-num' : ''}`;
+              cellDiv.id = `cell-b-${r}-${c}`;
+              
+              const numSpan = document.createElement("span");
+              numSpan.className = "num-span";
+              numSpan.style.fontSize = "0.95rem";
+              numSpan.style.fontWeight = "800";
+              numSpan.textContent = seatNum !== "" ? seatNum : `${r}-${c}`;
+              numSpan.style.pointerEvents = "none";
+              cellDiv.appendChild(numSpan);
+              
+              // Input field for manual adjustment
+              const input = document.createElement("input");
+              input.type = "text";
+              input.value = seatNum;
+              input.style.width = "34px";
+              input.style.height = "18px";
+              input.style.fontSize = "0.65rem";
+              input.style.textAlign = "center";
+              input.style.marginTop = "2px";
+              input.style.padding = "0";
+              input.style.borderRadius = "2px";
+              input.style.border = "none";
+              input.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
+              input.style.color = "white";
+              
+              // Stop propagation to prevent triggering cell click when typing
+              input.onclick = (e) => e.stopPropagation();
+              input.oninput = (e) => {
+                const val = e.target.value;
+                this.gridSeatNums[key] = val;
+                if (val !== "") {
+                  cellDiv.classList.add("has-num");
+                  numSpan.textContent = val;
+                  this.autoFillRowNumbering(r, c, val);
+                } else {
+                  cellDiv.classList.remove("has-num");
+                  numSpan.textContent = `${r}-${c}`;
+                }
+              };
+              
+              cellDiv.appendChild(input);
+              cellDiv.onclick = () => this.toggleSeatNumber(r, c, input, numSpan);
+            }
+
+            td.appendChild(cellDiv);
+            tr.appendChild(td);
+          }
+          table.appendChild(tr);
+        }
+      }
+
+      // Tab A: Toggle single cell status
+      toggleSeatAvailability(row, col) {
+        const key = `${row}_${col}`;
+        const current = this.gridStatus[key];
+        const next = current === 1 ? 3 : 1; // Toggle seat (1) and walkway (3)
+        this.gridStatus[key] = next;
+
+        const cell = document.getElementById(`cell-a-${row}-${col}`);
+        if (cell) {
+          cell.className = `cell-seat ${next === 1 ? 'status-active' : 'status-walkway'}`;
+        }
+        
+        // Update headers state
+        this.updateHeaderCheckboxes('table-availability');
+        this.updateSeatCounters();
+      }
+
+      // Tab A: Toggle column checkbox
+      toggleColumnAvailability(colIndex, checked) {
+        const totalRows = this.selectedBlock.total_rows;
+        const targetStatus = checked ? 1 : 3;
+
+        for (let r = 1; r <= totalRows; r++) {
+          const key = `${r}_${colIndex}`;
+          this.gridStatus[key] = targetStatus;
+
+          const cell = document.getElementById(`cell-a-${r}-${colIndex}`);
+          if (cell) {
+            cell.className = `cell-seat ${targetStatus === 1 ? 'status-active' : 'status-walkway'}`;
+          }
+        }
+        this.updateHeaderCheckboxes('table-availability');
+        this.updateSeatCounters();
+      }
+
+      // Tab A: Toggle row checkbox
+      toggleRowAvailability(rowIndex, checked) {
+        const maxSeats = this.selectedBlock.max_seats;
+        const targetStatus = checked ? 1 : 3;
+
+        for (let c = 1; c <= maxSeats; c++) {
+          const key = `${rowIndex}_${c}`;
+          this.gridStatus[key] = targetStatus;
+
+          const cell = document.getElementById(`cell-a-${rowIndex}-${c}`);
+          if (cell) {
+            cell.className = `cell-seat ${targetStatus === 1 ? 'status-active' : 'status-walkway'}`;
+          }
+        }
+        this.updateHeaderCheckboxes('table-availability');
+        this.updateSeatCounters();
+      }
+
+      // Auto update state of row/col headers checkboxes based on grid contents
+      updateHeaderCheckboxes(tableId) {
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+
+        // Check cols
+        for (let c = 1; c <= maxSeats; c++) {
+          let allActive = true;
+          for (let r = 1; r <= totalRows; r++) {
+            if (this.gridStatus[`${r}_${c}`] !== 1) {
+              allActive = false;
+              break;
+            }
+          }
+          const colChk = document.getElementById(`col-chk-${c}`);
+          if (colChk) colChk.checked = allActive;
+        }
+
+        // Check rows
+        for (let r = 1; r <= totalRows; r++) {
+          let allActive = true;
+          for (let c = 1; c <= maxSeats; c++) {
+            if (this.gridStatus[`${r}_${c}`] !== 1) {
+              allActive = false;
+              break;
+            }
+          }
+          const rowChk = document.getElementById(`row-chk-${r}`);
+          if (rowChk) rowChk.checked = allActive;
+        }
+      }
+
+      // Tab B: Toggle seat numbering sequence
+      toggleSeatNumber(row, col, inputEl, numSpanEl) {
+        const key = `${row}_${col}`;
+        const cell = document.getElementById(`cell-b-${row}-${col}`);
+        if (!cell) return;
+
+        // Auto reset next numbering to 1 if row changes
+        if (this.autoResetNumberOnRowChange && this.lastClickedRow !== null && this.lastClickedRow !== row) {
+          this.nextSeatNumber = 1;
+          this.updateNextNumberBadge();
+          this.showToast("번호 설정", "행이 변경되어 채울 번호가 1로 자동 초기화되었습니다.", "info");
+        }
+        this.lastClickedRow = row;
+
+        if (this.gridSeatNums[key] !== "") {
+          // If already has a number: clear it on click
+          this.gridSeatNums[key] = "";
+          inputEl.value = "";
+          numSpanEl.textContent = `${row}-${col}`;
+          cell.classList.remove("has-num");
+          this.updateSeatCounters();
+        } else {
+          // Empty: fill with running seat number sequence
+          const val = String(this.nextSeatNumber);
+          this.gridSeatNums[key] = val;
+          inputEl.value = this.nextSeatNumber;
+          numSpanEl.textContent = this.nextSeatNumber;
+          cell.classList.add("has-num");
+          
+          const didAutoFill = this.autoFillRowNumbering(row, col, val);
+
+          // Increment sequence by 1 only if we didn't perform row-wise auto-fill (since auto-fill already calculates max + 1)
+          if (!didAutoFill) {
+            this.nextSeatNumber++;
+            this.updateNextNumberBadge();
+          }
+          this.updateSeatCounters();
+        }
+      }
+
+      autoFillRowNumbering(row, startCol, startValue) {
+        const maxSeats = this.selectedBlock.max_seats;
+        
+        // 1. Check if there are other seat numbers already entered in this row
+        let hasOtherNumbers = false;
+        for (let c = 1; c <= maxSeats; c++) {
+          if (c === startCol) continue;
+          const key = `${row}_${c}`;
+          if (this.gridSeatNums[key] !== undefined && this.gridSeatNums[key] !== "") {
+            hasOtherNumbers = true;
+            break;
+          }
+        }
+        
+        // Only run if this is the first seat number entered in this row
+        if (hasOtherNumbers) return false;
+
+        // 2. Find all active columns in this row
+        const activeCols = [];
+        for (let c = 1; c <= maxSeats; c++) {
+          const key = `${row}_${c}`;
+          if (this.gridStatus[key] === 1) {
+            activeCols.push(c);
+          }
+        }
+
+        const startIdx = activeCols.indexOf(startCol);
+        if (startIdx === -1) return false;
+
+        // 3. Determine direction (left-to-right or right-to-left) based on startIdx position
+        const isLeftToRight = startIdx < activeCols.length / 2;
+        const val = parseInt(startValue);
+        if (isNaN(val)) return false;
+
+        let maxVal = val;
+        activeCols.forEach((c, idx) => {
+          if (c === startCol) return;
+          
+          const key = `${row}_${c}`;
+          let computedVal;
+          if (isLeftToRight) {
+            computedVal = val + (idx - startIdx);
+          } else {
+            computedVal = val + (startIdx - idx);
+          }
+
+          if (computedVal >= 1) {
+            this.gridSeatNums[key] = String(computedVal);
+            if (computedVal > maxVal) {
+              maxVal = computedVal;
+            }
+            
+            // Sync with DOM
+            const cell = document.getElementById(`cell-b-${row}-${c}`);
+            if (cell) {
+              const input = cell.querySelector("input");
+              const span = cell.querySelector(".num-span");
+              if (input) input.value = computedVal;
+              if (span) span.textContent = computedVal;
+              cell.classList.add("has-num");
+            }
+          }
+        });
+
+        // Automatically update the next seat number sequence to (last filled seat number + 1)
+        this.nextSeatNumber = maxVal + 1;
+        this.updateNextNumberBadge();
+        this.updateSeatCounters();
+        return true;
+      }
+
+      updateSeatCounters() {
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+        
+        let totalSeats = 0;
+        let numberedSeats = 0;
+
+        for (let r = 1; r <= totalRows; r++) {
+          for (let c = 1; c <= maxSeats; c++) {
+            const key = `${r}_${c}`;
+            if (this.gridStatus[key] === 1) {
+              totalSeats++;
+              if (this.gridSeatNums[key] !== undefined && this.gridSeatNums[key] !== "") {
+                numberedSeats++;
+              }
+            }
+          }
+        }
+
+        const availCounter = document.getElementById("availability-counter");
+        const numCounter = document.getElementById("numbering-counter");
+        
+        if (availCounter) {
+          availCounter.textContent = `(총 좌석: ${totalSeats}개 / 전체 격자: ${totalRows * maxSeats}칸)`;
+        }
+        if (numCounter) {
+          numCounter.textContent = `(번호 지정: ${numberedSeats}개 / 총 활성 좌석: ${totalSeats}개)`;
+        }
+      }
+
+      updateNextNumberBadge() {
+        const input = document.getElementById("next-number-input");
+        if (input) input.value = this.nextSeatNumber;
+      }
+
+      adjustNextNumber(val) {
+        this.nextSeatNumber = Math.max(1, this.nextSeatNumber + val);
+        this.updateNextNumberBadge();
+      }
+
+      resetNextNumberTo1() {
+        this.nextSeatNumber = 1;
+        this.updateNextNumberBadge();
+        this.showToast("번호 설정", "채울 번호가 1로 설정되었습니다.", "info");
+      }
+
+      clearAllSeatNumbers() {
+        if (!confirm("현재 구역의 모든 좌석 번호를 초기화하시겠습니까? (저장 버튼을 누르기 전까지는 DB에 반영되지 않습니다.)")) {
+          return;
+        }
+        
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+        
+        for (let r = 1; r <= totalRows; r++) {
+          for (let c = 1; c <= maxSeats; c++) {
+            const key = `${r}_${c}`;
+            this.gridSeatNums[key] = "";
+            
+            const cell = document.getElementById(`cell-b-${r}-${c}`);
+            if (cell) {
+              const input = cell.querySelector("input");
+              const span = cell.querySelector(".num-span");
+              if (input) input.value = "";
+              if (span) span.textContent = `${r}-${c}`;
+              cell.classList.remove("has-num");
+            }
+          }
+        }
+        
+        this.nextSeatNumber = 1;
+        this.lastClickedRow = null;
+        this.updateNextNumberBadge();
+        this.updateSeatCounters();
+        this.showToast("초기화", "모든 좌석 번호가 일괄 초기화되었습니다. 저장하려면 [좌석번호 저장]을 클릭하세요.", "warning");
+      }
+
+      getRowLabel(r) {
+        if (this.useAlphabetRows) {
+          const startLabel = this.startRowLabel || "A";
+          const startCode = startLabel.toUpperCase().charCodeAt(0) || 65;
+          return this.numberToAlphabet(r, startCode);
+        } else {
+          const startLabel = this.startRowLabel || "1";
+          const startNum = parseInt(startLabel);
+          if (!isNaN(startNum)) {
+            return String(startNum + r - 1);
+          }
+        }
+        for (const key in this.seatsCache) {
+          const s = this.seatsCache[key];
+          if (s.grid_y === r && s.row_num) {
+            return s.row_num;
+          }
+        }
+        return String(r);
+      }
+
+      numberToAlphabet(n, startCode = 65) {
+        let offset = startCode - 65;
+        let val = n + offset;
+        let ord = 'A'.charCodeAt(0);
+        let res = "";
+        val--;
+        while (val >= 0) {
+          res = String.fromCharCode(ord + (val % 26)) + res;
+          val = Math.floor(val / 26) - 1;
+        }
+        return res;
+      }
+
+      handleAlphabetRowsChange(checked) {
+        this.useAlphabetRows = checked;
+        const txtStart = document.getElementById("txt-start-row-label");
+        if (txtStart) {
+          txtStart.value = checked ? "A" : "1";
+        }
+        this.startRowLabel = checked ? "A" : "1";
+        if (this.activeTab === 'numbering') {
+          this.renderNumberingGrid();
+        } else {
+          this.renderAvailabilityGrid();
+        }
+      }
+
+      handleStartRowLabelChange(val) {
+        this.startRowLabel = val || (this.useAlphabetRows ? "A" : "1");
+        if (this.activeTab === 'numbering') {
+          this.renderNumberingGrid();
+        } else {
+          this.renderAvailabilityGrid();
+        }
+      }
+
+      handleAutoResetNumberChange(checked) {
+        this.autoResetNumberOnRowChange = checked;
+        this.lastClickedRow = null;
+      }
+
+      // Tab switching
+      switchTab(tabName) {
+        this.activeTab = tabName;
+        
+        // Update tab buttons style
+        document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+        const idx = tabName === 'availability' ? 0 : 1;
+        document.querySelectorAll(".tab-btn")[idx].classList.add("active");
+
+        // Toggle contents display
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        document.getElementById(`tab-${tabName === 'availability' ? 'availability' : 'numbering'}`).classList.add("active");
+
+        // Sync grid states between tabs
+        if (tabName === 'numbering') {
+          this.renderNumberingGrid();
+        } else {
+          this.renderAvailabilityGrid();
+        }
+      }
+
+      // TAB A Save: seat availability layout
+      async saveAvailability() {
+        this.showLoading(true, "좌석 설정을 데이터베이스에 저장하는 중...");
+        
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+        const blockId = this.selectedBlock.id;
+        
+        const updateBatch = [];
+        const insertBatch = [];
+        
+        try {
+          for (let r = 1; r <= totalRows; r++) {
+            for (let c = 1; c <= maxSeats; c++) {
+              const key = `${r}_${c}`;
+              const cached = this.seatsCache[key];
+              const status = this.gridStatus[key]; // 1 (Seat) or 3 (Walkway)
+
+              // Build row payload
+              const record = {
+                block_id: blockId,
+                row_num: this.getRowLabel(r),
+                grid_x: c,
+                grid_y: r,
+                status: String(status),
+                offset_type: cached ? cached.offset_type : 'none'
+              };
+
+              // If seat is toggled to walkway (3), seat_num must be null
+              if (status === 3) {
+                record.seat_num = null;
+              } else {
+                record.seat_num = cached && cached.seat_num !== null ? cached.seat_num : null;
+              }
+
+              if (cached) {
+                record.id = cached.id; // Include primary key to trigger update
+                updateBatch.push(record);
+              } else {
+                // Omit 'id' entirely so PostgreSQL's SERIAL sequence generates it automatically
+                insertBatch.push(record);
+              }
+            }
+          }
+
+          // 1. Insert new seats
+          if (insertBatch.length > 0) {
+            const { error: insertErr } = await supabaseClient
+              .from(this.getSeatsTable())
+              .insert(insertBatch);
+            if (insertErr) throw insertErr;
+          }
+
+          // 2. Update existing seats
+          if (updateBatch.length > 0) {
+            const { error: updateErr } = await supabaseClient
+              .from(this.getSeatsTable())
+              .upsert(updateBatch, { onConflict: 'id' });
+            if (updateErr) throw updateErr;
+          }
+
+          this.showToast("성공", "구역 좌석 여부 배치를 성공적으로 저장했습니다!", "success");
+          await this.loadSeatsData(); // Reload to refresh cache details
+
+        } catch (e) {
+          console.error("saveAvailability failed:", e);
+          this.showToast("오류", `데이터베이스 저장 도중 에러가 발생했습니다: ${e.message}`, "danger");
+        } finally {
+          this.showLoading(false);
+        }
+      }
+
+      // TAB B Save: seat numbers
+      async saveNumbering() {
+        this.showLoading(true, "좌석 번호 정보를 데이터베이스에 저장하는 중...");
+        
+        const totalRows = this.selectedBlock.total_rows;
+        const maxSeats = this.selectedBlock.max_seats;
+        const blockId = this.selectedBlock.id;
+        
+        const updateBatch = [];
+        const insertBatch = [];
+        
+        try {
+          for (let r = 1; r <= totalRows; r++) {
+            for (let c = 1; c <= maxSeats; c++) {
+              const key = `${r}_${c}`;
+              const cached = this.seatsCache[key];
+              const status = this.gridStatus[key];
+              const rawNum = this.gridSeatNums[key];
+              
+              const seatNum = (status === 3 || rawNum === "") ? null : parseInt(rawNum);
+
+              const record = {
+                block_id: blockId,
+                row_num: this.getRowLabel(r),
+                grid_x: c,
+                grid_y: r,
+                status: String(status),
+                seat_num: seatNum,
+                offset_type: cached ? cached.offset_type : 'none'
+              };
+
+              if (cached) {
+                record.id = cached.id;
+                updateBatch.push(record);
+              } else {
+                // Omit 'id' entirely so PostgreSQL's SERIAL sequence generates it automatically
+                insertBatch.push(record);
+              }
+            }
+          }
+
+          // 1. Insert new seats
+          if (insertBatch.length > 0) {
+            const { error: insertErr } = await supabaseClient
+              .from(this.getSeatsTable())
+              .insert(insertBatch);
+            if (insertErr) throw insertErr;
+          }
+
+          // 2. Update existing seats
+          if (updateBatch.length > 0) {
+            const { error: updateErr } = await supabaseClient
+              .from(this.getSeatsTable())
+              .upsert(updateBatch, { onConflict: 'id' });
+            if (updateErr) throw updateErr;
+          }
+
+          this.showToast("성공", "구역 좌석 번호 지정을 완료하여 저장했습니다!", "success");
+          await this.loadSeatsData();
+
+        } catch (e) {
+          console.error("saveNumbering failed:", e);
+          this.showToast("오류", `번호 저장 도중 에러가 발생했습니다: ${e.message}`, "danger");
+        } finally {
+          this.showLoading(false);
+        }
+      }
+    }
+
+    async function initializeApp() {
+      if (window.app) return; // Prevent double initialization of the app
+
+      try {
+        if (!window.supabase) {
+          console.warn("window.supabase is not defined yet, retrying in 100ms...");
+          setTimeout(initializeApp, 100);
+          return;
+        }
+
+        let cleanUrl = SUPABASE_URL.trim();
+        if (cleanUrl.endsWith('/rest/v1/')) {
+          cleanUrl = cleanUrl.substring(0, cleanUrl.length - '/rest/v1/'.length);
+        }
+
+        supabaseKey = await resolveAdminKey();
+        if (supabaseKey) {
+          // admin.html shares an origin with index.html. Without these options,
+          // the client would auto-detect and use any leftover logged-in user
+          // session from localStorage for request auth (role: authenticated)
+          // instead of the service_role key passed here — reads would still
+          // work (public SELECT policies) but writes would silently hit RLS,
+          // since a regular user session doesn't bypass it. This forces every
+          // request to always use the service_role key, never a user session.
+          supabaseClient = window.supabase.createClient(cleanUrl, supabaseKey, {
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false
+            }
+          });
+        }
+
+        if (supabaseClient) {
+          window.app = new AdminApp();
+        } else {
+          console.warn("Supabase client is not ready.");
+          const activeKeyLabel = document.getElementById("active-key-label");
+          if (activeKeyLabel) {
+            activeKeyLabel.textContent = "설정되지 않음 (보안 키 초기화 클릭)";
+            activeKeyLabel.style.color = "#ef4444";
+          }
+        }
+      } catch (e) {
+        console.error("Initialization failed:", e);
+      }
+    }
+
+    // Start initialization attempts on load
+    window.addEventListener('load', initializeApp);
+    if (document.readyState === 'complete') {
+      initializeApp();
+    }
+  </script>
+</body>
+</html>
