@@ -143,7 +143,13 @@ img {
     border-radius: 0;
     border: none;
     height: auto;
-    min-height: 100dvh;
+    /* +2px over the viewport, not exactly 100dvh — on short screens (e.g.
+       STEP 1 not chosen yet) with nothing to scroll, Samsung Internet's
+       address-bar-collapse drag has no real scroll distance to consume, so
+       the fixed .app-header briefly desyncs from the new viewport height
+       and leaves a gap under it. A hair of real scrollable overflow gives
+       the gesture something genuine to consume instead. */
+    min-height: calc(100dvh + 2px);
     max-height: none;
     overflow: visible;
   }
@@ -815,7 +821,14 @@ img {
 }
 
 .stadium-card {
-  border: 1px solid var(--border-color);
+  /* Always-on, opaque-ish so it stays consistently visible against both
+     bright and dark patches of whatever photo sits behind it (a low-opacity
+     white hairline washed out completely against bright spots like
+     샤롯데씨어터's lit gold archway or LG아트센터's bright sunset sky).
+     Gray rather than pure white so it doesn't compete with the white card
+     title text for attention — the border should read as a quiet edge,
+     not the brightest thing on the card. */
+  border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: 16px;
   padding: 14px;
   display: flex;
@@ -827,14 +840,25 @@ img {
   position: relative;
   overflow: hidden;
   background-size: cover;
-  background-position: center;
+  /* Was dead-center — on a wide, short card, that often crops right at
+     the seam between sky and building in venue exterior photos (visible
+     as an abrupt tone/color split). Biasing down toward the building
+     avoids that for most shots without hurting ones that don't have a
+     sky/building split to begin with. */
+  background-position: center 68%;
 }
 
 .stadium-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(8, 10, 15, 0.95) 30%, rgba(8, 10, 15, 0.3) 100%);
+  /* Was a two-stop gradient (flat 0.95 for the bottom 30%, fading to 0.3
+     above) — with no stop before 30% that bottom band was uniformly flat,
+     which read as a visible seam/line cutting across the photo once the
+     rest of the card got brighter. .stadium-card-main is vertically
+     centered anyway (not bottom-anchored), so a flat tint suits it better
+     than a directional gradient — and has no internal edge to look messy. */
+  background: rgba(8, 10, 15, 0.55);
   z-index: 1;
   transition: opacity var(--transition-normal);
 }
@@ -846,7 +870,7 @@ img {
 }
 
 .stadium-card:hover::before {
-  background: linear-gradient(to top, rgba(8, 10, 15, 0.98) 40%, rgba(8, 10, 15, 0.4) 100%);
+  background: rgba(8, 10, 15, 0.68);
 }
 
 /* Seat data not set up yet for this stadium/venue — shown dimmed with a
@@ -963,14 +987,18 @@ img {
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: brightness(0.6);
+  /* Was 0.6, then 0.8 — still too heavy on a naturally dim source photo
+     (e.g. a dark theater interior), going nearly black with no visible
+     detail left. Lighter filter here since the gradient below already
+     does the real legibility work right where the text sits. */
+  filter: brightness(0.95);
 }
 
 .stadium-detail-profile::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(8, 10, 15, 0.95), transparent);
+  background: linear-gradient(to top, rgba(8, 10, 15, 0.65), transparent);
   z-index: 1;
 }
 
@@ -1308,6 +1336,12 @@ img {
   gap: 6px;
 }
 
+/* A row with no seat data at all — an intentional walking aisle between
+   row groups, not a normal (labeled, seat-filled) row. */
+.seat-row-aisle {
+  height: 14px;
+}
+
 .row-num {
   font-size: 0.7rem;
   font-weight: 700;
@@ -1319,6 +1353,18 @@ img {
   display: flex;
   gap: 3px;
   flex: 1 0 auto;
+}
+
+/* Whole-row half-seat offset (staggered/fan-shaped sections) — shifts every
+   seat in the row together via one margin on the row, rather than nudging
+   individual seats one at a time. Half of .seat-item's own width formula,
+   so it scales correctly at any screen size / seat count. */
+.seat-row.offset-right .row-seats {
+  margin-left: calc((100cqw - 36px - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14) / 2);
+}
+
+.seat-row.offset-left .row-seats {
+  margin-left: calc((100cqw - 36px - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14) / -2);
 }
 
 .seat-item {
@@ -1396,6 +1442,42 @@ img {
   font-size: 0.78rem;
   color: var(--text-secondary);
   line-height: 1.45;
+}
+
+.info-bullet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-bullet-list li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.info-bullet-list li::before {
+  content: "•";
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--accent-purple);
+}
+
+.info-bullet-list li.info-sub-item {
+  margin-left: 18px;
+}
+
+.info-bullet-list li.info-sub-item::before {
+  content: "-";
+  font-size: 0.78rem;
+}
+
+.info-bullet-list li strong {
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 /* 12. 1:1 Side-by-Side Comparison UI */
@@ -2831,7 +2913,11 @@ img {
   box-shadow: var(--shadow-sm);
   transition: opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease, box-shadow 0.3s ease;
   overflow: hidden;
-  max-height: 1000px;
+  /* Just large enough to clear the collapse/expand max-height trick without
+     ever clipping real content — a tall seating grid (e.g. 20+ rows) can
+     need 2500px+, well past the old 1000px cap, which silently truncated
+     it with no scrollbar and no visual sign anything was missing. */
+  max-height: 10000px;
 }
 .step-card:hover {
   box-shadow: var(--shadow-md);
@@ -3081,7 +3167,12 @@ img {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  background-color: transparent;
+  /* Seat-map images are typically plain white seating-chart diagrams
+     (object-fit: contain leaves letterboxed gaps around whatever doesn't
+     match the wrapper's aspect ratio) — transparent let the dark app
+     background show through those gaps, clashing badly with a white image.
+     White fill matches the diagrams themselves instead. */
+  background-color: #ffffff;
   border: 1.5px solid var(--border-color);
   transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, margin-bottom 0.35s ease, border-width 0.35s ease;
   max-height: 400px;

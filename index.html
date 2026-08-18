@@ -16,8 +16,8 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="잘보여유 - 좌석별 시야 공유 서비스">
   <meta property="og:description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
-  <meta property="og:image" content="https://goodseatview.netlify.app/assets/og-image.png">
-  <meta property="og:url" content="https://goodseatview.netlify.app">
+  <meta property="og:image" content="https://잘보여유.com/assets/og-image.png">
+  <meta property="og:url" content="https://잘보여유.com">
 
   <!-- Global Debug Error Logger -->
   <script>
@@ -253,11 +253,11 @@
           <div id="venue-tab-content-info" class="tab-pane">
             <div class="info-card">
               <h4>🍔 대표 먹거리</h4>
-              <p class="info-text" id="venue-info-food">정보를 불러오는 중입니다...</p>
+              <div class="info-text" id="venue-info-food">정보를 불러오는 중입니다...</div>
             </div>
             <div class="info-card">
-              <h4>🚗 주차 안내</h4>
-              <p class="info-text" id="venue-info-parking">정보를 불러오는 중입니다...</p>
+              <h4>🚗 주차/대중교통 안내</h4>
+              <div class="info-text" id="venue-info-parking">정보를 불러오는 중입니다...</div>
             </div>
           </div>
         </section>
@@ -362,15 +362,15 @@
           <div id="tab-content-info" class="tab-pane">
             <div class="info-card">
               <h4>🍔 대표 맛집 및 먹거리</h4>
-              <p class="info-text" id="info-food">정보를 불러오는 중입니다...</p>
+              <div class="info-text" id="info-food">정보를 불러오는 중입니다...</div>
             </div>
             <div class="info-card">
               <h4>🚗 주차 및 대중교통 팁</h4>
-              <p class="info-text" id="info-parking">정보를 불러오는 중입니다...</p>
+              <div class="info-text" id="info-parking">정보를 불러오는 중입니다...</div>
             </div>
             <div class="info-card">
               <h4>☀️ 시간대별 햇빛 위치</h4>
-              <p class="info-text" id="info-sunlight">정보를 불러오는 중입니다...</p>
+              <div class="info-text" id="info-sunlight">정보를 불러오는 중입니다...</div>
             </div>
           </div>
         </section>
@@ -396,11 +396,11 @@
             <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
               <i data-lucide="user" style="width: 28px; height: 28px;"></i>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; position: relative;">로그인하고 나만의 시야 제보를<br>관리해 보세요!</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; position: relative;">로그인하고 나만의 시야 제보를<br>남겨보세요!</p>
             <button class="btn" onclick="app.loginWithKakao();" style="width: 100%; max-width: 240px; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; position: relative;">
               <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> 카카오 로그인
             </button>
-            <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0; position: relative;">계속 진행 시 <a href="terms.html" style="color: var(--text-muted); text-decoration: underline;">이용약관</a> 및 <a href="privacy.html" style="color: var(--text-muted); text-decoration: underline;">개인정보처리방침</a>에 동의하는 것으로 간주합니다.</p>
+            <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0; position: relative;">로그인 시 <a href="terms.html" style="color: var(--text-muted); text-decoration: underline;">이용약관</a> 및 <a href="privacy.html" style="color: var(--text-muted); text-decoration: underline;">개인정보처리방침</a>에 동의하는 것으로 간주합니다.</p>
           </div>
 
           <!-- Stats Overview -->

@@ -282,9 +282,32 @@
       font-size: 0.75rem;
       color: var(--text-secondary);
       background-color: var(--bg-card);
-      min-width: 60px;
+      min-width: 90px;
       padding: 4px;
       text-align: left;
+    }
+
+    /* Editable row label — e.g. typed "8" for the row right after a skipped
+       aisle row, so numbering stays correct instead of drifting by one.
+       Selector is deliberately over-specific (input.row-label-input, not
+       just .row-label-input) to beat the generic `input[type="text"]` rule
+       above on specificity — otherwise its 10px/14px padding wins and
+       squashes this 32px-wide box down to a sliver. */
+    input.row-label-input {
+      width: 32px;
+      background-color: #2e354a;
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 2px 4px;
+    }
+
+    input.row-label-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
     }
 
     /* Cell styles */
@@ -300,6 +323,25 @@
       justify-content: center;
       align-items: center;
       transition: all 0.15s;
+      position: relative;
+    }
+
+    /* Row-level half-seat offset select (offset_type: half_right/half_left)
+       — sits in the row header next to the label, see .row-offset-select. */
+    .row-offset-select {
+      width: 40px;
+      background-color: #2e354a;
+      color: var(--text-primary);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px;
+    }
+
+    .row-offset-select.has-offset {
+      border-color: var(--warning);
+      color: var(--warning);
     }
 
     /* Tab A cell statuses */
@@ -436,6 +478,228 @@
     .seat-config-area {
       position: relative;
     }
+
+    /* Page-level nav (top-level sections, separate from the seat-editor's
+       own internal Tab A/B) */
+    .page-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .page-nav-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-nav-btn.active {
+      background: var(--accent-purple);
+      color: white;
+      border-color: var(--accent-purple);
+    }
+
+    .page-content {
+      display: none;
+    }
+
+    .page-content.active {
+      display: block;
+    }
+
+    /* Block manager: stadium/venue list */
+    .entity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    .entity-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .entity-list-item:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .entity-list-item.selected {
+      border-color: var(--accent-purple);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .entity-list-item .entity-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .entity-list-item .entity-meta {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .block-count-badge {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    /* Block table + sidebar form share a row: table scrolls internally on
+       the left, the form stays put on the right — editing row 50 shouldn't
+       mean losing your place and re-scrolling for row 51. */
+    .block-manager-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .block-manager-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .block-table-wrapper {
+      overflow: auto;
+      max-height: 640px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background-color: var(--bg-dark);
+    }
+
+    .block-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .block-table th, .block-table td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .block-table th {
+      color: var(--text-secondary);
+      font-weight: 600;
+      background: var(--bg-dark);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.78rem;
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    .badge-hidden {
+      font-size: 0.7rem;
+      color: var(--warning);
+      background: rgba(245, 158, 11, 0.12);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* Block add/edit form — sits in the fixed right-hand column next to the
+       table (see .block-manager-layout above), single-column so it stays
+       narrow and legible at 340px. */
+    .block-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 20px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .block-form-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .field-hint {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .image-manager-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 700px) {
+      .image-manager-grid { grid-template-columns: 1fr; }
+    }
+    .image-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .image-slot label {
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .image-preview-box {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      border: 1px dashed var(--border-color);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .image-preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .image-preview-empty {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .image-slot-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .image-slot-actions .btn {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -456,6 +720,21 @@
       </button>
     </div>
   </header>
+
+  <!-- Top-level page nav -->
+  <div class="page-nav">
+    <button class="page-nav-btn active" id="page-nav-seat-editor" onclick="app.switchPage('seat-editor')">
+      <i data-lucide="grid-3x3"></i> 좌석 배치 편집기
+    </button>
+    <button class="page-nav-btn" id="page-nav-block-manager" onclick="app.switchPage('block-manager')">
+      <i data-lucide="layout-list"></i> 구역 관리
+    </button>
+    <button class="page-nav-btn" id="page-nav-image-manager" onclick="app.switchPage('image-manager')">
+      <i data-lucide="image"></i> 이미지 관리
+    </button>
+  </div>
+
+  <div id="page-seat-editor" class="page-content active">
 
   <!-- Step 1: Selection Area -->
   <div class="selector-container" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
@@ -583,6 +862,180 @@
 
   </div>
 
+  </div><!-- /#page-seat-editor -->
+
+  <!-- Block (구역) Manager Page -->
+  <div id="page-block-manager" class="page-content">
+    <div class="selector-container" style="grid-template-columns: 1fr 1fr;">
+      <div class="card form-group">
+        <label for="bm-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+        <select id="bm-category-select">
+          <option value="baseball">⚾ 야구장</option>
+          <option value="musical">🎭 공연장</option>
+        </select>
+      </div>
+
+      <div class="card form-group">
+        <label for="bm-entity-select"><i data-lucide="map"></i> <span id="bm-entity-list-label">야구장 선택</span></label>
+        <select id="bm-entity-select">
+          <option value="">야구장을 선택하세요...</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Block CRUD panel (hidden until a stadium/venue is selected) -->
+    <div class="card" id="bm-block-panel" style="display: none; position: relative;">
+      <div class="loading-overlay" id="bm-loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <span>구역 정보를 불러오는 중...</span>
+      </div>
+
+      <div class="grid-actions">
+        <span style="font-size: 1rem; font-weight: 700;" id="bm-selected-entity-name">-</span>
+        <button class="btn btn-success" onclick="app.openBlockForm()">
+          <i data-lucide="plus"></i> 새 구역 추가
+        </button>
+      </div>
+
+      <div class="block-manager-layout">
+        <div class="block-table-wrapper">
+          <table class="block-table">
+            <thead>
+              <tr id="bm-block-table-head"></tr>
+            </thead>
+            <tbody id="bm-block-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add/Edit form — fixed in the right column (position: sticky) so
+             editing row 50 then row 51 doesn't mean scrolling back and forth. -->
+        <div class="block-form" id="bm-block-form" style="display: none;">
+          <input type="hidden" id="bf-id">
+
+          <div class="form-group">
+            <label for="bf-block-code">구역 코드 <span class="field-hint">(예: 301)</span></label>
+            <input type="text" id="bf-block-code" placeholder="예: 301">
+          </div>
+
+          <div class="form-group">
+            <label for="bf-full-name">구역 전체명 <span class="field-hint">(예: 1루 네이비석 301블록)</span></label>
+            <input type="text" id="bf-full-name" placeholder="예: 1루 네이비석 301블록">
+          </div>
+
+          <div class="form-group" id="bf-grade-wrap">
+            <label for="bf-seat-grade">좌석 등급 <span class="field-hint">(야구장 전용, 예: 네이비석)</span></label>
+            <input type="text" id="bf-seat-grade" placeholder="예: 네이비석">
+          </div>
+
+          <div class="form-group" id="bf-floor-wrap" style="display: none;">
+            <label for="bf-floor">층 <span class="field-hint">(공연장 전용, 예: 1)</span></label>
+            <input type="number" id="bf-floor" placeholder="예: 1" min="0">
+          </div>
+
+          <div class="form-group">
+            <label for="bf-total-rows">총 라인수 <span class="field-hint">(필수, 1 이상)</span></label>
+            <input type="number" id="bf-total-rows" placeholder="예: 18" min="1">
+          </div>
+
+          <div class="form-group">
+            <label for="bf-max-seats">행당 최대 좌석 수 <span class="field-hint">(필수, 1 이상)</span></label>
+            <input type="number" id="bf-max-seats" placeholder="예: 13" min="1">
+          </div>
+
+          <div class="form-group">
+            <label for="bf-color-code">색상 코드 <span class="field-hint">(선택, 예: #2563eb)</span></label>
+            <input type="text" id="bf-color-code" placeholder="예: #2563eb">
+          </div>
+
+          <div class="form-group">
+            <label for="bf-location-type">위치 유형 <span class="field-hint">(선택)</span></label>
+            <input type="text" id="bf-location-type" placeholder="예: infield">
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="bf-is-visible" checked style="width: 16px; height: 16px;">
+              사용자에게 노출 (is_visible)
+            </label>
+          </div>
+
+          <div class="block-form-actions">
+            <button class="btn" style="background-color: var(--border-color);" onclick="app.closeBlockForm()">취소</button>
+            <button class="btn btn-success" onclick="app.saveBlock()">
+              <i data-lucide="save"></i> 저장
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-image-manager" class="page-content">
+    <div class="selector-container" style="grid-template-columns: 1fr 1fr;">
+      <div class="card form-group">
+        <label for="im-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+        <select id="im-category-select">
+          <option value="baseball">⚾ 야구장</option>
+          <option value="musical">🎭 공연장</option>
+        </select>
+      </div>
+
+      <div class="card form-group">
+        <label for="im-entity-select"><i data-lucide="map"></i> <span id="im-entity-list-label">야구장 선택</span></label>
+        <select id="im-entity-select">
+          <option value="">야구장을 선택하세요...</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" id="im-image-panel" style="display: none; position: relative;">
+      <div class="loading-overlay" id="im-loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <span>업로드 중...</span>
+      </div>
+
+      <div class="grid-actions">
+        <span style="font-size: 1rem; font-weight: 700;" id="im-selected-entity-name">-</span>
+      </div>
+
+      <div class="image-manager-grid">
+        <div class="image-slot">
+          <label>배경 이미지 <span class="field-hint">(목록/상세 화면 상단 배경)</span></label>
+          <div class="image-preview-box" id="im-bg-preview">
+            <span class="image-preview-empty">이미지 없음</span>
+          </div>
+          <input type="file" id="im-bg-file" accept="image/*">
+          <div class="image-slot-actions">
+            <button class="btn btn-success btn-sm" onclick="app.uploadEntityImage('bg_image_url')">
+              <i data-lucide="upload"></i> 업로드
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="app.removeEntityImage('bg_image_url')">
+              <i data-lucide="trash-2"></i> 삭제
+            </button>
+          </div>
+        </div>
+
+        <div class="image-slot">
+          <label>좌석 배치도 <span class="field-hint">(좌석 이미지 펼치기)</span></label>
+          <div class="image-preview-box" id="im-map-preview">
+            <span class="image-preview-empty">이미지 없음</span>
+          </div>
+          <input type="file" id="im-map-file" accept="image/*">
+          <div class="image-slot-actions">
+            <button class="btn btn-success btn-sm" onclick="app.uploadEntityImage('map_image_url')">
+              <i data-lucide="upload"></i> 업로드
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="app.removeEntityImage('map_image_url')">
+              <i data-lucide="trash-2"></i> 삭제
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification element -->
   <div class="toast" id="toast">
     <i data-lucide="bell" style="width: 18px; height: 18px;"></i>
@@ -691,13 +1144,28 @@
         this.seatsCache = {}; // DB seats map indexed by "row_col"
         this.gridStatus = {}; // In-memory status state (1 for Seat, 3 for Walkway)
         this.gridSeatNums = {}; // In-memory seat numbers map
-        
+        this.gridOffsetType = {}; // In-memory offset_type map per cell ("half_right"/"half_left"/"none") — set in bulk per row, not per cell
+        this.gridRowOffset = {}; // In-memory row-level offset selection, mirrors gridOffsetType for the row header <select>
+        this.gridRowLabels = {}; // In-memory row label map (editable per row, e.g. for aisle skips)
+
         this.activeTab = 'availability';
         this.nextSeatNumber = 1;
         this.useAlphabetRows = false;
         this.startRowLabel = "1";
         this.autoResetNumberOnRowChange = false;
         this.lastClickedRow = null;
+
+        // Block manager state
+        this.currentPage = 'seat-editor';
+        this.bmCategory = 'baseball';
+        this.bmEntities = [];
+        this.bmSelectedEntity = null;
+        this.bmBlocks = [];
+
+        // Image manager state (stadium/venue bg_image_url + map_image_url)
+        this.imCategory = 'baseball';
+        this.imEntities = [];
+        this.imSelectedEntity = null;
 
         this.init();
       }
@@ -773,6 +1241,10 @@
         document.getElementById("next-number-input").addEventListener("change", (e) => {
           this.nextSeatNumber = Math.max(1, parseInt(e.target.value) || 1);
         });
+        document.getElementById("bm-category-select").addEventListener("change", (e) => this.handleBmCategoryChange(e.target.value));
+        document.getElementById("bm-entity-select").addEventListener("change", (e) => this.selectEntityForBlocks(e.target.value));
+        document.getElementById("im-category-select").addEventListener("change", (e) => this.handleImCategoryChange(e.target.value));
+        document.getElementById("im-entity-select").addEventListener("change", (e) => this.selectEntityForImages(e.target.value));
       }
 
       // Show temporary custom toast alert
@@ -961,6 +1433,7 @@
         this.seatsCache = {};
         this.gridStatus = {};
         this.gridSeatNums = {};
+        this.gridOffsetType = {};
 
         try {
           const { data: seats, error } = await supabaseClient
@@ -982,6 +1455,11 @@
             const isWalkway = (s.status == 3 || s.status === "3" || s.status === "WALKWAY");
             this.gridStatus[key] = isWalkway ? 3 : 1;
             this.gridSeatNums[key] = s.seat_num !== null ? s.seat_num : "";
+            // "half" is the old single-direction value from before left/right
+            // existed — treat it the same as half_right for continuity.
+            if (s.offset_type === "half_left") this.gridOffsetType[key] = "half_left";
+            else if (s.offset_type === "half_right" || s.offset_type === "half") this.gridOffsetType[key] = "half_right";
+            else this.gridOffsetType[key] = "none";
 
             if (s.grid_y !== null) {
               if (!minGridYSeat || s.grid_y < minGridYSeat.grid_y) {
@@ -1019,8 +1497,48 @@
               if (this.gridStatus[key] === undefined) {
                 this.gridStatus[key] = 1; // Default to Seat exists (1)
                 this.gridSeatNums[key] = "";
+                this.gridOffsetType[key] = "none";
               }
             }
+          }
+
+          // Row labels: prefer whatever was actually saved on a real seat in
+          // that row (preserves manual overrides across reloads — e.g. a row
+          // typed as "8" to keep numbering correct after a skipped aisle
+          // row), otherwise fall back to the auto-computed sequence.
+          this.gridRowLabels = {};
+          for (let r = 1; r <= this.selectedBlock.total_rows; r++) {
+            let savedLabel = null;
+            let hasSavedLabel = false;
+            for (const key in this.seatsCache) {
+              const s = this.seatsCache[key];
+              // Truthy check would treat a deliberately-blanked "" label the
+              // same as "never saved," reverting it back to the default on
+              // every reload — check for null/undefined explicitly instead.
+              if (s.grid_y === r && s.row_num !== null && s.row_num !== undefined) {
+                savedLabel = s.row_num;
+                hasSavedLabel = true;
+                break;
+              }
+            }
+            this.gridRowLabels[r] = hasSavedLabel ? savedLabel : this.computeDefaultRowLabel(r);
+          }
+
+          // Row-level offset select: reflects whatever's actually saved on
+          // the row's seats (all cells in a row always share one value,
+          // since it's only ever set in bulk via setRowOffset).
+          this.gridRowOffset = {};
+          for (let r = 1; r <= this.selectedBlock.total_rows; r++) {
+            let rowOffset = "none";
+            for (const key in this.seatsCache) {
+              const s = this.seatsCache[key];
+              if (s.grid_y === r) {
+                if (s.offset_type === "half_left") rowOffset = "half_left";
+                else if (s.offset_type === "half_right" || s.offset_type === "half") rowOffset = "half_right";
+                break;
+              }
+            }
+            this.gridRowOffset[r] = rowOffset;
           }
 
           // Render grids
@@ -1082,11 +1600,18 @@
           // Row header (Left border)
           const rowTh = document.createElement("th");
           rowTh.className = "row-header";
+          const rowOffset = this.gridRowOffset[r] || "none";
           rowTh.innerHTML = `
             <div class="row-chk-wrap">
               <input type="checkbox" id="row-chk-${r}" onchange="app.toggleRowAvailability(${r}, this.checked)">
-              <span>${this.getRowLabel(r)}행</span>
+              <input type="text" class="row-label-input" value="${this.getRowLabel(r)}" title="행 라벨 (직접 수정 가능 — 통로로 건너뛴 행 다음 번호를 맞출 때 사용)"
+                oninput="app.setRowLabel(${r}, this.value)">행
             </div>
+            <select class="row-offset-select ${rowOffset !== 'none' ? 'has-offset' : ''}" title="행 전체 반 칸 밀기" onchange="app.setRowOffset(${r}, this.value); this.classList.toggle('has-offset', this.value !== 'none');">
+              <option value="none" ${rowOffset === 'none' ? 'selected' : ''}>간격없음</option>
+              <option value="half_right" ${rowOffset === 'half_right' ? 'selected' : ''}>→들여쓰기</option>
+              <option value="half_left" ${rowOffset === 'half_left' ? 'selected' : ''}>←내어쓰기</option>
+            </select>
           `;
           tr.appendChild(rowTh);
 
@@ -1142,7 +1667,10 @@
           // Row header
           const rowTh = document.createElement("th");
           rowTh.className = "row-header";
-          rowTh.textContent = `${this.getRowLabel(r)}행`;
+          rowTh.innerHTML = `
+            <input type="text" class="row-label-input" value="${this.getRowLabel(r)}" title="행 라벨 (직접 수정 가능)"
+              oninput="app.setRowLabel(${r}, this.value)">행
+          `;
           tr.appendChild(rowTh);
 
           // Row cells
@@ -1223,7 +1751,7 @@
         if (cell) {
           cell.className = `cell-seat ${next === 1 ? 'status-active' : 'status-walkway'}`;
         }
-        
+
         // Update headers state
         this.updateHeaderCheckboxes('table-availability');
         this.updateSeatCounters();
@@ -1485,7 +2013,15 @@
         this.showToast("초기화", "모든 좌석 번호가 일괄 초기화되었습니다. 저장하려면 [좌석번호 저장]을 클릭하세요.", "warning");
       }
 
+      // Editable label for a row — defaults to the auto-computed sequence,
+      // but this.gridRowLabels can hold a manual override (e.g. so a row
+      // after a skipped aisle row can still read "8" instead of "9").
       getRowLabel(r) {
+        if (this.gridRowLabels[r] !== undefined) return this.gridRowLabels[r];
+        return this.computeDefaultRowLabel(r);
+      }
+
+      computeDefaultRowLabel(r) {
         if (this.useAlphabetRows) {
           const startLabel = this.startRowLabel || "A";
           const startCode = startLabel.toUpperCase().charCodeAt(0) || 65;
@@ -1506,6 +2042,22 @@
         return String(r);
       }
 
+      // Manual per-row label edit (typed directly into a row header input).
+      setRowLabel(r, value) {
+        this.gridRowLabels[r] = value;
+      }
+
+      // Row-level half-seat offset — applies the same offset_type to every
+      // cell in the row at once (rather than one seat at a time), matching
+      // how it's actually used: whole rows get staggered together.
+      setRowOffset(r, value) {
+        this.gridRowOffset[r] = value;
+        const maxSeats = this.selectedBlock.max_seats;
+        for (let c = 1; c <= maxSeats; c++) {
+          this.gridOffsetType[`${r}_${c}`] = value;
+        }
+      }
+
       numberToAlphabet(n, startCode = 65) {
         let offset = startCode - 65;
         let val = n + offset;
@@ -1519,6 +2071,18 @@
         return res;
       }
 
+      // Bulk-regenerates every row's label from the auto-computed sequence —
+      // used by the alphabet/start-label controls below. Any row labels
+      // that were hand-edited (e.g. to skip a number after an aisle row)
+      // get overwritten too, since these controls are explicitly "fill
+      // everything from this rule."
+      regenerateAllRowLabels() {
+        if (!this.selectedBlock) return;
+        for (let r = 1; r <= this.selectedBlock.total_rows; r++) {
+          this.gridRowLabels[r] = this.computeDefaultRowLabel(r);
+        }
+      }
+
       handleAlphabetRowsChange(checked) {
         this.useAlphabetRows = checked;
         const txtStart = document.getElementById("txt-start-row-label");
@@ -1526,6 +2090,7 @@
           txtStart.value = checked ? "A" : "1";
         }
         this.startRowLabel = checked ? "A" : "1";
+        this.regenerateAllRowLabels();
         if (this.activeTab === 'numbering') {
           this.renderNumberingGrid();
         } else {
@@ -1535,6 +2100,7 @@
 
       handleStartRowLabelChange(val) {
         this.startRowLabel = val || (this.useAlphabetRows ? "A" : "1");
+        this.regenerateAllRowLabels();
         if (this.activeTab === 'numbering') {
           this.renderNumberingGrid();
         } else {
@@ -1593,7 +2159,7 @@
                 grid_x: c,
                 grid_y: r,
                 status: String(status),
-                offset_type: cached ? cached.offset_type : 'none'
+                offset_type: this.gridOffsetType[key] || 'none'
               };
 
               // If seat is toggled to walkway (3), seat_num must be null
@@ -1668,7 +2234,7 @@
                 grid_y: r,
                 status: String(status),
                 seat_num: seatNum,
-                offset_type: cached ? cached.offset_type : 'none'
+                offset_type: this.gridOffsetType[key] || 'none'
               };
 
               if (cached) {
@@ -1705,6 +2271,527 @@
           this.showToast("오류", `번호 저장 도중 에러가 발생했습니다: ${e.message}`, "danger");
         } finally {
           this.showLoading(false);
+        }
+      }
+
+      // --- Block (구역) Manager ---
+      // Separate top-level page from the seat editor above — manages rows in
+      // baseball_blocks / musical_blocks directly (block_code, full_name,
+      // total_rows, max_seats, etc.), which previously had to be edited by
+      // hand in the Supabase table editor.
+
+      switchPage(pageName) {
+        this.currentPage = pageName;
+        document.querySelectorAll(".page-nav-btn").forEach(btn => btn.classList.remove("active"));
+        document.getElementById(`page-nav-${pageName}`).classList.add("active");
+        document.querySelectorAll(".page-content").forEach(p => p.classList.remove("active"));
+        document.getElementById(`page-${pageName}`).classList.add("active");
+
+        if (pageName === "block-manager" && this.bmEntities.length === 0) {
+          this.loadEntitiesForBlockManager();
+        }
+        if (pageName === "image-manager" && this.imEntities.length === 0) {
+          this.loadEntitiesForImageManager();
+        }
+      }
+
+      bmGetTopTable() { return this.bmCategory === "musical" ? "venues" : "stadiums"; }
+      bmGetBlocksTable() { return this.bmCategory === "musical" ? "musical_blocks" : "baseball_blocks"; }
+      bmGetBlocksFkCol() { return this.bmCategory === "musical" ? "venue_id" : "stadium_id"; }
+
+      handleBmCategoryChange(category) {
+        this.bmCategory = category;
+        this.bmSelectedEntity = null;
+        document.getElementById("bm-block-panel").style.display = "none";
+        this.closeBlockForm();
+        this.loadEntitiesForBlockManager();
+      }
+
+      async loadEntitiesForBlockManager() {
+        const isMusical = this.bmCategory === "musical";
+        const label = document.getElementById("bm-entity-list-label");
+        if (label) label.textContent = isMusical ? "공연장 선택" : "야구장 선택";
+
+        const selectEl = document.getElementById("bm-entity-select");
+        const placeholder = isMusical ? "공연장을 선택하세요..." : "야구장을 선택하세요...";
+        selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+
+        try {
+          const { data: entities, error } = await supabaseClient
+            .from(this.bmGetTopTable())
+            .select("id, name")
+            .order("display_order", { ascending: true, nullsFirst: false })
+            .order("name", { ascending: true });
+          if (error) throw error;
+
+          this.bmEntities = entities;
+
+          // One grouped query for block counts across all entities, instead
+          // of N separate count queries for N stadiums/venues.
+          const { data: blockRows, error: blockErr } = await supabaseClient
+            .from(this.bmGetBlocksTable())
+            .select(`id, ${this.bmGetBlocksFkCol()}`);
+          if (blockErr) throw blockErr;
+
+          const countByEntity = {};
+          (blockRows || []).forEach(b => {
+            const fk = b[this.bmGetBlocksFkCol()];
+            countByEntity[fk] = (countByEntity[fk] || 0) + 1;
+          });
+
+          entities.forEach(ent => {
+            const opt = document.createElement("option");
+            opt.value = ent.id;
+            const count = countByEntity[ent.id] || 0;
+            opt.textContent = `${ent.name} (구역 ${count}개)`;
+            selectEl.appendChild(opt);
+          });
+
+          // Re-selecting after a refresh (e.g. post-save) keeps the dropdown
+          // pointed at whatever was already open, now with an updated count.
+          if (this.bmSelectedEntity) {
+            selectEl.value = this.bmSelectedEntity.id;
+          }
+        } catch (e) {
+          console.error("loadEntitiesForBlockManager failed:", e);
+          selectEl.innerHTML = '<option value="">목록을 불러오지 못했습니다.</option>';
+        }
+      }
+
+      async selectEntityForBlocks(entityId) {
+        if (!entityId) {
+          document.getElementById("bm-block-panel").style.display = "none";
+          this.bmSelectedEntity = null;
+          return;
+        }
+
+        this.bmSelectedEntity = this.bmEntities.find(e => String(e.id) === String(entityId));
+        if (!this.bmSelectedEntity) return;
+
+        document.getElementById("bm-block-panel").style.display = "block";
+        document.getElementById("bm-selected-entity-name").textContent = this.bmSelectedEntity.name;
+        this.closeBlockForm();
+        await this.loadBlocksForManager();
+      }
+
+      async loadBlocksForManager() {
+        const overlay = document.getElementById("bm-loading-overlay");
+        if (overlay) overlay.style.display = "flex";
+
+        try {
+          const { data: blocks, error } = await supabaseClient
+            .from(this.bmGetBlocksTable())
+            .select("*")
+            .eq(this.bmGetBlocksFkCol(), this.bmSelectedEntity.id)
+            .order("full_name", { ascending: true });
+          if (error) throw error;
+
+          this.bmBlocks = blocks;
+          this.renderBlockTable();
+        } catch (e) {
+          console.error("loadBlocksForManager failed:", e);
+          this.showToast("오류", "구역 목록을 불러오지 못했습니다.", "danger");
+        } finally {
+          if (overlay) overlay.style.display = "none";
+        }
+      }
+
+      renderBlockTable() {
+        const isMusical = this.bmCategory === "musical";
+        const head = document.getElementById("bm-block-table-head");
+        const body = document.getElementById("bm-block-table-body");
+
+        head.innerHTML = `
+          <th>구역 코드</th>
+          <th>전체명</th>
+          <th>${isMusical ? "층" : "등급"}</th>
+          <th>라인수 x 좌석수</th>
+          <th>노출</th>
+          <th>관리</th>
+        `;
+
+        if (this.bmBlocks.length === 0) {
+          body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 20px;">등록된 구역이 없습니다. "새 구역 추가"로 등록해 주세요.</td></tr>`;
+          return;
+        }
+
+        body.innerHTML = "";
+        this.bmBlocks.forEach(b => {
+          const tr = document.createElement("tr");
+          const gradeOrFloor = isMusical
+            ? (b.floor !== null && b.floor !== undefined ? `${b.floor}층` : "-")
+            : (b.seat_grade || "-");
+          tr.innerHTML = `
+            <td>${b.block_code || "-"}</td>
+            <td>${b.full_name || "-"}</td>
+            <td>${gradeOrFloor}</td>
+            <td>${b.total_rows || 0} x ${b.max_seats || 0}</td>
+            <td>${b.is_visible === false ? '<span class="badge-hidden">숨김</span>' : "노출중"}</td>
+            <td>
+              <button class="btn btn-sm" style="background-color: var(--border-color);" onclick="app.openBlockForm(${b.id})">
+                <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="app.deleteBlock(${b.id})">
+                <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+              </button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+        lucide.createIcons();
+      }
+
+      openBlockForm(blockId) {
+        const form = document.getElementById("bm-block-form");
+        const isMusical = this.bmCategory === "musical";
+
+        document.getElementById("bf-grade-wrap").style.display = isMusical ? "none" : "";
+        document.getElementById("bf-floor-wrap").style.display = isMusical ? "" : "none";
+
+        if (blockId) {
+          const b = this.bmBlocks.find(x => String(x.id) === String(blockId));
+          if (!b) return;
+          document.getElementById("bf-id").value = b.id;
+          document.getElementById("bf-block-code").value = b.block_code || "";
+          document.getElementById("bf-full-name").value = b.full_name || "";
+          document.getElementById("bf-seat-grade").value = b.seat_grade || "";
+          document.getElementById("bf-floor").value = (b.floor === null || b.floor === undefined) ? "" : b.floor;
+          document.getElementById("bf-total-rows").value = b.total_rows || "";
+          document.getElementById("bf-max-seats").value = b.max_seats || "";
+          document.getElementById("bf-color-code").value = b.color_code || "";
+          document.getElementById("bf-location-type").value = b.location_type || "";
+          document.getElementById("bf-is-visible").checked = b.is_visible !== false;
+        } else {
+          document.getElementById("bf-id").value = "";
+          document.getElementById("bf-block-code").value = "";
+          document.getElementById("bf-full-name").value = "";
+          document.getElementById("bf-seat-grade").value = "";
+          document.getElementById("bf-floor").value = "";
+          document.getElementById("bf-total-rows").value = "";
+          document.getElementById("bf-max-seats").value = "";
+          document.getElementById("bf-color-code").value = "";
+          document.getElementById("bf-location-type").value = "";
+          document.getElementById("bf-is-visible").checked = true;
+        }
+
+        form.style.display = "flex";
+        form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      closeBlockForm() {
+        const form = document.getElementById("bm-block-form");
+        if (form) form.style.display = "none";
+      }
+
+      async saveBlock() {
+        const isMusical = this.bmCategory === "musical";
+        const id = document.getElementById("bf-id").value;
+        const blockCode = document.getElementById("bf-block-code").value.trim();
+        const fullName = document.getElementById("bf-full-name").value.trim();
+        const totalRows = parseInt(document.getElementById("bf-total-rows").value, 10);
+        const maxSeats = parseInt(document.getElementById("bf-max-seats").value, 10);
+        const colorCode = document.getElementById("bf-color-code").value.trim();
+        const locationType = document.getElementById("bf-location-type").value.trim();
+        const isVisible = document.getElementById("bf-is-visible").checked;
+
+        // Validated up front — a bad total_rows/max_seats value doesn't error
+        // anywhere downstream today, it just silently makes the live seat
+        // grid fall back to a "coming soon" placeholder.
+        if (!blockCode) {
+          this.showToast("오류", "구역 코드를 입력해 주세요.", "danger");
+          return;
+        }
+        if (!fullName) {
+          this.showToast("오류", "구역 전체명을 입력해 주세요.", "danger");
+          return;
+        }
+        if (!Number.isInteger(totalRows) || totalRows < 1) {
+          this.showToast("오류", "총 행 수는 1 이상의 숫자여야 합니다.", "danger");
+          return;
+        }
+        if (!Number.isInteger(maxSeats) || maxSeats < 1) {
+          this.showToast("오류", "행당 최대 좌석 수는 1 이상의 숫자여야 합니다.", "danger");
+          return;
+        }
+
+        const record = {
+          [this.bmGetBlocksFkCol()]: this.bmSelectedEntity.id,
+          block_code: blockCode,
+          full_name: fullName,
+          total_rows: totalRows,
+          max_seats: maxSeats,
+          color_code: colorCode || null,
+          location_type: locationType || null,
+          is_visible: isVisible
+        };
+
+        if (isMusical) {
+          const floorVal = document.getElementById("bf-floor").value;
+          record.floor = floorVal !== "" ? parseInt(floorVal, 10) : null;
+        } else {
+          record.seat_grade = document.getElementById("bf-seat-grade").value.trim() || null;
+        }
+
+        try {
+          if (id) {
+            const { error } = await supabaseClient
+              .from(this.bmGetBlocksTable())
+              .update(record)
+              .eq("id", id);
+            if (error) throw error;
+            this.showToast("성공", "구역 정보를 수정했습니다.", "success");
+          } else {
+            const { error } = await supabaseClient
+              .from(this.bmGetBlocksTable())
+              .insert(record);
+            if (error) throw error;
+            this.showToast("성공", "새 구역을 등록했습니다.", "success");
+          }
+
+          this.closeBlockForm();
+          await this.loadBlocksForManager();
+          await this.loadEntitiesForBlockManager(); // refresh block-count badges
+        } catch (e) {
+          console.error("saveBlock failed:", e);
+          this.showToast("오류", `저장 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      async deleteBlock(blockId) {
+        const block = this.bmBlocks.find(b => String(b.id) === String(blockId));
+        const label = block ? (block.full_name || block.block_code) : "이 구역";
+        if (!confirm(`"${label}"을(를) 삭제하시겠습니까?\n\n이 구역에 속한 좌석/시야 데이터가 있다면 함께 참조가 끊길 수 있습니다.`)) {
+          return;
+        }
+
+        try {
+          const { error } = await supabaseClient
+            .from(this.bmGetBlocksTable())
+            .delete()
+            .eq("id", blockId);
+          if (error) throw error;
+
+          this.showToast("성공", "구역을 삭제했습니다.", "success");
+          await this.loadBlocksForManager();
+          await this.loadEntitiesForBlockManager();
+        } catch (e) {
+          console.error("deleteBlock failed:", e);
+          this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      // --- Image manager: bg_image_url / map_image_url on stadiums/venues.
+      // Uploads go to the "venue-images" Storage bucket (public, admin-only
+      // writes since this runs on the service_role key) under
+      // "<table>/<entityId>/<field>_<timestamp>.<ext>" — timestamped so a
+      // re-upload always gets a fresh URL instead of silently reusing a
+      // cached copy of the old image at the same path.
+      imGetTable() { return this.imCategory === "musical" ? "venues" : "stadiums"; }
+
+      // Same resize+WebP-compress approach app_v6.js uses for user seat
+      // photos (compressImageToWebPBlob), minus the watermark — these are
+      // official background/seat-map images, not user submissions. Map
+      // images get a taller cap than backgrounds since they often carry
+      // small seat-number text that needs to stay legible.
+      compressImageToWebPBlob(file, maxWidth, quality) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              let width = img.width;
+              let height = img.height;
+
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, width, height);
+
+              canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error("WebP 변환 실패"));
+              }, "image/webp", quality);
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      handleImCategoryChange(category) {
+        this.imCategory = category;
+        this.imSelectedEntity = null;
+        document.getElementById("im-image-panel").style.display = "none";
+        this.loadEntitiesForImageManager();
+      }
+
+      async loadEntitiesForImageManager() {
+        const isMusical = this.imCategory === "musical";
+        const label = document.getElementById("im-entity-list-label");
+        if (label) label.textContent = isMusical ? "공연장 선택" : "야구장 선택";
+
+        const selectEl = document.getElementById("im-entity-select");
+        const placeholder = isMusical ? "공연장을 선택하세요..." : "야구장을 선택하세요...";
+        selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+
+        try {
+          const { data: entities, error } = await supabaseClient
+            .from(this.imGetTable())
+            .select("id, name, bg_image_url, map_image_url")
+            .order("display_order", { ascending: true, nullsFirst: false })
+            .order("name", { ascending: true });
+          if (error) throw error;
+
+          this.imEntities = entities;
+          entities.forEach(ent => {
+            const opt = document.createElement("option");
+            opt.value = ent.id;
+            const hasBoth = ent.bg_image_url && ent.map_image_url;
+            const hasNone = !ent.bg_image_url && !ent.map_image_url;
+            opt.textContent = `${ent.name} ${hasBoth ? "✅" : hasNone ? "" : "△"}`;
+            selectEl.appendChild(opt);
+          });
+
+          if (this.imSelectedEntity) {
+            selectEl.value = this.imSelectedEntity.id;
+          }
+        } catch (e) {
+          console.error("loadEntitiesForImageManager failed:", e);
+          selectEl.innerHTML = '<option value="">목록을 불러오지 못했습니다.</option>';
+        }
+      }
+
+      selectEntityForImages(entityId) {
+        if (!entityId) {
+          document.getElementById("im-image-panel").style.display = "none";
+          this.imSelectedEntity = null;
+          return;
+        }
+
+        this.imSelectedEntity = this.imEntities.find(e => String(e.id) === String(entityId));
+        if (!this.imSelectedEntity) return;
+
+        document.getElementById("im-image-panel").style.display = "block";
+        document.getElementById("im-selected-entity-name").textContent = this.imSelectedEntity.name;
+        document.getElementById("im-bg-file").value = "";
+        document.getElementById("im-map-file").value = "";
+        this.renderImagePreviews();
+      }
+
+      renderImagePreviews() {
+        const bgBox = document.getElementById("im-bg-preview");
+        const mapBox = document.getElementById("im-map-preview");
+        const ent = this.imSelectedEntity;
+        bgBox.innerHTML = ent && ent.bg_image_url
+          ? `<img src="${ent.bg_image_url}" alt="배경 이미지">`
+          : `<span class="image-preview-empty">이미지 없음</span>`;
+        mapBox.innerHTML = ent && ent.map_image_url
+          ? `<img src="${ent.map_image_url}" alt="좌석 배치도">`
+          : `<span class="image-preview-empty">이미지 없음</span>`;
+      }
+
+      async uploadEntityImage(field) {
+        if (!this.imSelectedEntity) return;
+        const fileInputId = field === "bg_image_url" ? "im-bg-file" : "im-map-file";
+        const fileInput = document.getElementById(fileInputId);
+        const file = fileInput.files[0];
+        if (!file) {
+          this.showToast("알림", "먼저 업로드할 이미지 파일을 선택해 주세요.", "danger");
+          return;
+        }
+
+        const overlay = document.getElementById("im-loading-overlay");
+        overlay.style.display = "flex";
+        try {
+          const previousUrl = this.imSelectedEntity[field];
+
+          // Map images keep more resolution (small seat-number text needs
+          // to stay legible); backgrounds are purely decorative and can
+          // compress harder.
+          const maxWidth = field === "map_image_url" ? 1600 : 1200;
+          const blob = await this.compressImageToWebPBlob(file, maxWidth, 0.82);
+          const path = `${this.imGetTable()}/${this.imSelectedEntity.id}/${field}_${Date.now()}.webp`;
+          const { error: uploadErr } = await supabaseClient.storage
+            .from("venue-images")
+            .upload(path, blob, { contentType: "image/webp", upsert: false });
+          if (uploadErr) throw uploadErr;
+
+          const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
+          const publicUrl = pub.publicUrl;
+
+          const { error: updateErr } = await supabaseClient
+            .from(this.imGetTable())
+            .update({ [field]: publicUrl })
+            .eq("id", this.imSelectedEntity.id);
+          if (updateErr) throw updateErr;
+
+          // Only now that the DB points at the new file is it safe to clean
+          // up the old one — best-effort, and only if it actually lived in
+          // our own venue-images bucket (older entries can carry a plain
+          // relative path like "assets/jamsil_stadium.png", which isn't a
+          // storage object we manage and must be left alone).
+          this.deleteVenueImageIfManaged(previousUrl);
+
+          this.imSelectedEntity[field] = publicUrl;
+          fileInput.value = "";
+          this.renderImagePreviews();
+          this.showToast("성공", "이미지를 업로드했습니다.", "success");
+          await this.loadEntitiesForImageManager();
+        } catch (e) {
+          console.error("uploadEntityImage failed:", e);
+          this.showToast("오류", `업로드 중 오류가 발생했습니다: ${e.message}`, "danger");
+        } finally {
+          overlay.style.display = "none";
+        }
+      }
+
+      // Deletes a file from the venue-images bucket, but only if the given
+      // URL actually points into it — older entries can carry a plain
+      // relative path (e.g. "assets/jamsil_stadium.png") that isn't
+      // something we manage in Storage, and must be left alone. Best-effort:
+      // failures are logged, not surfaced, since the DB is already the
+      // source of truth by the time this runs.
+      deleteVenueImageIfManaged(url) {
+        if (!url) return;
+        const marker = "/storage/v1/object/public/venue-images/";
+        const idx = url.indexOf(marker);
+        if (idx === -1) return;
+        const path = url.substring(idx + marker.length);
+        supabaseClient.storage.from("venue-images").remove([path])
+          .catch(e => console.warn("Old venue image cleanup failed (non-fatal):", e));
+      }
+
+      async removeEntityImage(field) {
+        if (!this.imSelectedEntity) return;
+        const label = field === "bg_image_url" ? "배경 이미지" : "좌석 배치도";
+        if (!confirm(`${label}를 삭제하시겠습니까? (실제 화면에서 즉시 사라집니다)`)) return;
+
+        const previousUrl = this.imSelectedEntity[field];
+        try {
+          const { error } = await supabaseClient
+            .from(this.imGetTable())
+            .update({ [field]: null })
+            .eq("id", this.imSelectedEntity.id);
+          if (error) throw error;
+
+          this.deleteVenueImageIfManaged(previousUrl);
+
+          this.imSelectedEntity[field] = null;
+          this.renderImagePreviews();
+          this.showToast("성공", `${label}를 삭제했습니다.`, "success");
+          await this.loadEntitiesForImageManager();
+        } catch (e) {
+          console.error("removeEntityImage failed:", e);
+          this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
         }
       }
     }

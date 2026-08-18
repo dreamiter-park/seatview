@@ -28,7 +28,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "서울종합운동장 야구장",
     team: "LG 트윈스 / 두산 베어스",
     location: "서울 송파구 올림픽로 25",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(127, 29, 29, 0.75))",
     blocks: [
       { id: "b101", name: "1루 레드석 101블록", category: "내야", grade: "red" },
@@ -80,7 +80,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "고척 스카이돔",
     team: "키움 히어로즈",
     location: "서울 구로구 경인로 430",
-    bg: "assets/jamsil_stadium.png", // reusing for demo
+    bg: "assets/jamsil_stadium.jpg", // reusing for demo
     gradient: "linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(30, 27, 75, 0.75))",
     blocks: [
       { id: "b101", name: "버건디석 111블록", category: "내야" },
@@ -109,7 +109,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "수원 KT 위즈파크",
     team: "KT 위즈",
     location: "경기 수원시 장안구 경수대로 893",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(24, 24, 27, 0.95), rgba(120, 53, 15, 0.75))",
     blocks: [
       { id: "b101", name: "응원지정석 109블록", category: "응원" },
@@ -128,7 +128,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "인천 SSG 랜더스필드",
     team: "SSG 랜더스",
     location: "인천 미추홀구 예술로 6",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(153, 27, 27, 0.95), rgba(9, 9, 11, 0.75))",
     blocks: [
       { id: "b101", name: "의자지정석 1루 1블록", category: "내야" },
@@ -147,7 +147,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "대구 삼성 라이온즈 파크",
     team: "삼성 라이온즈",
     location: "대구 수성구 야구전설로 1",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(15, 23, 42, 0.75))",
     blocks: [
       { id: "b101", name: "VIP석 1블록", category: "프리미엄" },
@@ -166,7 +166,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "광주 기아 챔피언스 필드",
     team: "KIA 타이거즈",
     location: "광주 북구 서림로 10",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(185, 28, 28, 0.95), rgba(9, 9, 11, 0.75))",
     blocks: [
       { id: "b101", name: "챔피언석 (백넷 뒤)", category: "프리미엄" },
@@ -185,7 +185,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "대전 한화생명 이글스파크",
     team: "한화 이글스",
     location: "대전 중구 대종로 373",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(24, 24, 27, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야탁자석", category: "테이블" },
@@ -204,7 +204,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "부산 사직 야구장",
     team: "롯데 자이언츠",
     location: "부산 동래구 사직로 45",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(3, 105, 161, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야필드석 11블록", category: "내야" },
@@ -223,7 +223,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "창원 NC 파크",
     team: "NC 다이노스",
     location: "경남 창원시 마산회원구 삼호로 63",
-    bg: "assets/jamsil_stadium.png",
+    bg: "assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(3, 105, 161, 0.95), rgba(180, 83, 9, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야응원석 103블록", category: "응원" },
@@ -591,8 +591,8 @@ class SeatViewApp {
           data.forEach(cat => {
             const card = document.createElement("div");
             // Determine CSS background image based on category ID
-            let bgImage = "assets/jamsil_stadium.png";
-            if (cat.id === "musical") bgImage = "assets/musical_stage.png";
+            let bgImage = "assets/jamsil_stadium.jpg";
+            if (cat.id === "musical") bgImage = "assets/musical_stage.jpg";
             else if (cat.id === "plane") bgImage = "assets/flight_cinema.jpg";
 
             // Click behavior is driven purely by badge_text: "TO BE" shows the
@@ -640,7 +640,7 @@ class SeatViewApp {
     // Fallback: render hardcoded items if Supabase is not ready or keys are placeholders
     container.innerHTML = `
       <div class="category-card" onclick="app.navigateTo('stadiums')">
-        <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.png');"></div>
+        <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.jpg');"></div>
         <div class="category-tag blue">MAX TRAFFIC</div>
         <div class="category-info">
           <h3 class="category-name">⚾ 프로야구장</h3>
@@ -648,7 +648,7 @@ class SeatViewApp {
         </div>
       </div>
       <div class="category-card" onclick="app.showMusicalComingSoon()">
-        <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.png');"></div>
+        <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.jpg');"></div>
         <div class="category-tag red">HOT</div>
         <div class="category-info">
           <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
@@ -763,7 +763,7 @@ class SeatViewApp {
               fullname: dbStadium.name,
               team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
               location: dbStadium.address || dbStadium.location_district,
-              bg: dbStadium.bg_image_url || "assets/jamsil_stadium.png",
+              bg: dbStadium.bg_image_url || "assets/jamsil_stadium.jpg",
               map_image_url: dbStadium.map_image_url,
               gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
               blocks: [],
@@ -1492,10 +1492,10 @@ class SeatViewApp {
       return orderA - orderB;
     });
 
-    // Product ad slots: land on visual position 4, 8 and 12 in the 2-column
-    // grid (1 2 / 3 4 / 5 6 / 7 8 / 9 10 / 11 12 ...), so inserted before
-    // the 4th, 7th and 10th stadium respectively (0-indexed: 3, 6, 9).
-    const adInsertBeforeIndices = [3, 6, 9];
+    // Product ad slot: lands on visual position 6 in the 2-column grid
+    // (1 2 / 3 4 / 5 6 / ...), so inserted before the 6th stadium
+    // (0-indexed: 5). Just one slot for now.
+    const adInsertBeforeIndices = [5];
 
     sortedStadiums.forEach((st, index) => {
       if (adInsertBeforeIndices.includes(index)) {
@@ -1581,7 +1581,7 @@ class SeatViewApp {
           id: v.id,
           name: v.name,
           location: v.address || v.location_district || "",
-          bg: v.bg_image_url || "assets/musical_stage.png",
+          bg: v.bg_image_url || "assets/musical_stage.jpg",
           map_image_url: v.map_image_url,
           food_info: v.food_info,
           parking_info: v.parking_info,
@@ -1612,9 +1612,10 @@ class SeatViewApp {
       return;
     }
 
-    // Product ad slots: land on visual position 3 and 6 in this single-column
-    // list, so inserted before the 3rd and 5th venue (0-indexed: 2 and 4).
-    const venueAdInsertBeforeIndices = [2, 4];
+    // Product ad slot: lands on visual position 4 in this single-column
+    // list, so inserted before the 4th venue (0-indexed: 3). The position-6
+    // slot is removed for now.
+    const venueAdInsertBeforeIndices = [3];
 
     VENUES_DB.forEach((venue, index) => {
       if (venueAdInsertBeforeIndices.includes(index)) {
@@ -1624,9 +1625,12 @@ class SeatViewApp {
       const card = document.createElement("div");
       const isPreparing = venue.status === "preparing";
       card.className = isPreparing ? "stadium-card preparing" : "stadium-card";
-      // Venues already share one fixed gradient regardless of status (no
-      // per-venue team color to cause the same inconsistency stadiums had).
-      card.style.backgroundImage = `linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75)), url('${venue.bg}')`;
+      // Just the photo — .stadium-card::before (in style_v6.css) already
+      // lays a bottom-heavy dark gradient over every card for text
+      // legibility. This used to ALSO add its own diagonal tint on top of
+      // that, which was really two overlays stacked (hence "too dark" no
+      // matter how far the numbers here got turned down).
+      card.style.backgroundImage = `url('${venue.bg}')`;
       card.onclick = isPreparing
         ? () => this.showItemPreparing(venue.name)
         : () => this.loadVenueDetail(venue.id);
@@ -1679,20 +1683,27 @@ class SeatViewApp {
 
     const bannerOverlay = document.querySelector("#detail-venue-banner .profile-overlay");
     if (bannerOverlay) bannerOverlay.style.backgroundImage = `url('${venue.bg}')`;
-    if (mapImgEl) mapImgEl.src = venue.map_image_url || venue.bg;
+
+    // No silent fallback to the decorative bg photo here — that's a
+    // building exterior shot, not a seat chart, and showing it under a
+    // "좌석 이미지" toggle as if it were one is actively misleading. Hide the
+    // whole toggle instead until a real map_image_url is registered.
+    const venueMapCollapseBtn = document.getElementById("venue-map-collapse-btn");
+    const venueMapGuideCard = venueMapCollapseBtn ? venueMapCollapseBtn.closest(".map-guide-card") : null;
+    if (venueMapGuideCard) venueMapGuideCard.style.display = venue.map_image_url ? "" : "none";
+    if (mapImgEl && venue.map_image_url) mapImgEl.src = venue.map_image_url;
 
     // Collapsed by default every time a venue's detail screen loads.
     const venueMapWrapper = document.getElementById("venue-static-map-wrapper");
     if (venueMapWrapper) venueMapWrapper.classList.add("collapsed");
-    const venueMapCollapseBtn = document.getElementById("venue-map-collapse-btn");
     if (venueMapCollapseBtn) {
       venueMapCollapseBtn.classList.remove("expanded");
       const label = venueMapCollapseBtn.querySelector("span");
       if (label) label.textContent = "🗺️ 좌석 이미지 펼치기";
     }
 
-    if (foodEl) foodEl.textContent = venue.food_info || "등록된 먹거리 정보가 없습니다.";
-    if (parkingEl) parkingEl.textContent = venue.parking_info || "등록된 주차 정보가 없습니다.";
+    if (foodEl) foodEl.innerHTML = this.formatInfoText(venue.food_info) || "등록된 먹거리 정보가 없습니다.";
+    if (parkingEl) parkingEl.innerHTML = this.formatInfoText(venue.parking_info) || "등록된 주차 정보가 없습니다.";
 
     // Switch default tab — unlike loadStadiumDetail(), this was never being
     // called here, so a stray leftover "active" class from a previous
@@ -1881,8 +1892,38 @@ class SeatViewApp {
       container.style.setProperty('--visible-seats', visibleSeats);
 
       for (let r = 1; r <= maxRows; r++) {
+        // A row is a bare aisle spacer only when it has no seat records at
+        // all, or the admin deliberately left its row label blank — NOT
+        // just because every seat happens to be walkway. Some real rows
+        // (e.g. a numbered row that legitimately has zero seats) still need
+        // their row number shown, so the label itself is the signal, not
+        // the seat statuses under it.
+        const rowSeatsForAisleCheck = rowsMap[r];
+        let rowLabelForAisleCheck = null;
+        if (rowSeatsForAisleCheck) {
+          const firstKeyForAisleCheck = Object.keys(rowSeatsForAisleCheck)[0];
+          if (firstKeyForAisleCheck) rowLabelForAisleCheck = rowSeatsForAisleCheck[firstKeyForAisleCheck].row_num;
+        }
+        const isAisleRow = !rowSeatsForAisleCheck || rowLabelForAisleCheck === "";
+        if (isAisleRow) {
+          const aisleDiv = document.createElement("div");
+          aisleDiv.className = "seat-row-aisle";
+          container.appendChild(aisleDiv);
+          continue;
+        }
+
         const rowDiv = document.createElement("div");
-        rowDiv.className = "seat-row";
+        // Whole-row half-seat offset (staggered/fan-shaped sections) — set
+        // once per row from whatever the seats share, rather than nudging
+        // individual seats.
+        let rowOffsetClass = "";
+        if (rowsMap[r]) {
+          const firstSeatKeyForOffset = Object.keys(rowsMap[r])[0];
+          const rowOffsetType = firstSeatKeyForOffset ? rowsMap[r][firstSeatKeyForOffset].offset_type : null;
+          if (rowOffsetType === "half_right") rowOffsetClass = " offset-right";
+          else if (rowOffsetType === "half_left") rowOffsetClass = " offset-left";
+        }
+        rowDiv.className = `seat-row${rowOffsetClass}`;
 
         let rowLabel = String(r);
         if (rowsMap[r]) {
@@ -2067,13 +2108,20 @@ class SeatViewApp {
 
     // Load static stadium map image — collapsed by default every time a
     // stadium's detail screen loads, not just on the very first page load.
+    // jamsil keeps its historical hardcoded fallback (real map, just not in
+    // the DB yet); everyone else gets no silent fallback to the decorative
+    // bg photo — that's a stadium exterior/crowd shot, not a seat chart,
+    // and showing it under a "좌석 이미지" toggle as if it were one is
+    // actively misleading. Hide the whole toggle instead.
     const mapWrapper = document.getElementById("stadium-static-map-wrapper");
-    if (mapWrapper) {
-      const srcPath = stadium.map_image_url || (stadiumId === "jamsil" ? "stadiums/stadium_01.png" : stadium.bg);
-      mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${srcPath}" class="stadium-static-map" alt="구장 전체 안내도">`;
+    const mapCollapseBtn = document.getElementById("map-collapse-btn");
+    const mapGuideCard = mapCollapseBtn ? mapCollapseBtn.closest(".map-guide-card") : null;
+    const effectiveMapSrc = stadium.map_image_url || (stadiumId === "jamsil" ? "stadiums/stadium_01.png" : null);
+    if (mapGuideCard) mapGuideCard.style.display = effectiveMapSrc ? "" : "none";
+    if (mapWrapper && effectiveMapSrc) {
+      mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${effectiveMapSrc}" class="stadium-static-map" alt="구장 전체 안내도">`;
       mapWrapper.classList.add("collapsed");
     }
-    const mapCollapseBtn = document.getElementById("map-collapse-btn");
     if (mapCollapseBtn) {
       mapCollapseBtn.classList.remove("expanded");
       const label = mapCollapseBtn.querySelector("span");
@@ -2119,9 +2167,9 @@ class SeatViewApp {
     const parkingEl = document.getElementById("info-parking");
     const sunlightEl = document.getElementById("info-sunlight");
     
-    if (foodEl) foodEl.textContent = stadium.food_info || "등록된 맛집 정보가 없습니다.";
-    if (parkingEl) parkingEl.textContent = stadium.parking_info || "등록된 주차 정보가 없습니다.";
-    if (sunlightEl) sunlightEl.textContent = stadium.sunlight_info || "등록된 햇빛 정보가 없습니다.";
+    if (foodEl) foodEl.innerHTML = this.formatInfoText(stadium.food_info) || "등록된 맛집 정보가 없습니다.";
+    if (parkingEl) parkingEl.innerHTML = this.formatInfoText(stadium.parking_info) || "등록된 주차 정보가 없습니다.";
+    if (sunlightEl) sunlightEl.innerHTML = this.formatInfoText(stadium.sunlight_info) || "등록된 햇빛 정보가 없습니다.";
 
     // Navigate to Detail view
     this.navigateTo("stadium-detail");
@@ -2837,8 +2885,39 @@ class SeatViewApp {
 
           // Iterate row by row (1 to maxRows)
           for (let r = 1; r <= maxRows; r++) {
+            // A row is a bare aisle spacer only when it has no seat records
+            // at all, or the admin deliberately left its row label blank —
+            // NOT just because every seat happens to be walkway. Some real
+            // rows (e.g. a numbered row that legitimately has zero seats)
+            // still need their row number shown, so the label itself is the
+            // signal, not the seat statuses under it.
+            const rowSeatsForAisleCheck = rowsMap[r];
+            let rowLabelForAisleCheck = null;
+            if (rowSeatsForAisleCheck) {
+              const firstKeyForAisleCheck = Object.keys(rowSeatsForAisleCheck)[0];
+              if (firstKeyForAisleCheck) rowLabelForAisleCheck = rowSeatsForAisleCheck[firstKeyForAisleCheck].row_num;
+            }
+            const isAisleRow = !rowSeatsForAisleCheck || rowLabelForAisleCheck === "";
+            if (isAisleRow) {
+              const aisleDiv = document.createElement("div");
+              aisleDiv.className = "seat-row-aisle";
+              container.appendChild(aisleDiv);
+              continue;
+            }
+
             const rowDiv = document.createElement("div");
-            rowDiv.className = "seat-row";
+            // Whole-row half-seat offset (staggered/fan-shaped sections) —
+            // set once per row from whatever the seats share, rather than
+            // nudging individual seats (that stacked extra flex gap onto
+            // every seat instead of just shifting the row's start).
+            let rowOffsetClass = "";
+            if (rowsMap[r]) {
+              const firstSeatKeyForOffset = Object.keys(rowsMap[r])[0];
+              const rowOffsetType = firstSeatKeyForOffset ? rowsMap[r][firstSeatKeyForOffset].offset_type : null;
+              if (rowOffsetType === "half_right") rowOffsetClass = " offset-right";
+              else if (rowOffsetType === "half_left") rowOffsetClass = " offset-left";
+            }
+            rowDiv.className = `seat-row${rowOffsetClass}`;
 
             // Row Label: e.g. "1열", "2열"
             // If row has seat data, extract row_num, else fallback to index r
@@ -2880,10 +2959,6 @@ class SeatViewApp {
                   const seatBtn = document.createElement("button");
                   seatBtn.className = "seat-item";
                   seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
-
-                  if (seat.offset_type === "half") {
-                    seatBtn.style.marginLeft = "12px";
-                  }
 
                   const dbKey = seat.id;
                   if (isPhotoExists) {
@@ -3291,7 +3366,7 @@ class SeatViewApp {
       try {
         let reviewsQuery = supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
-          .select('*, profiles(*)')
+          .select('*')
           .eq(isMusical ? 'musical_seat_id' : 'baseball_seat_id', dbKey)
           .eq('is_blocked', false);
 
@@ -3306,11 +3381,12 @@ class SeatViewApp {
           .order('ins_dtm', { ascending: false });
 
         if (!error && reviews && reviews.length > 0) {
+          const nickMap = await this.fetchNicknames(reviews.filter(r => !r.is_anonymous).map(r => r.user_id));
           const dbImages = [];
           reviews.forEach(rev => {
             const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
             const dir = rev.view_direction || "\uC815\uBA74";
-            const uploaderName = rev.is_anonymous ? "\uC775\uBA85" : (rev.profiles?.nickname || "@\uC81C\uBCF4\uC790");
+            const uploaderName = rev.is_anonymous ? "\uC775\uBA85" : (nickMap[rev.user_id] || "@\uC81C\uBCF4\uC790");
             const uploaderBadge = rev.is_anonymous ? "\uC77C\uBC18 \uC81C\uBCF4\uC790" : "\uACE8\uB4DC \uC81C\uBCF4\uC790";
             const uploaderDate = rev.ins_dtm || "2026-08-01";
             urls.forEach(u => {
@@ -3577,7 +3653,7 @@ class SeatViewApp {
         blockName: state.selectedBlock.name,
         seatName: `${row}열 ${seat}번`,
         images: isGoodSeat 
-          ? ["assets/seat_view_clean.png", "assets/jamsil_stadium.png", "assets/seat_view_blocked.png"]
+          ? ["assets/seat_view_clean.png", "assets/jamsil_stadium.jpg", "assets/seat_view_blocked.png"]
           : ["assets/seat_view_blocked.png", "assets/seat_view_clean.png"],
         directions: isGoodSeat 
           ? ["home", "center", "outfield"]
@@ -3692,6 +3768,22 @@ class SeatViewApp {
     }
   }
 
+  // Looks up public nicknames (id, nickname only) for the given user ids via
+  // the profiles_public view, so review lists never need to read a full
+  // profiles row (which is locked down to owner-only access).
+  async fetchNicknames(userIds) {
+    const ids = [...new Set(userIds.filter(Boolean))];
+    if (!supabaseClient || ids.length === 0) return {};
+    const { data, error } = await supabaseClient
+      .from('profiles_public')
+      .select('id, nickname')
+      .in('id', ids);
+    if (error || !data) return {};
+    const map = {};
+    data.forEach(p => { map[p.id] = p.nickname; });
+    return map;
+  }
+
   // Re-fetches the actual photos/reviews for whatever lightweight comparison
   // entries were restored from localStorage, then re-renders if the user is
   // looking at the compare screen.
@@ -3708,9 +3800,10 @@ class SeatViewApp {
         const isMusical = item.category === "musical";
         const { data: reviews } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
-          .select('*, profiles(*)')
+          .select('*')
           .in('id', item.reviewIds);
 
+        const nickMap = await this.fetchNicknames((reviews || []).filter(r => !r.is_anonymous).map(r => r.user_id));
         const images = [];
         (reviews || []).forEach(rev => {
           (rev.image_urls || []).forEach(u => {
@@ -3718,7 +3811,7 @@ class SeatViewApp {
               url: u,
               reviewId: rev.id,
               comment: rev.content || "",
-              uploader: rev.is_anonymous ? "익명" : (rev.profiles?.nickname || "@제보자")
+              uploader: rev.is_anonymous ? "익명" : (nickMap[rev.user_id] || "@제보자")
             });
           });
         });
@@ -5442,6 +5535,32 @@ class SeatViewApp {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  // Turns admin-entered info text (food/parking/sunlight, etc.) into a
+  // (optionally two-level) bullet list with **bold** support, instead of
+  // collapsing into one run-on line — textContent ignores literal newlines
+  // in the stored string entirely (default white-space:normal), and can't
+  // render any markup even if the admin typed it.
+  // A line with no leading whitespace is a top-level item (• marker); a
+  // line that starts with whitespace is a sub-item under it (- marker,
+  // indented) — e.g. "공연장 주차장" then "   관람객 할인" underneath.
+  // Any dash the admin already typed on an indented line is stripped first
+  // so it isn't doubled up with the auto-added one. **word** within a line
+  // becomes bold. Escaped first so stored text can never inject real markup,
+  // same as escapeHtml's own use.
+  formatInfoText(raw) {
+    if (!raw) return "";
+    const items = String(raw).split("\n")
+      .filter(line => line.trim().length > 0)
+      .map(line => {
+        const isSubItem = /^\s/.test(line);
+        const content = line.trim().replace(/^-+\s*/, "");
+        const bolded = this.escapeHtml(content).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        return `<li${isSubItem ? ' class="info-sub-item"' : ''}>${bolded}</li>`;
+      });
+    if (items.length === 0) return "";
+    return `<ul class="info-bullet-list">${items.join("")}</ul>`;
   }
 
   autoResizeTextarea(textarea) {
