@@ -827,14 +827,13 @@ class SeatViewApp {
         }
       });
     }
+    // Live filter, not a submit-and-navigate search — floor tabs already
+    // show every zone at once now, so there's no "구역" or "좌석" left to
+    // deep-link into. Typing just narrows the visible venue list by name.
     const venueSearchInput = document.getElementById("venue-search-input");
     if (venueSearchInput) {
-      venueSearchInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter" && venueSearchInput.value.trim() !== "") {
-          const query = venueSearchInput.value.trim();
-          venueSearchInput.value = "";
-          this.handleVenueSearch(query);
-        }
+      venueSearchInput.addEventListener("input", () => {
+        this.renderVenueList(venueSearchInput.value);
       });
     }
 
@@ -984,70 +983,6 @@ class SeatViewApp {
     this.showToast("✅", `${stadium.name} ${zoneCode}구역으로 이동했어요.`);
   }
 
-  // Supports "공연장", "공연장 층", "공연장 층 구역", "공연장 층 구역 N열
-  // M번". 층은 생략 불가 — 공연장은 구역코드가 층마다 겹칠 수 있어서
-  // (예: 1층 A구역과 2층 A구역이 모두 존재) 층 없이는 구역만으로 어느
-  // 층인지 확정할 수 없다.
-  async handleVenueSearch(query) {
-    const { target: venue, remainder } = this.matchNameAndTokens(query, VENUES_DB);
-    if (!venue) {
-      this.showToast("🔍", `'${query}' 검색 결과를 찾지 못했어요. "공연장명 [층] [구역] [좌석]" 형식으로 입력해 보세요. (예: 세종 1층 A, 세종 1층 A 5열 3번)`);
-      return;
-    }
-
-    await this.loadVenueDetail(venue.id);
-
-    if (remainder.length === 0) {
-      this.showToast("✅", `${venue.name}으로 이동했어요.`);
-      return;
-    }
-
-    const floorNum = parseInt(remainder[0].replace(/층$/, ""), 10);
-    if (isNaN(floorNum)) {
-      this.showToast("🔍", `층 정보를 이해하지 못했어요. "공연장명 1층 [구역]" 형식으로 입력해 보세요.`);
-      return;
-    }
-
-    const blocksOnFloor = ((state.selectedVenue && state.selectedVenue.blocks) || []).filter(b => Number(b.floor) === floorNum);
-    if (blocksOnFloor.length === 0) {
-      this.showToast("🔍", `${venue.name}에 ${floorNum}층 정보가 없어요.`);
-      return;
-    }
-
-    this.selectVenueFloor(floorNum);
-
-    if (remainder.length === 1) {
-      this.showToast("✅", `${venue.name} ${floorNum}층으로 이동했어요.`);
-      return;
-    }
-
-    const zoneToken = remainder[1];
-    const zoneTokenBare = zoneToken.replace(/구역$/, "");
-    const targetBlock = blocksOnFloor.find(b => String(b.block_code).toUpperCase() === zoneToken.toUpperCase())
-      || blocksOnFloor.find(b => String(b.block_code).toUpperCase() === zoneTokenBare.toUpperCase());
-    if (!targetBlock) {
-      this.showToast("🔍", `${venue.name} ${floorNum}층에서 ${zoneToken}구역을 찾지 못했어요.`);
-      return;
-    }
-    const zoneCode = targetBlock.block_code;
-
-    this.selectVenueBlock(targetBlock.id);
-
-    if (remainder.length >= 4 && /^.+열$/.test(remainder[2]) && /^\d+번$/.test(remainder[3])) {
-      const rowVal = remainder[2].replace(/열$/, "");
-      const seatVal = remainder[3].replace(/번$/, "");
-      const seatId = await this.findSeatId('musical_seats', 'block_id', targetBlock.id, rowVal, seatVal);
-      if (seatId) {
-        this.openSeatDetail(seatId, { category: "musical" });
-        this.showToast("✅", `${venue.name} ${floorNum}층 ${zoneCode}구역 ${rowVal}열 ${seatVal}번으로 이동했어요.`);
-      } else {
-        this.showToast("🔍", `${zoneCode}구역에서 ${rowVal}열 ${seatVal}번 좌석을 찾지 못했어요.`);
-      }
-      return;
-    }
-
-    this.showToast("✅", `${venue.name} ${floorNum}층 ${zoneCode}구역으로 이동했어요.`);
-  }
 
   setupDragScroll(elementId) {
     const slider = document.getElementById(elementId);
@@ -1211,8 +1146,8 @@ class SeatViewApp {
       // (from this block, then away to ticketbook, then back) still shows
       // as unregistered because the DOM was never re-rendered.
       this.renderSeatingGrid(state.selectedBlock.id);
-    } else if (viewId === "venue-detail" && state.selectedVenueBlock) {
-      this.renderVenueSeatingGrid(state.selectedVenueBlock.id);
+    } else if (viewId === "venue-detail" && state.selectedVenueFloor) {
+      this.renderVenueFloorGrid(state.selectedVenueFloor);
     }
 
     // Scroll to top of app content — .app-content is the scroller on desktop
@@ -1595,7 +1530,11 @@ class SeatViewApp {
     }
   }
 
-  renderVenueList() {
+  // filterText: live substring match on venue name (2+ chars, from the
+  // search box — see bindEvents) instead of the old STEP-era "공연장명 층
+  // 구역" deep-link parser, which doesn't make sense anymore now that
+  // picking a floor already shows every zone on it at once.
+  renderVenueList(filterText = "") {
     const container = document.getElementById("venue-grid-container");
     if (!container) return;
     container.innerHTML = "";
@@ -1612,13 +1551,33 @@ class SeatViewApp {
       return;
     }
 
+    const trimmed = filterText.trim();
+    const venues = trimmed.length >= 2
+      ? VENUES_DB.filter(v => v.name.includes(trimmed))
+      : VENUES_DB;
+
+    if (venues.length === 0) {
+      container.innerHTML = `
+        <div class="compare-empty" style="border-style: solid;">
+          <div class="compare-empty-icon"><i data-lucide="search-x"></i></div>
+          <h3>'${this.escapeHtml(trimmed)}'와(과) 일치하는 공연장이 없습니다</h3>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
     // Product ad slot: lands on visual position 4 in this single-column
     // list, so inserted before the 4th venue (0-indexed: 3). The position-6
-    // slot is removed for now.
-    const venueAdInsertBeforeIndices = [3];
+    // slot is removed for now. Skipped while filtering — an ad wedged into
+    // a short, deliberately-narrowed search result looks out of place.
+    // One ad slot every 3 venues (before the 4th, 7th, 10th... card) instead
+    // of a single fixed slot — the list is long enough now that one ad near
+    // the top left everything past it with none.
+    const showAds = trimmed.length < 2;
 
-    VENUES_DB.forEach((venue, index) => {
-      if (venueAdInsertBeforeIndices.includes(index)) {
+    venues.forEach((venue, index) => {
+      if (showAds && index > 0 && index % 3 === 0) {
         container.appendChild(this.buildShoppingAdCard());
       }
 
@@ -1756,107 +1715,88 @@ class SeatViewApp {
       <button class="grade-pill" onclick="app.selectVenueFloor(${floor})" data-floor="${floor}">${floor}층</button>
     `).join("");
 
-    // Only auto-select when there's exactly one real choice — if there's
-    // more than one floor, don't presume which one the user wants.
-    if (floors.length === 1) {
-      this.selectVenueFloor(floors[0]);
-    } else {
-      this.updateVenueStepVisibility();
-    }
+    // Default to 1층 whenever it exists, instead of making the user tap a
+    // floor before seeing anything — falls back to whichever floor sorts
+    // first if this venue doesn't have a 1층 at all.
+    const defaultFloor = floors.includes(1) ? 1 : floors[0];
+    this.selectVenueFloor(defaultFloor);
   }
 
   selectVenueFloor(floor) {
     state.selectedVenueFloor = floor;
-    state.selectedVenueBlock = null;
     document.querySelectorAll("#venue-floor-filter-bar .grade-pill").forEach(btn => {
       btn.classList.toggle("active", Number(btn.dataset.floor) === Number(floor));
     });
-    this.renderVenueBlockSelector(floor);
     this.updateVenueStepVisibility();
-
-    // Same rule one level down: if this floor only has one zone, there's
-    // nothing to actually choose in STEP2 either — cascade straight into
-    // STEP3, matching baseball's grade→block auto-select behavior.
-    const blocksOnFloor = (state.selectedVenue?.blocks || []).filter(b => Number(b.floor) === Number(floor));
-    if (blocksOnFloor.length === 1) {
-      this.selectVenueBlock(blocksOnFloor[0].id);
-    }
+    this.renderVenueFloorGrid(floor);
   }
 
-  // STEP 2: zone badges for the selected floor.
-  renderVenueBlockSelector(floor) {
-    const container = document.getElementById("venue-block-selector-container");
-    if (!container || !state.selectedVenue) return;
-    const blocks = (state.selectedVenue.blocks || []).filter(b => Number(b.floor) === Number(floor));
+  // Replaces the old STEP2(구역 선택)/STEP3(좌석 선택) pair — picking a
+  // floor renders every zone on it at once, each positioned with
+  // block.offset_x/offset_y (where that zone starts within the floor's
+  // shared coordinate space) + seat.grid_x/grid_y (the seat's position
+  // within its own zone, unchanged from how it's always been entered).
+  // General layout rules for offset_x/offset_y (any venue, not just one —
+  // see docs/musical-floor-grid-offsets.md for the full writeup admins
+  // should follow when entering a new venue's block offsets):
+  //  - Every block reserves 2 rows above its own first seat row: one row
+  //    for its A/B/C... label, one blank row so the label doesn't sit
+  //    flush against the seats under it (LABEL_ROW / SEAT_ROW_START below).
+  //  - Two blocks stacked at different offset_y (e.g. OP above B) need at
+  //    least 1 further blank row between one block's last seat row and the
+  //    next block's label — pick offset_y values with that gap included.
+  async renderVenueFloorGrid(floor) {
+    const wrapper = document.getElementById("venue-floor-grid-wrapper");
+    const container = document.getElementById("venue-floor-grid-container");
+    if (!wrapper || !container || !state.selectedVenue) return;
+    container.innerHTML = "";
+    container.style.gridTemplateColumns = "";
+    container.style.gridTemplateRows = "";
 
-    if (blocks.length === 0) {
-      container.innerHTML = `<div style="padding: 12px; color: var(--text-muted); font-size: 0.85rem; text-align: center; width: 100%;">해당 층에 구역이 없습니다.</div>`;
+    // A block's own label and its real seats (grid_y=1) both sit 1 row
+    // after its offset_y baseline — flush, no gap between them (a blank
+    // buffer row was tried here and looked too spaced out).
+    const LABEL_ROW = 1;
+    const SEAT_ROW_START = 1;
+    const showEmptyState = () => {
+      container.innerHTML = `
+        <div style="padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+          🎭 해당 층은 현재 좌석 배치 정보 준비 중입니다.
+        </div>
+      `;
+    };
+
+    const blocks = (state.selectedVenue.blocks || []).filter(b => Number(b.floor) === Number(floor));
+    if (blocks.length === 0 || !supabaseClient) {
+      showEmptyState();
       return;
     }
 
-    // Venues have far fewer zones per floor than a baseball stadium has
-    // blocks overall, so a fixed 5-per-row grid (reusing the same grid CSS
-    // baseball uses inside each of its 1루/3루/기타 groups) shows everything
-    // at once instead of needing baseball's horizontal-scroll pill bar.
-    const pills = blocks.map(b => {
-      const isActive = state.selectedVenueBlock && state.selectedVenueBlock.id === b.id;
-      return `<button class="block-pill-btn ${isActive ? 'active' : ''}" onclick="app.selectVenueBlock(${b.id})">${b.block_code}</button>`;
-    }).join("");
-    container.innerHTML = `<div class="block-selector-group-list">${pills}</div>`;
-  }
-
-  selectVenueBlock(blockId) {
-    if (!state.selectedVenue) return;
-    const block = (state.selectedVenue.blocks || []).find(b => b.id === blockId);
-    if (!block) return;
-    state.selectedVenueBlock = block;
-
-    this.renderVenueBlockSelector(state.selectedVenueFloor);
-
-    const badgeEl = document.getElementById("venue-selected-block-badge");
-    const titleEl = document.getElementById("venue-selected-block-title");
-    if (badgeEl) badgeEl.textContent = `${block.floor}층`;
-    if (titleEl) titleEl.textContent = block.full_name || `${block.block_code}구역`;
-
-    this.renderVenueSeatingGrid(block.id);
-    this.updateVenueStepVisibility();
-
-    const step3 = document.getElementById("venue-block-seats-section");
-    if (step3) {
-      setTimeout(() => step3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
-    }
-  }
-
-  // STEP 3: seat grid — same visual language as the baseball seat grid
-  // (camera icon = has a submitted view photo), reading from musical_seats/
-  // musical_seat_reviews instead. Seat click doesn't open the photo-submit
-  // flow yet — that's a separate follow-up since openSeatDetail()'s review
-  // pipeline is still baseball-specific.
-  async renderVenueSeatingGrid(blockId) {
-    const wrapper = document.getElementById("venue-seat-grid-wrapper");
-    const container = document.getElementById("venue-seat-rows-container");
-    if (!wrapper || !container) return;
-    container.innerHTML = "";
-
-    const indicator = document.createElement("div");
-    indicator.className = "field-direction-indicator";
-    indicator.style.cssText = "width:100%;text-align:center;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.15);border-radius:6px;padding:6px 8px;margin-bottom:14px;font-size:0.7rem;color:rgba(255,255,255,0.5);font-weight:bold;letter-spacing:2px;";
-    indicator.textContent = "▲ 🎭 무대 (STAGE) 방면 ▲";
-    container.appendChild(indicator);
-
-    const block = (state.selectedVenue?.blocks || []).find(b => b.id === blockId);
-    if (!supabaseClient || !block) return;
-
     try {
-      const { data: seats, error } = await supabaseClient
-        .from('musical_seats')
-        .select('*')
-        .eq('block_id', block.id)
-        .order('grid_y', { ascending: true })
-        .order('grid_x', { ascending: true });
-      if (error) throw error;
+      const blockIds = blocks.map(b => b.id);
+      // A whole floor's combined seat count can pass Supabase's default
+      // 1000-row response cap (this venue's 1층 alone is 1103) — a single
+      // .select() would silently come back truncated with no error, so
+      // page through with .range() until a page comes back short.
+      const seats = [];
+      const PAGE_SIZE = 1000;
+      for (let page = 0; ; page++) {
+        const { data: pageRows, error } = await supabaseClient
+          .from('musical_seats')
+          .select('*')
+          .in('block_id', blockIds)
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+        if (error) throw error;
+        seats.push(...(pageRows || []));
+        if (!pageRows || pageRows.length < PAGE_SIZE) break;
+      }
 
-      const seatIds = (seats || []).map(s => s.id);
+      if (!seats || seats.length === 0) {
+        showEmptyState();
+        return;
+      }
+
+      const seatIds = seats.map(s => s.id);
       const seatsWithPhotos = new Set();
       if (seatIds.length > 0) {
         const { data: reviews } = await supabaseClient
@@ -1868,105 +1808,131 @@ class SeatViewApp {
         });
       }
 
-      const rowsMap = {};
-      (seats || []).forEach(seat => {
-        const y = seat.grid_y || 1;
-        const x = seat.grid_x || 1;
-        if (!rowsMap[y]) rowsMap[y] = {};
-        rowsMap[y][x] = seat;
+      const seatsByBlock = {};
+      seats.forEach(s => {
+        if (!seatsByBlock[s.block_id]) seatsByBlock[s.block_id] = [];
+        seatsByBlock[s.block_id].push(s);
       });
 
-      const maxRows = block.total_rows || 0;
-      const maxCols = block.max_seats || 0;
+      // Blank columns reserved on both edges so the scroll-fade mask (see
+      // .venue-floor-grid-scroll) fades into genuine empty space instead of
+      // dimming/clipping the leftmost or rightmost real seats — the fade
+      // has no way to know it's already at the end of the content.
+      const SIDE_MARGIN = 2;
 
-      if (maxRows === 0 || maxCols === 0 || !seats || seats.length === 0) {
-        container.innerHTML += `
-          <div style="padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; width: 100%;">
-            🎭 해당 구역은 현재 좌석 배치 정보 준비 중입니다.
-          </div>
-        `;
+      let maxCol = 0, maxRow = 0;
+      blocks.forEach(b => {
+        maxCol = Math.max(maxCol, (b.offset_x || 0) + (b.max_seats || 0));
+        maxRow = Math.max(maxRow, (b.offset_y || 0) + (b.total_rows || 0) + SEAT_ROW_START);
+      });
+      if (maxCol === 0 || maxRow === 0) {
+        showEmptyState();
         return;
       }
+      maxCol += SIDE_MARGIN * 2;
 
-      const visibleSeats = Math.min(maxCols, 14);
-      container.style.setProperty('--visible-seats', visibleSeats);
+      container.style.gridTemplateColumns = `repeat(${maxCol}, 26px)`;
+      container.style.gridTemplateRows = `repeat(${maxRow}, 26px)`;
 
-      for (let r = 1; r <= maxRows; r++) {
-        // A row is a bare aisle spacer only when it has no seat records at
-        // all, or the admin deliberately left its row label blank — NOT
-        // just because every seat happens to be walkway. Some real rows
-        // (e.g. a numbered row that legitimately has zero seats) still need
-        // their row number shown, so the label itself is the signal, not
-        // the seat statuses under it.
-        const rowSeatsForAisleCheck = rowsMap[r];
-        let rowLabelForAisleCheck = null;
-        if (rowSeatsForAisleCheck) {
-          const firstKeyForAisleCheck = Object.keys(rowSeatsForAisleCheck)[0];
-          if (firstKeyForAisleCheck) rowLabelForAisleCheck = rowSeatsForAisleCheck[firstKeyForAisleCheck].row_num;
+      blocks.forEach(b => {
+        // Off for venues whose block_code is just an internal management
+        // id (e.g. numbered zones with no real on-site zone lettering) —
+        // showing "1"/"2"/"3" as if they were real section names would be
+        // misleading there.
+        if (b.show_block_label !== false) {
+          const label = document.createElement("div");
+          label.className = "floor-grid-block-label";
+          label.textContent = b.block_code;
+          label.style.gridColumn = `${(b.offset_x || 0) + SIDE_MARGIN + 1} / span ${b.max_seats || 1}`;
+          // Was always row 1 — fine when every block starts at the same
+          // offset_y, but a block set further back (e.g. B behind OP here)
+          // still had its own label pinned to the very top, overlapping
+          // whatever else was up there. Anchor it one row above wherever
+          // THIS block's own first seat row actually lands instead.
+          label.style.gridRow = String((b.offset_y || 0) + LABEL_ROW);
+          container.appendChild(label);
         }
-        const isAisleRow = !rowSeatsForAisleCheck || rowLabelForAisleCheck === "";
-        if (isAisleRow) {
-          const aisleDiv = document.createElement("div");
-          aisleDiv.className = "seat-row-aisle";
-          container.appendChild(aisleDiv);
-          continue;
-        }
 
-        const rowDiv = document.createElement("div");
-        // Whole-row half-seat offset (staggered/fan-shaped sections) — set
-        // once per row from whatever the seats share, rather than nudging
-        // individual seats.
-        let rowOffsetClass = "";
-        if (rowsMap[r]) {
-          const firstSeatKeyForOffset = Object.keys(rowsMap[r])[0];
-          const rowOffsetType = firstSeatKeyForOffset ? rowsMap[r][firstSeatKeyForOffset].offset_type : null;
-          if (rowOffsetType === "half_right") rowOffsetClass = " offset-right";
-          else if (rowOffsetType === "half_left") rowOffsetClass = " offset-left";
-        }
-        rowDiv.className = `seat-row${rowOffsetClass}`;
+        (seatsByBlock[b.id] || []).forEach(seat => {
+          const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY");
+          if (isWalkway) return; // no element at all — the grid cell just stays blank
 
-        let rowLabel = String(r);
-        if (rowsMap[r]) {
-          const firstSeatKey = Object.keys(rowsMap[r])[0];
-          if (firstSeatKey && rowsMap[r][firstSeatKey].row_num) rowLabel = rowsMap[r][firstSeatKey].row_num;
-        }
-        const dispLabel = String(rowLabel).endsWith("열") ? rowLabel : `${rowLabel}열`;
-
-        const label = document.createElement("span");
-        label.className = "row-num";
-        label.textContent = dispLabel;
-        rowDiv.appendChild(label);
-
-        const seatsDiv = document.createElement("div");
-        seatsDiv.className = "row-seats";
-
-        for (let c = 1; c <= maxCols; c++) {
-          const seat = rowsMap[r] ? rowsMap[r][c] : null;
-          if (!seat) {
-            const gapBtn = document.createElement("button");
-            gapBtn.className = "seat-item gap";
-            seatsDiv.appendChild(gapBtn);
-          } else {
-            const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY");
-            if (isWalkway) {
-              const gapBtn = document.createElement("button");
-              gapBtn.className = "seat-item gap";
-              seatsDiv.appendChild(gapBtn);
-            } else {
-              const seatBtn = document.createElement("button");
-              seatBtn.className = "seat-item";
-              seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
-              if (seatsWithPhotos.has(seat.id)) seatBtn.classList.add("has-camera");
-              seatBtn.onclick = () => this.openSeatDetail(seat.id, { category: "musical" });
-              seatsDiv.appendChild(seatBtn);
-            }
+          const seatBtn = document.createElement("button");
+          seatBtn.className = "floor-grid-seat";
+          const hasSeatNum = seat.seat_num !== null && seat.seat_num !== undefined && seat.seat_num !== "";
+          seatBtn.textContent = hasSeatNum ? seat.seat_num : "";
+          if (seatsWithPhotos.has(seat.id)) seatBtn.classList.add("has-camera");
+          if (seat.is_disabled_seat) {
+            seatBtn.classList.add("is-disabled-seat");
+            // No seat number to show for this cell — the icon would sit as
+            // a tiny corner badge on an otherwise blank cell, easy to miss.
+            // Make it the cell's whole visible content instead.
+            if (!hasSeatNum) seatBtn.classList.add("no-seat-num");
           }
+          // Zigzag rows — "half" is legacy data predating the half_right/
+          // half_left split, treated the same as half_right.
+          if (seat.offset_type === "half_right" || seat.offset_type === "half") {
+            seatBtn.classList.add("offset-right");
+          } else if (seat.offset_type === "half_left") {
+            seatBtn.classList.add("offset-left");
+          }
+          seatBtn.style.gridColumn = String((b.offset_x || 0) + (seat.grid_x || 1) + SIDE_MARGIN);
+          seatBtn.style.gridRow = String((b.offset_y || 0) + (seat.grid_y || 1) + SEAT_ROW_START);
+          seatBtn.onclick = () => this.openSeatDetail(seat.id, { category: "musical" });
+          container.appendChild(seatBtn);
+        });
+
+        // Row-number labels in the aisle beside this block, when set up
+        // for one or both (label_position — the aisle needs to be 2
+        // columns wide for this, and the label spans both, centered across
+        // them, rather than sitting in one single "middle" column of a
+        // 3-wide aisle). One label per distinct row (grid_y), read
+        // straight off that row's own seats — nothing to show until real
+        // seat data exists. 'both' is for when this block has more rows
+        // than its neighbor on one side (e.g. an OP row its neighbor
+        // doesn't have) — sourcing that shared aisle's labels from the
+        // neighbor would leave the extra rows blank, so this block's own
+        // (more complete) data covers the aisle on both sides instead.
+        // Trimmed — a value pasted into the Supabase table editor can carry
+        // an invisible trailing \r\n, which silently fails a strict ===
+        // and just renders nothing with no error.
+        const labelPos = (b.label_position || "").trim();
+        const wantsLeft = labelPos === "left" || labelPos === "both";
+        const wantsRight = labelPos === "right" || labelPos === "both";
+        if (b.show_row_label !== false && (wantsLeft || wantsRight)) {
+          const rowLabelByY = {};
+          (seatsByBlock[b.id] || []).forEach(seat => {
+            if (seat.row_num && rowLabelByY[seat.grid_y] === undefined) rowLabelByY[seat.grid_y] = seat.row_num;
+          });
+          const leftCol = (b.offset_x || 0) + SIDE_MARGIN - 1;
+          const rightCol = (b.offset_x || 0) + (b.max_seats || 0) + SIDE_MARGIN + 1;
+          Object.keys(rowLabelByY).forEach(gridY => {
+            const row = String((b.offset_y || 0) + Number(gridY) + SEAT_ROW_START);
+            const cols = [];
+            if (wantsLeft) cols.push(leftCol);
+            if (wantsRight) cols.push(rightCol);
+            cols.forEach(col => {
+              const rowLabelEl = document.createElement("div");
+              rowLabelEl.className = "floor-grid-row-label";
+              rowLabelEl.textContent = rowLabelByY[gridY];
+              rowLabelEl.style.gridColumn = `${col} / span 2`;
+              rowLabelEl.style.gridRow = row;
+              container.appendChild(rowLabelEl);
+            });
+          });
         }
-        rowDiv.appendChild(seatsDiv);
-        container.appendChild(rowDiv);
+      });
+
+      // Combined floor is usually much wider than the viewport — start
+      // centered instead of pinned to the left edge.
+      const scrollHost = wrapper.querySelector(".venue-floor-grid-scroll");
+      if (scrollHost) {
+        requestAnimationFrame(() => {
+          scrollHost.scrollLeft = (scrollHost.scrollWidth - scrollHost.clientWidth) / 2;
+        });
       }
     } catch (e) {
-      console.error("공연장 좌석 로딩 에러:", e);
+      console.error("공연장 통합 좌석 로딩 에러:", e);
     }
   }
 
@@ -2437,17 +2403,13 @@ class SeatViewApp {
     }
   }
 
-  // Musical equivalent of updateStepVisibility() — separate element ids
+  // Musical equivalent of updateStepVisibility() — separate element id
   // since venue-detail and stadium-detail reuse the same step-card classes.
+  // Only one card left (the floor grid itself) now that STEP2/3 are gone.
   updateVenueStepVisibility() {
-    const step2 = document.getElementById("venue-block-selector-wrapper");
     const step3 = document.getElementById("venue-block-seats-section");
-
-    if (step2) {
-      step2.classList.toggle("disabled-step", !state.selectedVenueFloor);
-    }
     if (step3) {
-      step3.classList.toggle("disabled-step", !state.selectedVenueBlock);
+      step3.classList.toggle("disabled-step", !state.selectedVenueFloor);
     }
   }
 
@@ -3236,10 +3198,12 @@ class SeatViewApp {
     let images = [];
     let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
     let stadiumName, blockName, seatName;
+    let isWheelchairSeat = false;
 
     if (isRealSeat && supabaseClient && isMusical) {
       try {
         const { data: seatRow } = await supabaseClient.from('musical_seats').select('*').eq('id', dbKey).single();
+        isWheelchairSeat = !!(seatRow && seatRow.is_disabled_seat);
         let blockRow = null, venueRow = null;
         if (seatRow) {
           const { data: bRow } = await supabaseClient.from('musical_blocks').select('*').eq('id', seatRow.block_id).single();
@@ -3261,6 +3225,7 @@ class SeatViewApp {
     } else if (isRealSeat && supabaseClient) {
       try {
         const { data: seatRow } = await supabaseClient.from('baseball_seats').select('*').eq('id', dbKey).single();
+        isWheelchairSeat = !!(seatRow && seatRow.is_disabled_seat);
         let blockRow = null, stadiumRow = null;
         if (seatRow) {
           const { data: bRow } = await supabaseClient.from('baseball_blocks').select('*').eq('id', seatRow.block_id).single();
@@ -3302,6 +3267,7 @@ class SeatViewApp {
 
     document.getElementById("modal-seat-stadium").textContent = stadiumName;
     document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
+    document.getElementById("modal-seat-wheelchair-badge").style.display = isWheelchairSeat ? "inline-flex" : "none";
 
     // For real DB seats, skip this legacy placeholder-image block entirely —
     // images/comments come only from the actual baseball_seat_reviews fetch below.
@@ -4723,7 +4689,7 @@ class SeatViewApp {
 
     this.closeModal("modal-add-ticket");
     if (isMusical) {
-      if (state.selectedVenueBlock) this.renderVenueSeatingGrid(state.selectedVenueBlock.id);
+      if (state.selectedVenueFloor) this.renderVenueFloorGrid(state.selectedVenueFloor);
       this.navigateTo("venue-detail");
     } else {
       this.renderTicketbook();

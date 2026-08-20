@@ -884,13 +884,22 @@ img {
 }
 
 .stadium-card.preparing::before {
-  background: none;
+  /* Was `background: none` — left the grayscaled photo fully exposed
+     behind the overlay text, so bright/busy shots (e.g. a lit venue
+     exterior) swallowed the "준비중" label and venue name. Give it its
+     own strong, always-on scrim like the normal card's, dark enough to
+     stay readable regardless of what photo sits underneath. */
+  background: rgba(8, 10, 15, 0.78);
 }
 
 .stadium-card.preparing:hover {
   transform: none;
   box-shadow: none;
   border-color: var(--border-color);
+}
+
+.stadium-card.preparing:hover::before {
+  background: rgba(8, 10, 15, 0.78);
 }
 
 .stadium-card-preparing-overlay {
@@ -902,7 +911,7 @@ img {
   justify-content: center;
   gap: 4px;
   z-index: 4;
-  color: var(--text-secondary);
+  color: #e5e7eb;
   text-align: center;
   padding: 0 12px;
 }
@@ -917,11 +926,12 @@ img {
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  color: #ffffff;
 }
 
 .stadium-card-preparing-overlay .preparing-name {
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: #d1d5db;
 }
 
 .stadium-card-main {
@@ -1320,6 +1330,140 @@ img {
 .legend-box.empty {
   background-color: #1e293b;
   border: 1px solid rgba(255,255,255,0.05);
+}
+
+.field-direction-indicator {
+  width: 100%;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 14px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+/* Venue floor grid — every block on a floor rendered as one shared CSS
+   grid instead of picking a zone first, each block's seats placed via
+   offset_x/offset_y (block position) + grid_x/grid_y (seat position within
+   the block). Fixed px cell size, not the seat-item flex/cqw sizing used
+   by the per-block grid — this one is usually far wider than the viewport
+   and needs real horizontal scroll, not a shrink-to-fit row. */
+.venue-floor-scroll-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  animation: venue-scroll-hint-fade 3.5s ease forwards;
+}
+
+@keyframes venue-scroll-hint-fade {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
+.venue-floor-grid-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+  /* Fades the seats out right at both edges so the grid visibly looks like
+     it continues past what's on screen, instead of ending in a hard clean
+     edge that reads as "that's everything." */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+
+.venue-floor-grid {
+  display: grid;
+  gap: 3px;
+  width: max-content;
+}
+
+.floor-grid-block-label {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 4px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.floor-grid-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.floor-grid-seat {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--border-seat-default);
+  background-color: var(--bg-seat-default);
+  color: var(--text-primary);
+  font-size: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+}
+
+.floor-grid-seat.has-camera {
+  background-color: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  font-weight: 700;
+}
+
+.floor-grid-seat.has-camera:hover {
+  background-color: var(--accent-purple) !important;
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+.floor-grid-seat.is-disabled-seat::before {
+  /* Was 0.5rem — barely visible as a corner badge on a 26px cell. Emoji
+     glyphs render noticeably larger than their font-size (their own fixed
+     aspect box), so this reads bigger than the number does at the same
+     size — keep it modest or it floats off the corner entirely. */
+  content: "♿";
+  position: absolute;
+  bottom: -3px;
+  left: -3px;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+/* Seat has no seat_num to display (blank cell otherwise) — show the
+   wheelchair icon as the cell's main content instead of a corner badge. */
+.floor-grid-seat.is-disabled-seat.no-seat-num::before {
+  position: static;
+  font-size: 0.85rem;
+}
+
+/* Zigzag/staggered rows (seat.offset_type) — the per-block grid shifts a
+   whole row with a margin on its flex container, but this grid places each
+   seat individually via grid-column, so there's no row-level box to apply
+   that margin to. A transform on each seat in the row does the same half-
+   seat-width shift instead (half of the 26px cell). */
+.floor-grid-seat.offset-right {
+  transform: translateX(13px);
+}
+
+.floor-grid-seat.offset-left {
+  transform: translateX(-13px);
 }
 
 .seat-rows {
@@ -1999,6 +2143,20 @@ img {
   color: var(--accent-blue);
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.wheelchair-seat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.15);
+  border: 1px solid rgba(22, 163, 74, 0.4);
+  color: #4ade80;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .close-btn {

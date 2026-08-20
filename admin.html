@@ -392,6 +392,33 @@
       cursor: not-allowed;
     }
 
+    /* Wheelchair-seat toggle badge, corner of a Tab B seat cell */
+    .cell-wheelchair-btn {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background-color: #1a1e2b;
+      color: #57607a;
+      font-size: 0.6rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .cell-wheelchair-btn.active {
+      background-color: #16a34a;
+      border-color: #16a34a;
+      color: white;
+    }
+
     /* Toast notification */
     .toast {
       position: fixed;
@@ -1146,6 +1173,7 @@
         this.gridSeatNums = {}; // In-memory seat numbers map
         this.gridOffsetType = {}; // In-memory offset_type map per cell ("half_right"/"half_left"/"none") — set in bulk per row, not per cell
         this.gridRowOffset = {}; // In-memory row-level offset selection, mirrors gridOffsetType for the row header <select>
+        this.gridDisabledSeat = {}; // In-memory is_disabled_seat map per cell (wheelchair seat toggle)
         this.gridRowLabels = {}; // In-memory row label map (editable per row, e.g. for aisle skips)
 
         this.activeTab = 'availability';
@@ -1460,6 +1488,7 @@
             if (s.offset_type === "half_left") this.gridOffsetType[key] = "half_left";
             else if (s.offset_type === "half_right" || s.offset_type === "half") this.gridOffsetType[key] = "half_right";
             else this.gridOffsetType[key] = "none";
+            this.gridDisabledSeat[key] = !!s.is_disabled_seat;
 
             if (s.grid_y !== null) {
               if (!minGridYSeat || s.grid_y < minGridYSeat.grid_y) {
@@ -1731,6 +1760,20 @@
               
               cellDiv.appendChild(input);
               cellDiv.onclick = () => this.toggleSeatNumber(r, c, input, numSpan);
+
+              // Wheelchair-seat toggle — small corner badge, independent of
+              // the seat-number click so it doesn't fight toggleSeatNumber
+              // for the same click.
+              const wheelchairBtn = document.createElement("button");
+              wheelchairBtn.type = "button";
+              wheelchairBtn.className = `cell-wheelchair-btn${this.gridDisabledSeat[key] ? ' active' : ''}`;
+              wheelchairBtn.title = "휠체어석으로 지정";
+              wheelchairBtn.textContent = "♿";
+              wheelchairBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.toggleDisabledSeat(r, c, wheelchairBtn);
+              };
+              cellDiv.appendChild(wheelchairBtn);
             }
 
             td.appendChild(cellDiv);
@@ -1755,6 +1798,14 @@
         // Update headers state
         this.updateHeaderCheckboxes('table-availability');
         this.updateSeatCounters();
+      }
+
+      // Tab B: Toggle wheelchair-seat flag for a single cell
+      toggleDisabledSeat(row, col, btnEl) {
+        const key = `${row}_${col}`;
+        const next = !this.gridDisabledSeat[key];
+        this.gridDisabledSeat[key] = next;
+        if (btnEl) btnEl.classList.toggle("active", next);
       }
 
       // Tab A: Toggle column checkbox
@@ -2159,7 +2210,8 @@
                 grid_x: c,
                 grid_y: r,
                 status: String(status),
-                offset_type: this.gridOffsetType[key] || 'none'
+                offset_type: this.gridOffsetType[key] || 'none',
+                is_disabled_seat: !!this.gridDisabledSeat[key]
               };
 
               // If seat is toggled to walkway (3), seat_num must be null
@@ -2234,7 +2286,8 @@
                 grid_y: r,
                 status: String(status),
                 seat_num: seatNum,
-                offset_type: this.gridOffsetType[key] || 'none'
+                offset_type: this.gridOffsetType[key] || 'none',
+                is_disabled_seat: !!this.gridDisabledSeat[key]
               };
 
               if (cached) {
@@ -2298,6 +2351,7 @@
       bmGetTopTable() { return this.bmCategory === "musical" ? "venues" : "stadiums"; }
       bmGetBlocksTable() { return this.bmCategory === "musical" ? "musical_blocks" : "baseball_blocks"; }
       bmGetBlocksFkCol() { return this.bmCategory === "musical" ? "venue_id" : "stadium_id"; }
+      bmGetSeatsTable() { return this.bmCategory === "musical" ? "musical_seats" : "baseball_seats"; }
 
       handleBmCategoryChange(category) {
         this.bmCategory = category;
@@ -2534,11 +2588,41 @@
 
         try {
           if (id) {
+            // Shrinking total_rows/max_seats here doesn't touch the seat
+            // rows already saved in 좌석 배치 편집기 — they're a separate
+            // table, so a block resized from e.g. 26 to 24 seats/row still
+            // has real seat records at grid_x 25-26 sitting there. Left
+            // alone, the floor-grid renderer (which reads seats directly,
+            // not through max_seats) draws them anyway, overlapping into
+            // whatever the next block over now occupies. Clean those up
+            // whenever a dimension actually shrinks.
+            const prevBlock = this.bmBlocks.find(b => String(b.id) === String(id));
+            const rowsShrunk = prevBlock && totalRows < prevBlock.total_rows;
+            const seatsShrunk = prevBlock && maxSeats < prevBlock.max_seats;
+
             const { error } = await supabaseClient
               .from(this.bmGetBlocksTable())
               .update(record)
               .eq("id", id);
             if (error) throw error;
+
+            if (rowsShrunk || seatsShrunk) {
+              const seatsTable = this.bmGetSeatsTable();
+              const orConditions = [];
+              if (rowsShrunk) orConditions.push(`grid_y.gt.${totalRows}`);
+              if (seatsShrunk) orConditions.push(`grid_x.gt.${maxSeats}`);
+              const { error: cleanupErr, count } = await supabaseClient
+                .from(seatsTable)
+                .delete({ count: "exact" })
+                .eq("block_id", id)
+                .or(orConditions.join(","));
+              if (cleanupErr) {
+                console.error("Orphaned seat cleanup failed:", cleanupErr);
+              } else if (count) {
+                this.showToast("알림", `구역 크기가 줄어들어 범위 밖 좌석 ${count}개를 함께 정리했습니다.`, "success");
+              }
+            }
+
             this.showToast("성공", "구역 정보를 수정했습니다.", "success");
           } else {
             const { error } = await supabaseClient

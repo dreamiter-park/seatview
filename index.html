@@ -156,7 +156,7 @@
         <section id="view-venues" class="view">
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="공연장 + 층/구역 검색 (예: 세종 1층 A)" id="venue-search-input">
+            <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="venue-search-input">
           </div>
 
           <div class="stadium-grid" id="venue-grid-container">
@@ -202,48 +202,27 @@
               </div>
             </div>
 
-            <!-- STEP 1: Floor Filter -->
+            <!-- Floor tabs — the only selection step left. Picking a floor
+                 renders every block on it at once (see renderVenueFloorGrid),
+                 instead of a further "pick a zone" step. -->
             <div class="step-card grade-filter-card">
-              <div class="step-title">
-                <span class="step-number">STEP 1</span>
-                <span class="step-text">층 선택</span>
-              </div>
               <div class="grade-filter-bar" id="venue-floor-filter-bar">
                 <!-- Dynamically populated -->
               </div>
             </div>
 
-            <!-- STEP 2: Zone Selector -->
-            <div class="step-card block-selector-wrapper" id="venue-block-selector-wrapper">
-              <div class="step-title">
-                <span class="step-number">STEP 2</span>
-                <span class="step-text">구역 선택</span>
-              </div>
-              <div class="block-selector-container" id="venue-block-selector-container">
-                <!-- Dynamically populated -->
-              </div>
-            </div>
-
-            <!-- STEP 3: Seat Grid -->
             <div class="step-card block-seats-section" id="venue-block-seats-section">
-              <div class="step-title">
-                <span class="step-number">STEP 3</span>
-                <span class="step-text">좌석 선택</span>
-              </div>
-              <div class="block-info-header">
-                <div>
-                  <span class="block-badge" id="venue-selected-block-badge">구역 미선택</span>
-                  <h4 class="block-name" id="venue-selected-block-title">원하는 구역을 먼저 선택해 주세요</h4>
-                </div>
-              </div>
-
-              <div class="seat-grid-container" id="venue-seat-grid-wrapper">
+              <div class="venue-floor-grid-container" id="venue-floor-grid-wrapper">
+                <div class="field-direction-indicator">▲ 🎭 무대 (STAGE) 방면 ▲</div>
                 <div class="seat-grid-legend">
                   <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
                   <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
                 </div>
-                <div class="seat-rows" id="venue-seat-rows-container">
-                  <!-- Row 1, 2, 3... -->
+                <div class="venue-floor-scroll-hint">↔ 좌우로 스크롤해서 다른 구역도 확인해보세요</div>
+                <div class="venue-floor-grid-scroll" id="venue-floor-grid-scroll">
+                  <div class="venue-floor-grid" id="venue-floor-grid-container">
+                    <!-- Absolutely-positioned seats across every block on this floor -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -466,6 +445,7 @@
             <div>
               <span class="modal-subtitle" id="modal-seat-stadium">잠실 야구장</span>
               <h3 class="modal-title" id="modal-seat-title">101블록 3열 4번</h3>
+              <span class="wheelchair-seat-badge" id="modal-seat-wheelchair-badge" style="display: none;">♿ 휠체어석</span>
             </div>
             <button class="close-btn" onclick="app.closeModal('modal-seat-detail')" aria-label="Close">
               <i data-lucide="x"></i>
