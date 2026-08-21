@@ -1300,7 +1300,18 @@ img {
   gap: 12px;
   font-size: 0.7rem;
   color: var(--text-secondary);
-  margin-bottom: 16px;
+}
+
+/* Groups the legend + scroll hint into one compact reference row — both
+   are one-time/supporting info, not the main content, so they shouldn't
+   sit between the stage indicator and the seats it's labeling (see
+   .field-direction-indicator below, now placed right above the grid). */
+.venue-floor-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
 }
@@ -1353,10 +1364,9 @@ img {
    by the per-block grid — this one is usually far wider than the viewport
    and needs real horizontal scroll, not a shrink-to-fit row. */
 .venue-floor-scroll-hint {
-  text-align: center;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  white-space: nowrap;
   animation: venue-scroll-hint-fade 3.5s ease forwards;
 }
 
@@ -1433,24 +1443,50 @@ img {
   z-index: 10;
 }
 
+/* A zigzag-row seat (offset-right/left) that also has photos needs both
+   transforms at once on hover — `transform` isn't additive, so the plain
+   scale(1.15) above would silently drop the row's translateX and the seat
+   would visibly jump back into its unshifted column for the hover instant. */
+.floor-grid-seat.offset-right.has-camera:hover {
+  transform: translateX(13px) scale(1.15);
+}
+
+.floor-grid-seat.offset-left.has-camera:hover {
+  transform: translateX(-13px) scale(1.15);
+}
+
 .floor-grid-seat.is-disabled-seat::before {
-  /* Was 0.5rem — barely visible as a corner badge on a 26px cell. Emoji
-     glyphs render noticeably larger than their font-size (their own fixed
-     aspect box), so this reads bigger than the number does at the same
-     size — keep it modest or it floats off the corner entirely. */
-  content: "♿";
+  /* A plain hand-drawn static wheelchair glyph instead of the ♿ emoji —
+     several platforms (notably newer Android/Samsung fonts) render that
+     emoji as a person leaning forward mid-push, which read as "running"
+     rather than a seat marker. An inline SVG renders identically
+     everywhere instead of depending on the viewer's emoji font.
+     A plain white icon with no backdrop was too small/low-contrast to
+     spot against the seat's own color — a solid green disc behind it
+     (plus a white ring) keeps it visible no matter what's behind or
+     under it. */
+  content: "";
   position: absolute;
-  bottom: -3px;
-  left: -3px;
-  font-size: 0.62rem;
-  line-height: 1;
+  bottom: -4px;
+  left: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background-color: #16a34a;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='5' r='1.8' fill='white' stroke='none'/%3E%3Cpath d='M9 6.5V11h5'/%3E%3Cpath d='M9 11l3 7h3'/%3E%3Cpath d='M5 11h4'/%3E%3Ccircle cx='10.5' cy='17' r='5'/%3E%3C/svg%3E");
+  background-size: 65%;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Seat has no seat_num to display (blank cell otherwise) — show the
-   wheelchair icon as the cell's main content instead of a corner badge. */
+   wheelchair badge as the cell's main content instead of a corner mark. */
 .floor-grid-seat.is-disabled-seat.no-seat-num::before {
   position: static;
-  font-size: 0.85rem;
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
 }
 
 /* Zigzag/staggered rows (seat.offset_type) — the per-block grid shifts a

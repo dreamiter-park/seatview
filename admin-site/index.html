@@ -392,18 +392,22 @@
       cursor: not-allowed;
     }
 
-    /* Wheelchair-seat toggle badge, corner of a Tab B seat cell */
+    /* Wheelchair-seat toggle badge, corner of a Tab B seat cell.
+       Off used to be a dim filled circle close in tone to the cell
+       background, easy to miss in a busy grid — off is now a hollow
+       outline (nothing filled in) and on is a solid bright badge with a
+       glow, so the two states read apart at a glance across many cells. */
     .cell-wheelchair-btn {
       position: absolute;
-      top: -4px;
-      right: -4px;
-      width: 15px;
-      height: 15px;
+      top: -5px;
+      right: -5px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background-color: #1a1e2b;
-      color: #57607a;
-      font-size: 0.6rem;
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      background-color: transparent;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 0.68rem;
       line-height: 1;
       display: flex;
       align-items: center;
@@ -417,6 +421,7 @@
       background-color: #16a34a;
       border-color: #16a34a;
       color: white;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35);
     }
 
     /* Toast notification */
@@ -1359,14 +1364,18 @@
         try {
           const isMusical = this.category === 'musical';
           const selectCols = isMusical
-            ? 'id, block_code, full_name, total_rows, max_seats'
+            ? 'id, floor, block_code, full_name, total_rows, max_seats'
             : 'id, block_code, full_name, seat_grade, total_rows, max_seats';
 
-          const { data: blocks, error } = await supabaseClient
+          let blocksQuery = supabaseClient
             .from(this.getBlocksTable())
             .select(selectCols)
-            .eq(this.getBlocksFkCol(), stadiumId)
-            .order('block_code', { ascending: true });
+            .eq(this.getBlocksFkCol(), stadiumId);
+          // Sort by floor first so the dropdown reads 1층 A/B/C, 2층 A/B/C...
+          // instead of interleaving floors by block_code text order alone.
+          if (isMusical) blocksQuery = blocksQuery.order('floor', { ascending: true });
+          blocksQuery = blocksQuery.order('block_code', { ascending: true });
+          const { data: blocks, error } = await blocksQuery;
 
           if (error) throw error;
 
@@ -1768,7 +1777,18 @@
               wheelchairBtn.type = "button";
               wheelchairBtn.className = `cell-wheelchair-btn${this.gridDisabledSeat[key] ? ' active' : ''}`;
               wheelchairBtn.title = "휠체어석으로 지정";
-              wheelchairBtn.textContent = "♿";
+              // Plain hand-drawn static glyph instead of the ♿ emoji — some
+              // platforms render that as a person leaning forward mid-push,
+              // which reads as "running" rather than a seat marker.
+              wheelchairBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11">
+                  <circle cx="9" cy="5" r="1.6" fill="currentColor" stroke="none"/>
+                  <path d="M9 6.5V11h5"/>
+                  <path d="M9 11l3 7h3"/>
+                  <path d="M5 11h4"/>
+                  <circle cx="10.5" cy="17" r="5"/>
+                </svg>
+              `;
               wheelchairBtn.onclick = (e) => {
                 e.stopPropagation();
                 this.toggleDisabledSeat(r, c, wheelchairBtn);
@@ -2433,11 +2453,19 @@
         if (overlay) overlay.style.display = "flex";
 
         try {
-          const { data: blocks, error } = await supabaseClient
+          const isMusical = this.bmCategory === "musical";
+          let blocksQuery = supabaseClient
             .from(this.bmGetBlocksTable())
             .select("*")
-            .eq(this.bmGetBlocksFkCol(), this.bmSelectedEntity.id)
-            .order("full_name", { ascending: true });
+            .eq(this.bmGetBlocksFkCol(), this.bmSelectedEntity.id);
+          // Was sorted by full_name alone — for musical venues that only
+          // reads as floor order by coincidence (as long as every full_name
+          // happens to start with "N층 ..."), and breaks outright for
+          // blocks like OP-A/OP-B that don't follow that text pattern.
+          // Sort by the real floor/block_code columns instead.
+          if (isMusical) blocksQuery = blocksQuery.order("floor", { ascending: true });
+          blocksQuery = blocksQuery.order("block_code", { ascending: true });
+          const { data: blocks, error } = await blocksQuery;
           if (error) throw error;
 
           this.bmBlocks = blocks;

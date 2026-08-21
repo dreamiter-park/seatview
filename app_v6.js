@@ -1749,6 +1749,18 @@ class SeatViewApp {
     const wrapper = document.getElementById("venue-floor-grid-wrapper");
     const container = document.getElementById("venue-floor-grid-container");
     if (!wrapper || !container || !state.selectedVenue) return;
+
+    // Two overlapping calls (e.g. the page's initial auto-selected floor
+    // still mid-fetch when the user immediately taps a different floor
+    // tab) used to both render into the same container — the only
+    // container.innerHTML="" happens before the async seat fetch below,
+    // so whichever call's fetch resolved *second* just appended its seats
+    // on top of the first call's instead of replacing them, leaving both
+    // floors' seats visually overlapping. A generation token makes a
+    // stale in-flight call's late resolution a no-op instead.
+    const myGen = (this._floorGridRenderGen = (this._floorGridRenderGen || 0) + 1);
+    const isStale = () => myGen !== this._floorGridRenderGen;
+
     container.innerHTML = "";
     container.style.gridTemplateColumns = "";
     container.style.gridTemplateRows = "";
@@ -1789,7 +1801,9 @@ class SeatViewApp {
         if (error) throw error;
         seats.push(...(pageRows || []));
         if (!pageRows || pageRows.length < PAGE_SIZE) break;
+        if (isStale()) return;
       }
+      if (isStale()) return;
 
       if (!seats || seats.length === 0) {
         showEmptyState();
@@ -1803,10 +1817,17 @@ class SeatViewApp {
           .from('musical_seat_reviews')
           .select('musical_seat_id, image_urls')
           .in('musical_seat_id', seatIds);
+        if (isStale()) return;
         (reviews || []).forEach(rev => {
           if (Array.isArray(rev.image_urls) && rev.image_urls.length > 0) seatsWithPhotos.add(rev.musical_seat_id);
         });
       }
+
+      // A stale call could have been about to append here right as a newer
+      // one already rendered — clear defensively right before this call's
+      // own DOM writes, not just up top before the fetch.
+      if (isStale()) return;
+      container.innerHTML = "";
 
       const seatsByBlock = {};
       seats.forEach(s => {
@@ -1914,7 +1935,12 @@ class SeatViewApp {
             cols.forEach(col => {
               const rowLabelEl = document.createElement("div");
               rowLabelEl.className = "floor-grid-row-label";
-              rowLabelEl.textContent = rowLabelByY[gridY];
+              // musical_seats.row_num was entered inconsistently across
+              // venues — some rows already have "열" typed in, some are a
+              // bare number. Only append it to a plain number so a venue
+              // that already has "1열" doesn't end up as "1열열".
+              const rawRowLabel = String(rowLabelByY[gridY]);
+              rowLabelEl.textContent = /^\d+$/.test(rawRowLabel) ? `${rawRowLabel}열` : rawRowLabel;
               rowLabelEl.style.gridColumn = `${col} / span 2`;
               rowLabelEl.style.gridRow = row;
               container.appendChild(rowLabelEl);
@@ -3214,8 +3240,31 @@ class SeatViewApp {
           }
         }
         stadiumName = venueRow ? venueRow.name : (state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5");
-        blockName = blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
-        seatName = seatRow ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+        // A block with show_block_label=false has no real on-site zone name
+        // (see musical_blocks \u2014 e.g. \uBE14\uB8E8\uC2A4\uD018\uC5B4) \u2014 the floor grid already
+        // hides its section header for the same reason, so the seat detail
+        // title shouldn't show a made-up block_code/full_name here either.
+        blockName = (blockRow && blockRow.show_block_label === false)
+          ? ""
+          : (blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C"));
+
+        // Row numbers only ever reach the user through the aisle
+        // label_position feature \u2014 if no block on this floor drives one,
+        // row_num was never actually shown anywhere on the seat map, so
+        // showing "N\uC5F4" here would surface info the map itself never did
+        // (same reasoning as hiding blockName above for show_block_label).
+        let showRowNum = true;
+        if (blockRow) {
+          const { data: floorBlocks } = await supabaseClient
+            .from('musical_blocks')
+            .select('label_position')
+            .eq('venue_id', blockRow.venue_id)
+            .eq('floor', blockRow.floor);
+          showRowNum = !!(floorBlocks || []).some(b => (b.label_position || "").trim());
+        }
+        seatName = seatRow
+          ? (showRowNum ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : `${seatRow.seat_num}\uBC88`)
+          : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
       } catch (e) {
         console.warn("Failed to resolve real musical seat info:", e);
         stadiumName = state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5";
@@ -3266,7 +3315,7 @@ class SeatViewApp {
       : (SEAT_VIEWS_DB[cacheKey] = { ...(SEAT_VIEWS_DB[cacheKey] || {}), stadiumName, blockName, seatName });
 
     document.getElementById("modal-seat-stadium").textContent = stadiumName;
-    document.getElementById("modal-seat-title").textContent = `${blockName} ${seatName}`;
+    document.getElementById("modal-seat-title").textContent = blockName ? `${blockName} ${seatName}` : seatName;
     document.getElementById("modal-seat-wheelchair-badge").style.display = isWheelchairSeat ? "inline-flex" : "none";
 
     // For real DB seats, skip this legacy placeholder-image block entirely —
@@ -3365,7 +3414,9 @@ class SeatViewApp {
                 comment: rev.content || "\uB4F1\uB85D\uB41C \uC2DC\uC57C \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
                 uploader: uploaderName,
                 uploaderBadge: uploaderBadge,
-                date: uploaderDate.split('T')[0]
+                watchedDate: rev.watched_date || null,
+                // \uAD00\uB78C\uC77C\uC774 \uC788\uC73C\uBA74 \uADF8\uAC78 \uBCF4\uC5EC\uC8FC\uACE0, \uC5C6\uC73C\uBA74 \uB4F1\uB85D\uC77C(ins_dtm)\uB85C \uB300\uCCB4.
+                date: rev.watched_date || uploaderDate.split('T')[0]
               });
             });
           });
@@ -3487,6 +3538,8 @@ class SeatViewApp {
     }
     const anonEl = document.getElementById("form-is-anonymous");
     if (anonEl) anonEl.checked = !!current.isAnonymous;
+    const dateEl = document.getElementById("form-match-date");
+    if (dateEl) dateEl.value = current.watchedDate || "";
 
     const labelEl = document.getElementById("form-seat-info-label");
     if (labelEl) {
@@ -3554,7 +3607,15 @@ class SeatViewApp {
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
-    if (dateEl) dateEl.textContent = curImg.date || "2026-08-01";
+    if (dateEl) {
+      // Unlabeled, a bare date is ambiguous — it could be the day the
+      // reviewer actually watched the show, or (when they skipped that
+      // optional field) just whenever they got around to posting, which
+      // can be days/weeks later and doesn't say anything about how
+      // current the seat view still is.
+      const dateLabel = curImg.watchedDate ? "관람일" : "등록일";
+      dateEl.textContent = `${dateLabel} ${curImg.date || "2026-08-01"}`;
+    }
 
     const prevBtn = document.getElementById("btn-carousel-prev");
     const nextBtn = document.getElementById("btn-carousel-next");
@@ -4560,6 +4621,7 @@ class SeatViewApp {
             image_urls: finalImagesList,
             content: commentVal,
             is_anonymous: isAnonymous,
+            watched_date: dateVal || null,
             mod_dtm: new Date().toISOString()
           })
           .eq('id', state.editingReviewId);
@@ -4654,8 +4716,8 @@ class SeatViewApp {
     if (supabaseClient && state.userId && realSeatId !== null) {
       try {
         const insertPayload = isMusical
-          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous }
-          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous };
+          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null }
+          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null };
 
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')

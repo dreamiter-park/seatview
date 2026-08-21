@@ -16,8 +16,12 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="잘보여유 - 좌석별 시야 공유 서비스">
   <meta property="og:description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
-  <meta property="og:image" content="https://잘보여유.com/assets/og-image.png">
-  <meta property="og:url" content="https://잘보여유.com">
+  <!-- Punycode (xn--) form, not the raw Hangul domain — crawlers (KakaoTalk's
+       link-preview bot included) expect an ASCII URL and won't resolve a
+       literal Unicode hostname here, which was silently breaking the
+       preview image/link. -->
+  <meta property="og:image" content="https://xn--on3b27no0awn.com/assets/og-image.png">
+  <meta property="og:url" content="https://xn--on3b27no0awn.com">
 
   <!-- Global Debug Error Logger -->
   <script>
@@ -213,12 +217,17 @@
 
             <div class="step-card block-seats-section" id="venue-block-seats-section">
               <div class="venue-floor-grid-container" id="venue-floor-grid-wrapper">
-                <div class="field-direction-indicator">▲ 🎭 무대 (STAGE) 방면 ▲</div>
-                <div class="seat-grid-legend">
-                  <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
-                  <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                <!-- Legend + scroll hint are one-time/reference info, not the
+                     main content — grouped into one compact row so they don't
+                     sit between the stage indicator and the seats it labels. -->
+                <div class="venue-floor-meta-row">
+                  <div class="seat-grid-legend">
+                    <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
+                    <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                  </div>
+                  <div class="venue-floor-scroll-hint">↔ 좌우로 스크롤</div>
                 </div>
-                <div class="venue-floor-scroll-hint">↔ 좌우로 스크롤해서 다른 구역도 확인해보세요</div>
+                <div class="field-direction-indicator">▲ 🎭 무대 (STAGE) 방면 ▲</div>
                 <div class="venue-floor-grid-scroll" id="venue-floor-grid-scroll">
                   <div class="venue-floor-grid" id="venue-floor-grid-container">
                     <!-- Absolutely-positioned seats across every block on this floor -->
@@ -445,7 +454,16 @@
             <div>
               <span class="modal-subtitle" id="modal-seat-stadium">잠실 야구장</span>
               <h3 class="modal-title" id="modal-seat-title">101블록 3열 4번</h3>
-              <span class="wheelchair-seat-badge" id="modal-seat-wheelchair-badge" style="display: none;">♿ 휠체어석</span>
+              <span class="wheelchair-seat-badge" id="modal-seat-wheelchair-badge" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="flex-shrink: 0;">
+                  <circle cx="9" cy="5" r="1.6" fill="currentColor" stroke="none"/>
+                  <path d="M9 6.5V11h5"/>
+                  <path d="M9 11l3 7h3"/>
+                  <path d="M5 11h4"/>
+                  <circle cx="10.5" cy="17" r="5"/>
+                </svg>
+                휠체어석
+              </span>
             </div>
             <button class="close-btn" onclick="app.closeModal('modal-seat-detail')" aria-label="Close">
               <i data-lucide="x"></i>
@@ -459,7 +477,7 @@
                 <i data-lucide="camera-off" style="width: 32px; height: 32px;"></i>
               </div>
               <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">등록된 시야 사진이 없습니다</h4>
-              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 220px; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진과 후기를 제보해주세요.</p>
+              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 260px; word-break: keep-all; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진과 후기를 제보해주세요.</p>
             </div>
 
             <!-- Seat View Image Carousel -->
@@ -562,6 +580,12 @@
                   <!-- Thumbnails Row -->
                   <div id="uploaded-photos-thumbnails-container" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
                 </div>
+              </div>
+
+              <!-- 2.5 관람일 (선택) — 없으면 등록일이 대신 노출됨 -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="form-match-date" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">🗓 관람일 <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">(선택 — 입력 안 하면 등록일이 대신 표시돼요)</span></label>
+                <input type="date" id="form-match-date" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;">
               </div>
 
               <!-- 3. 관람평 / 좌석 꿀팁 (자동 확장형 textarea) -->
