@@ -79,9 +79,13 @@
           <button class="back-btn" id="header-back-btn" onclick="app.handleHeaderBack()" style="display: none;" aria-label="Go back">
             <i data-lucide="chevron-left"></i>
           </button>
-          <div class="header-logo" id="header-logo" onclick="app.navigateTo('main')">
-            <img src="assets/header-logo.png" alt="잘보여유" class="header-logo-img">
-          </div>
+        </div>
+        <!-- Absolutely centered on .app-header (like .header-title used to
+             be) instead of sitting inside .header-left — living there put
+             it right next to the back button on subpages, off-center
+             instead of in the middle like on the home page. -->
+        <div class="header-logo" id="header-logo" onclick="app.navigateTo('main')">
+          <img src="assets/header-logo.png" alt="잘보여유" class="header-logo-img">
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
         <div class="header-right">
@@ -149,7 +153,7 @@
 
           <!-- Kakao AdFit Banner (stadium list bottom) -->
           <div style="display: flex; justify-content: center; margin-top: 16px;">
-            <ins class="kakao_ad_area" style="display:none;"
+            <ins id="ad-stadiums-list" class="kakao_ad_area" style="display:none;"
             data-ad-unit = "DAN-j8zQm1KA9FEGWPIx"
             data-ad-width = "320"
             data-ad-height = "50"></ins>
@@ -169,7 +173,7 @@
 
           <!-- Kakao AdFit Banner (venue list bottom) -->
           <div style="display: flex; justify-content: center; margin-top: 16px;">
-            <ins class="kakao_ad_area" style="display:none;"
+            <ins id="ad-venues-list" class="kakao_ad_area" style="display:none;"
             data-ad-unit = "DAN-K9xdpROiUJHnjpww"
             data-ad-width = "320"
             data-ad-height = "50"></ins>
@@ -532,6 +536,7 @@
             <button class="btn" id="btn-detail-delete" onclick="app.deleteCurrentModalReview()" style="display: none; background: var(--danger); color: #fff;">
               <i data-lucide="trash-2"></i> 기록 삭제
             </button>
+            <span id="detail-edit-window-expired-note" style="display: none; width: 100%; text-align: center; font-size: 0.76rem; color: var(--text-muted); padding: 4px 0;">등록 후 3일이 지나 수정/삭제할 수 없습니다. 문의: j2mi.help@gmail.com</span>
           </div>
         </div>
       </div>
@@ -761,7 +766,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.5"></script>
+  <script src="app_v6.js?v=8.10"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

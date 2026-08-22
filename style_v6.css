@@ -90,14 +90,17 @@ img {
 }
 
 .phone-frame {
+  /* Was styled to look like a literal phone (thick device border, deep
+     corner radius, ring shadow) — dropped now that this same box also
+     has to widen for the desktop seat-grid case (see the min-width:900px
+     rule below), where a "stretched phone" reads oddly. Just a plain
+     panel now; the width caps still do all the actual layout work. */
   width: 100%;
-  max-width: 430px; /* iPhone 15 Pro Max width */
+  max-width: 430px; /* default (non-seat-grid) content width */
   height: 100%;
   max-height: 880px;
   background-color: var(--bg-app);
-  border-radius: 40px;
-  border: 8px solid #27272a; /* Device border */
-  box-shadow: var(--shadow-lg), 0 0 0 2px rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -199,6 +202,32 @@ img {
   }
 }
 
+/* Desktop-only: widen the phone-frame specifically while the venue floor
+   grid is on screen, so a wide venue (up to ~70 seats across) needs less
+   horizontal scrolling to view — seats stay a fixed 26px, so more width
+   just means more columns visible at once, no seat-grid code changes
+   needed. Nothing else in the app is designed for a wide desktop layout
+   yet, so every other piece of this view is explicitly capped back to
+   phone width below instead of stretching along with the frame (which
+   would leave list rows/text/banners looking sparse or unreadably wide).
+   `min(...vw)` keeps some breathing room on huge monitors instead of
+   maxing out to the full screen edge-to-edge. */
+@media (min-width: 900px) {
+  .phone-frame:has(#view-venue-detail.active) {
+    max-width: min(1300px, 94vw);
+  }
+
+  #view-venue-detail .stadium-detail-profile,
+  #view-venue-detail .detail-tabs,
+  #view-venue-detail .map-guide-card,
+  #view-venue-detail .grade-filter-card,
+  #view-venue-detail #venue-tab-content-info {
+    max-width: 430px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 /* 3. Status Bar Simulation */
 .status-bar {
   height: 38px;
@@ -248,6 +277,13 @@ img {
 }
 
 .header-logo {
+  /* Absolutely centered on .app-header (itself position:sticky, so it's
+     the containing block) instead of living inside the flex .header-left —
+     that placed it right next to the back button on subpages, pinned to
+     the left instead of staying in the middle like it is on the home page. */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -863,6 +899,28 @@ img {
   transition: opacity var(--transition-normal);
 }
 
+/* The ad banner image already bakes in its own text/badges at full
+   contrast against its own background — the standard dark legibility
+   overlay every other card gets (above) would just needlessly dim it. */
+.stadium-card.shopping-ad-card::before {
+  background: none;
+}
+
+/* Ad banners are authored at ~3.6:1 (900x250) to match this card's own
+   fixed height (100px) against its typical rendered width, so cover-fit
+   only trims a sliver off the sides across the small width range this
+   card actually renders at (mobile ~350px up to the 430px cap) — never
+   enough to cut into the flag badge or description text. */
+.stadium-card.shopping-ad-card {
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  /* No-op in the venue list (already single-column) but makes the ad
+     span both columns of the baseball stadium grid instead of sitting
+     in one half-width cell like a regular stadium card. */
+  grid-column: 1 / -1;
+}
+
 .stadium-card:hover {
   border-color: var(--border-focus);
   transform: translateY(-2px);
@@ -1302,6 +1360,15 @@ img {
   color: var(--text-secondary);
 }
 
+/* Baseball-only divider under the legend, matching .step-title's line
+   treatment above it — scoped to #view-stadium-detail (not the shared
+   .seat-grid-legend class itself) so the venue floor grid's legend, which
+   sits in its own compact meta row, is untouched. */
+#view-stadium-detail .seat-grid-legend {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
 /* Groups the legend + scroll hint into one compact reference row — both
    are one-time/supporting info, not the main content, so they shouldn't
    sit between the stage indicator and the seats it's labeling (see
@@ -1390,6 +1457,16 @@ img {
   display: grid;
   gap: 3px;
   width: max-content;
+  /* Was flush against the left edge whenever the grid is narrower than its
+     scroll container — invisible on mobile (a wide venue always overflows
+     a phone-width screen anyway) but obvious now that the seat-grid screen
+     widens on desktop: a single-block venue like 페이코홀/벅스홀 (1012px of
+     content in an 1100px+ container) just sat in the left third of the
+     panel instead of centered under the stage indicator above it. Auto
+     margins center it when it fits and collapse to 0 (no visible effect)
+     when it overflows, so this is safe for wide venues that still need
+     to scroll too. */
+  margin: 0 auto;
 }
 
 .floor-grid-block-label {

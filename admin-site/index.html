@@ -764,6 +764,12 @@
     <button class="page-nav-btn" id="page-nav-image-manager" onclick="app.switchPage('image-manager')">
       <i data-lucide="image"></i> 이미지 관리
     </button>
+    <button class="page-nav-btn" id="page-nav-ad-manager" onclick="app.switchPage('ad-manager')">
+      <i data-lucide="megaphone"></i> 광고 관리
+    </button>
+    <button class="page-nav-btn" id="page-nav-review-monitor" onclick="app.switchPage('review-monitor')">
+      <i data-lucide="images"></i> 시야사진 모니터링
+    </button>
   </div>
 
   <div id="page-seat-editor" class="page-content active">
@@ -1068,6 +1074,132 @@
     </div>
   </div>
 
+  <div id="page-ad-manager" class="page-content">
+    <div class="selector-container" style="grid-template-columns: 1fr;">
+      <div class="card form-group">
+        <label for="ad-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+        <select id="ad-category-select" onchange="app.handleAdCategoryChange(this.value)">
+          <option value="baseball">⚾ 야구장 목록 광고</option>
+          <option value="musical">🎭 공연장 목록 광고</option>
+        </select>
+        <span class="field-hint" style="margin-top: 4px; display: block;">
+          여러 개 등록하면 목록에 광고 슬롯이 여러 번 나올 때(예: 공연장은 3개마다 1번씩) 아래 순서대로 하나씩 돌아가며 노출됩니다.
+        </span>
+      </div>
+    </div>
+
+    <!-- Existing ads for the selected category -->
+    <div class="card" id="ad-list-panel" style="position: relative;">
+      <div class="loading-overlay" id="ad-list-loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <span>불러오는 중...</span>
+      </div>
+      <div class="grid-actions">
+        <span style="font-size: 1rem; font-weight: 700;">등록된 광고 목록</span>
+      </div>
+      <div id="ad-list-container" style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+
+    <!-- Add a new ad -->
+    <div class="card" id="ad-add-panel" style="position: relative;">
+      <div class="loading-overlay" id="ad-loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <span>저장 중...</span>
+      </div>
+
+      <div class="grid-actions">
+        <span style="font-size: 1rem; font-weight: 700;">새 광고 추가</span>
+      </div>
+
+      <div class="image-manager-grid">
+        <div class="image-slot">
+          <label>광고 배너 이미지 <span class="field-hint">(목록 카드와 같은 비율 권장, 텍스트/배지 포함해서 만든 완성된 배너 이미지)</span></label>
+          <div class="image-preview-box" id="ad-image-preview">
+            <span class="image-preview-empty">이미지 없음</span>
+          </div>
+          <input type="file" id="ad-image-file" accept="image/*">
+        </div>
+
+        <div class="form-group">
+          <label for="ad-link-url">클릭 시 이동할 링크 URL</label>
+          <input type="text" id="ad-link-url" placeholder="https://...">
+        </div>
+      </div>
+
+      <div class="image-slot-actions" style="margin-top: 16px;">
+        <button class="btn btn-success" onclick="app.addShoppingAd()">
+          <i data-lucide="plus"></i> 광고 추가
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-review-monitor" class="page-content">
+    <div class="selector-container" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 12px;">
+      <div class="card form-group">
+        <label for="review-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+        <select id="review-category-select" onchange="app.handleReviewCategoryChange(this.value)">
+          <option value="baseball">⚾ 야구장</option>
+          <option value="musical">🎭 공연장</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="review-entity-select"><i data-lucide="map"></i> <span id="review-entity-label">야구장 선택</span></label>
+        <select id="review-entity-select" onchange="app.handleReviewEntityChange(this.value)">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="review-grade-select"><i data-lucide="tag"></i> 등급 선택</label>
+        <select id="review-grade-select" onchange="app.handleReviewGradeChange(this.value)" disabled>
+          <option value="">야구장/공연장을 먼저 선택하세요...</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="review-block-select"><i data-lucide="layout-list"></i> 구역 선택</label>
+        <select id="review-block-select" onchange="app.handleReviewBlockChange(this.value)" disabled>
+          <option value="">구역을 선택하세요...</option>
+        </select>
+      </div>
+    </div>
+    <span class="field-hint" style="display: block; margin: -8px 0 12px;">
+      1뎁스(카테고리)만 선택해도 전체 데이터가 보입니다. 야구장/공연장 → 등급 → 구역은 선택하지 않으면 "전체"로 취급되는 선택적 필터입니다. 등록일 기준으로 50건씩 페이징됩니다.
+    </span>
+
+    <div style="display: grid; grid-template-columns: 380px 1fr; gap: 16px; align-items: start;">
+      <div class="card" id="review-list-panel" style="position: relative; max-height: 720px; overflow-y: auto;">
+        <div class="loading-overlay" id="review-list-loading-overlay" style="display: none;">
+          <div class="spinner"></div>
+          <span>불러오는 중...</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
+          <input type="date" id="review-date-start" onchange="app.handleReviewDateChange()" style="flex: 1; min-width: 0;">
+          <span style="color: var(--text-muted); font-size: 0.8rem;">~</span>
+          <input type="date" id="review-date-end" onchange="app.handleReviewDateChange()" style="flex: 1; min-width: 0;">
+          <button class="btn btn-sm" onclick="app.setReviewDateToday()">오늘</button>
+        </div>
+        <div class="grid-actions">
+          <span style="font-size: 1rem; font-weight: 700;">최근 등록된 시야 제보</span>
+          <span id="review-count-label" style="font-size: 0.8rem; color: var(--text-muted);"></span>
+        </div>
+        <div id="review-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Dynamically populated -->
+        </div>
+        <div id="review-pagination" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="card" id="review-detail-panel" style="position: relative; min-height: 400px;">
+        <div id="review-detail-container">
+          <span class="image-preview-empty">왼쪽 목록에서 시야 제보를 선택하세요.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification element -->
   <div class="toast" id="toast">
     <i data-lucide="bell" style="width: 18px; height: 18px;"></i>
@@ -1199,6 +1331,27 @@
         this.imCategory = 'baseball';
         this.imEntities = [];
         this.imSelectedEntity = null;
+
+        // Ad manager state (one shopping_ads row per category)
+        this.adCategory = 'baseball';
+        this.adList = [];
+        this.editingAdId = null;
+
+        // Review monitor state (recent baseball_seat_reviews/musical_seat_reviews)
+        this.reviewCategory = 'baseball';
+        this.reviewEntityId = '';
+        this.reviewGrade = '';
+        this.reviewBlockId = '';
+        this.reviewEntities = [];
+        this.reviewBlocks = [];
+        this.reviewList = [];
+        this.selectedReviewId = null;
+        this.reviewDateStart = '2026-08-22';
+        this.reviewDateEnd = new Date().toISOString().slice(0, 10);
+        this.reviewPage = 1;
+        this.reviewPageSize = 50;
+        this.reviewTotalCount = 0;
+        this._reviewMonitorInited = false;
 
         this.init();
       }
@@ -2366,6 +2519,19 @@
         if (pageName === "image-manager" && this.imEntities.length === 0) {
           this.loadEntitiesForImageManager();
         }
+        if (pageName === "ad-manager") {
+          this.loadShoppingAdsList();
+        }
+        if (pageName === "review-monitor") {
+          if (!this._reviewMonitorInited) {
+            this._reviewMonitorInited = true;
+            document.getElementById("review-date-start").value = this.reviewDateStart;
+            document.getElementById("review-date-end").value = this.reviewDateEnd;
+            this.loadReviewEntities().then(() => this.loadRecentReviews());
+          } else {
+            this.loadRecentReviews();
+          }
+        }
       }
 
       bmGetTopTable() { return this.bmCategory === "musical" ? "venues" : "stadiums"; }
@@ -2903,6 +3069,626 @@
           await this.loadEntitiesForImageManager();
         } catch (e) {
           console.error("removeEntityImage failed:", e);
+          this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      // --- Ad manager: shopping_ads holds any number of banners per
+      // category (baseball/musical). Front-end (app_v6.js buildShoppingAdCard)
+      // cycles through a category's ads in display_order/id order across
+      // however many ad slots that list repeats (e.g. musical shows one
+      // every 3 venues) — not a timed/auto-rotating carousel within a
+      // single slot, just "slot #1 gets ad #1, slot #2 gets ad #2, ...".
+      handleAdCategoryChange(category) {
+        this.adCategory = category;
+        this.loadShoppingAdsList();
+      }
+
+      async loadShoppingAdsList() {
+        const category = this.adCategory || "baseball";
+        const overlay = document.getElementById("ad-list-loading-overlay");
+        const listEl = document.getElementById("ad-list-container");
+        if (overlay) overlay.style.display = "flex";
+
+        try {
+          const { data, error } = await supabaseClient
+            .from("shopping_ads")
+            .select("*")
+            .eq("category", category)
+            .order("display_order", { ascending: true })
+            .order("id", { ascending: true });
+          if (error) throw error;
+
+          this.adList = data || [];
+          if (this.adList.length === 0) {
+            listEl.innerHTML = `<span class="image-preview-empty">등록된 광고가 없습니다. 아래에서 추가해 주세요.</span>`;
+          } else {
+            listEl.innerHTML = this.adList.map((ad, idx) => {
+              if (this.editingAdId === ad.id) {
+                return `
+                  <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--accent-blue, #2563eb); border-radius: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <span style="font-weight: 700; color: var(--text-secondary); flex-shrink: 0; width: 20px; text-align: center;">${idx + 1}</span>
+                      <img src="${ad.image_url}" alt="광고 배너" style="width: 100px; height: 32px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                      <span style="font-size: 0.78rem; color: var(--text-muted);">현재 이미지 (아래에서 새 파일을 고르면 교체됩니다)</span>
+                    </div>
+                    <input type="file" id="ad-edit-image-file-${ad.id}" accept="image/*">
+                    <input type="text" id="ad-edit-link-${ad.id}" value="${(ad.link_url || "").replace(/"/g, "&quot;")}" placeholder="https://...">
+                    <div style="display: flex; gap: 8px;">
+                      <button class="btn btn-success btn-sm" onclick="app.saveEditAd(${ad.id})">
+                        <i data-lucide="check"></i> 저장
+                      </button>
+                      <button class="btn btn-sm" onclick="app.cancelEditAd()">
+                        <i data-lucide="x"></i> 취소
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }
+              return `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px; border: 1px solid var(--border-color); border-radius: 10px;">
+                  <span style="font-weight: 700; color: var(--text-secondary); flex-shrink: 0; width: 20px; text-align: center;">${idx + 1}</span>
+                  <img src="${ad.image_url}" alt="광고 배너" style="width: 100px; height: 32px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                  <span style="flex: 1; font-size: 0.78rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ad.link_url || "(링크 없음)"}</span>
+                  <button class="btn btn-sm" style="flex-shrink: 0;" onclick="app.startEditAd(${ad.id})">
+                    <i data-lucide="pencil"></i> 수정
+                  </button>
+                  <button class="btn btn-danger btn-sm" style="flex-shrink: 0;" onclick="app.deleteShoppingAd(${ad.id})">
+                    <i data-lucide="trash-2"></i> 삭제
+                  </button>
+                </div>
+              `;
+            }).join("");
+            lucide.createIcons();
+          }
+        } catch (e) {
+          console.error("loadShoppingAdsList failed:", e);
+          this.showToast("오류", "광고 목록을 불러오지 못했습니다.", "danger");
+        } finally {
+          if (overlay) overlay.style.display = "none";
+        }
+      }
+
+      async addShoppingAd() {
+        const category = this.adCategory || "baseball";
+        const linkUrl = document.getElementById("ad-link-url").value.trim();
+        const file = document.getElementById("ad-image-file").files[0];
+        if (!file) {
+          this.showToast("알림", "배너 이미지를 먼저 선택해 주세요.", "danger");
+          return;
+        }
+
+        const overlay = document.getElementById("ad-loading-overlay");
+        overlay.style.display = "flex";
+        try {
+          const blob = await this.compressImageToWebPBlob(file, 1200, 0.85);
+          const path = `ads/${category}/banner_${Date.now()}.webp`;
+          const { error: uploadErr } = await supabaseClient.storage
+            .from("venue-images")
+            .upload(path, blob, { contentType: "image/webp", upsert: false });
+          if (uploadErr) throw uploadErr;
+
+          const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
+
+          // New ad goes to the end of this category's rotation.
+          const nextOrder = (this.adList || []).reduce((max, ad) => Math.max(max, ad.display_order || 0), 0) + 1;
+
+          const { error } = await supabaseClient
+            .from("shopping_ads")
+            .insert({ category, image_url: pub.publicUrl, link_url: linkUrl || null, display_order: nextOrder });
+          if (error) throw error;
+
+          document.getElementById("ad-image-file").value = "";
+          document.getElementById("ad-link-url").value = "";
+          document.getElementById("ad-image-preview").innerHTML = `<span class="image-preview-empty">이미지 없음</span>`;
+
+          this.showToast("성공", "광고를 추가했습니다.", "success");
+          await this.loadShoppingAdsList();
+        } catch (e) {
+          console.error("addShoppingAd failed:", e);
+          this.showToast("오류", `저장 중 오류가 발생했습니다: ${e.message}`, "danger");
+        } finally {
+          overlay.style.display = "none";
+        }
+      }
+
+      async deleteShoppingAd(adId) {
+        const ad = (this.adList || []).find(a => a.id === adId);
+        if (!confirm("이 광고를 삭제하시겠습니까?")) return;
+
+        try {
+          const { error } = await supabaseClient
+            .from("shopping_ads")
+            .delete()
+            .eq("id", adId);
+          if (error) throw error;
+
+          if (ad && ad.image_url) this.deleteVenueImageIfManaged(ad.image_url);
+
+          this.showToast("성공", "광고를 삭제했습니다.", "success");
+          await this.loadShoppingAdsList();
+        } catch (e) {
+          console.error("deleteShoppingAd failed:", e);
+          this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      startEditAd(adId) {
+        this.editingAdId = adId;
+        this.loadShoppingAdsList();
+      }
+
+      cancelEditAd() {
+        this.editingAdId = null;
+        this.loadShoppingAdsList();
+      }
+
+      async saveEditAd(adId) {
+        const ad = (this.adList || []).find(a => a.id === adId);
+        if (!ad) return;
+        const linkInput = document.getElementById(`ad-edit-link-${adId}`);
+        const fileInput = document.getElementById(`ad-edit-image-file-${adId}`);
+        const newLink = linkInput ? linkInput.value.trim() : ad.link_url;
+        const file = fileInput && fileInput.files[0];
+
+        const overlay = document.getElementById("ad-list-loading-overlay");
+        if (overlay) overlay.style.display = "flex";
+        try {
+          const updatePayload = { link_url: newLink || null };
+          let oldImageUrl = null;
+
+          if (file) {
+            const blob = await this.compressImageToWebPBlob(file, 1200, 0.85);
+            const path = `ads/${ad.category}/banner_${Date.now()}.webp`;
+            const { error: uploadErr } = await supabaseClient.storage
+              .from("venue-images")
+              .upload(path, blob, { contentType: "image/webp", upsert: false });
+            if (uploadErr) throw uploadErr;
+            const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
+            updatePayload.image_url = pub.publicUrl;
+            oldImageUrl = ad.image_url;
+          }
+
+          const { error } = await supabaseClient
+            .from("shopping_ads")
+            .update(updatePayload)
+            .eq("id", adId);
+          if (error) throw error;
+
+          if (oldImageUrl) this.deleteVenueImageIfManaged(oldImageUrl);
+
+          this.editingAdId = null;
+          this.showToast("성공", "광고를 수정했습니다.", "success");
+          await this.loadShoppingAdsList();
+        } catch (e) {
+          console.error("saveEditAd failed:", e);
+          this.showToast("오류", `수정 중 오류가 발생했습니다: ${e.message}`, "danger");
+        } finally {
+          if (overlay) overlay.style.display = "none";
+        }
+      }
+
+      // --- Review monitor: lets the admin skim the most recent seat-view
+      // submissions and hide/delete anything inappropriate before it's
+      // visible to other users. baseball_seat_reviews/musical_seat_reviews
+      // only carry FKs (no embedded joins configured), so seat/block/stadium
+      // names are resolved with follow-up .in() lookups rather than a single
+      // nested select. Category > 야구장/공연장 > 등급 > 구역 mirrors the
+      // 좌석 배치 편집기 cascade, but every depth past category is optional —
+      // narrowing to seat ids only happens once an entity is actually chosen.
+      escHtml(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      reviewTables() {
+        const isMusical = this.reviewCategory === "musical";
+        return {
+          isMusical,
+          table: isMusical ? "musical_seat_reviews" : "baseball_seat_reviews",
+          seatFk: isMusical ? "musical_seat_id" : "baseball_seat_id",
+          seatsTable: isMusical ? "musical_seats" : "baseball_seats",
+          blocksTable: isMusical ? "musical_blocks" : "baseball_blocks",
+          blocksFk: isMusical ? "venue_id" : "stadium_id",
+          topTable: isMusical ? "venues" : "stadiums"
+        };
+      }
+
+      handleReviewCategoryChange(category) {
+        this.reviewCategory = category;
+        this.reviewEntityId = '';
+        this.reviewGrade = '';
+        this.reviewBlockId = '';
+        this.selectedReviewId = null;
+        this.reviewPage = 1;
+        const label = document.getElementById("review-entity-label");
+        if (label) label.textContent = category === "musical" ? "공연장 선택" : "야구장 선택";
+        this.loadReviewEntities().then(() => this.loadRecentReviews());
+      }
+
+      async loadReviewEntities() {
+        const { isMusical, topTable } = this.reviewTables();
+        const entitySelect = document.getElementById("review-entity-select");
+        const gradeSelect = document.getElementById("review-grade-select");
+        const blockSelect = document.getElementById("review-block-select");
+
+        gradeSelect.innerHTML = '<option value="">야구장/공연장을 먼저 선택하세요...</option>';
+        gradeSelect.disabled = true;
+        blockSelect.innerHTML = '<option value="">구역을 선택하세요...</option>';
+        blockSelect.disabled = true;
+
+        try {
+          const { data, error } = await supabaseClient
+            .from(topTable)
+            .select("id, name")
+            .order("display_order", { ascending: true, nullsFirst: false })
+            .order("name", { ascending: true });
+          if (error) throw error;
+          this.reviewEntities = data || [];
+          entitySelect.innerHTML = `<option value="">전체 ${isMusical ? "공연장" : "야구장"}</option>` +
+            this.reviewEntities.map(e => `<option value="${e.id}">${this.escHtml(e.name)}</option>`).join("");
+          entitySelect.value = "";
+        } catch (e) {
+          console.error("loadReviewEntities failed:", e);
+        }
+      }
+
+      handleReviewEntityChange(entityId) {
+        this.reviewEntityId = entityId;
+        this.reviewGrade = '';
+        this.reviewBlockId = '';
+        this.selectedReviewId = null;
+        this.reviewPage = 1;
+        this.loadReviewBlocksForEntity();
+      }
+
+      async loadReviewBlocksForEntity() {
+        const { isMusical, blocksTable, blocksFk } = this.reviewTables();
+        const gradeSelect = document.getElementById("review-grade-select");
+
+        if (!this.reviewEntityId) {
+          gradeSelect.innerHTML = '<option value="">야구장/공연장을 먼저 선택하세요...</option>';
+          gradeSelect.disabled = true;
+          this.reviewBlocks = [];
+          this.populateReviewBlockSelect([]);
+          document.getElementById("review-block-select").innerHTML = '<option value="">구역을 선택하세요...</option>';
+          document.getElementById("review-block-select").disabled = true;
+          this.loadRecentReviews();
+          return;
+        }
+
+        try {
+          const selectCols = isMusical ? "id, block_code, full_name" : "id, block_code, full_name, seat_grade";
+          const { data: blocks, error } = await supabaseClient
+            .from(blocksTable)
+            .select(selectCols)
+            .eq(blocksFk, this.reviewEntityId)
+            .order("block_code", { ascending: true });
+          if (error) throw error;
+          this.reviewBlocks = blocks || [];
+
+          if (isMusical) {
+            gradeSelect.innerHTML = '<option value="">등급 구분 없음 (좌석 단위)</option>';
+            gradeSelect.disabled = true;
+          } else {
+            const grades = [...new Set(this.reviewBlocks.map(b => b.seat_grade).filter(Boolean))];
+            gradeSelect.innerHTML = '<option value="">전체 등급</option>' +
+              grades.map(g => `<option value="${this.escHtml(g)}">${this.escHtml(g)}</option>`).join("");
+            gradeSelect.disabled = grades.length === 0;
+          }
+
+          this.populateReviewBlockSelect(this.reviewBlocks);
+          this.loadRecentReviews();
+        } catch (e) {
+          console.error("loadReviewBlocksForEntity failed:", e);
+          this.showToast("오류", "구역 목록을 불러오지 못했습니다.", "danger");
+        }
+      }
+
+      handleReviewGradeChange(grade) {
+        this.reviewGrade = grade;
+        this.reviewBlockId = '';
+        this.selectedReviewId = null;
+        this.reviewPage = 1;
+        const filtered = grade === "" ? this.reviewBlocks : this.reviewBlocks.filter(b => b.seat_grade === grade);
+        this.populateReviewBlockSelect(filtered);
+        this.loadRecentReviews();
+      }
+
+      populateReviewBlockSelect(blocks) {
+        const blockSelect = document.getElementById("review-block-select");
+        if (!blocks || blocks.length === 0) {
+          blockSelect.innerHTML = '<option value="">전체 구역</option>';
+          blockSelect.disabled = blocks === null;
+          return;
+        }
+        blockSelect.innerHTML = '<option value="">전체 구역</option>' +
+          blocks.map(b => `<option value="${b.id}">${this.escHtml(b.full_name || b.block_code)}</option>`).join("");
+        blockSelect.disabled = false;
+      }
+
+      handleReviewBlockChange(blockId) {
+        this.reviewBlockId = blockId;
+        this.selectedReviewId = null;
+        this.reviewPage = 1;
+        this.loadRecentReviews();
+      }
+
+      handleReviewDateChange() {
+        const startEl = document.getElementById("review-date-start");
+        const endEl = document.getElementById("review-date-end");
+        this.reviewDateStart = startEl.value || null;
+        this.reviewDateEnd = endEl.value || null;
+        this.selectedReviewId = null;
+        this.reviewPage = 1;
+        this.loadRecentReviews();
+      }
+
+      setReviewDateToday() {
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById("review-date-start").value = today;
+        document.getElementById("review-date-end").value = today;
+        this.handleReviewDateChange();
+      }
+
+      goToReviewPage(page) {
+        if (page < 1) return;
+        this.reviewPage = page;
+        this.selectedReviewId = null;
+        this.loadRecentReviews();
+      }
+
+      // Resolves the seat-id constraint implied by the current entity/grade/
+      // block selection. null means "no filter" (category-only, show all).
+      async resolveReviewSeatIdFilter() {
+        const { seatsTable, blocksTable, blocksFk } = this.reviewTables();
+        if (!this.reviewEntityId) return null;
+
+        if (this.reviewBlockId) {
+          const { data: seats } = await supabaseClient.from(seatsTable).select("id").eq("block_id", this.reviewBlockId);
+          return (seats || []).map(s => s.id);
+        }
+
+        let blocksQuery = supabaseClient.from(blocksTable).select("id").eq(blocksFk, this.reviewEntityId);
+        if (this.reviewGrade) blocksQuery = blocksQuery.eq("seat_grade", this.reviewGrade);
+        const { data: blocks } = await blocksQuery;
+        const blockIds = (blocks || []).map(b => b.id);
+        if (blockIds.length === 0) return [];
+        const { data: seats } = await supabaseClient.from(seatsTable).select("id").in("block_id", blockIds);
+        return (seats || []).map(s => s.id);
+      }
+
+      async fetchNicknames(userIds) {
+        const ids = [...new Set(userIds.filter(Boolean))];
+        if (ids.length === 0) return {};
+        const { data, error } = await supabaseClient.from("profiles_public").select("id, nickname").in("id", ids);
+        if (error || !data) return {};
+        const map = {};
+        data.forEach(p => { map[p.id] = p.nickname; });
+        return map;
+      }
+
+      formatWatchedAndInsDate(rev) {
+        const watched = rev.watched_date ? String(rev.watched_date).slice(0, 10) : "-";
+        const ins = rev.ins_dtm ? new Date(rev.ins_dtm).toISOString().slice(0, 16).replace("T", " ") : "-";
+        return `관람일 : ${watched}, 등록일 : ${ins}`;
+      }
+
+      async loadRecentReviews() {
+        const { table, seatFk, seatsTable, blocksTable, blocksFk, topTable } = this.reviewTables();
+        const overlay = document.getElementById("review-list-loading-overlay");
+        const listEl = document.getElementById("review-list-container");
+        if (overlay) overlay.style.display = "flex";
+
+        try {
+          const seatIdFilter = await this.resolveReviewSeatIdFilter();
+          if (seatIdFilter !== null && seatIdFilter.length === 0) {
+            this.reviewList = [];
+            this.reviewDisplayMap = {};
+            this.reviewTotalCount = 0;
+            listEl.innerHTML = `<span class="image-preview-empty">해당 조건의 시야 제보가 없습니다.</span>`;
+            this.renderReviewCountAndPagination();
+            this.renderReviewDetail(null);
+            return;
+          }
+
+          const from = (this.reviewPage - 1) * this.reviewPageSize;
+          const to = from + this.reviewPageSize - 1;
+
+          let reviewsQuery = supabaseClient
+            .from(table)
+            .select("*", { count: "exact" })
+            .order("ins_dtm", { ascending: false })
+            .range(from, to);
+          if (seatIdFilter !== null) reviewsQuery = reviewsQuery.in(seatFk, seatIdFilter);
+          // 등록일(ins_dtm) 기준 기간 필터 — 종료일은 그날 자정까지 포함하도록
+          // 다음날 00:00:00 미만으로 처리.
+          if (this.reviewDateStart) reviewsQuery = reviewsQuery.gte("ins_dtm", `${this.reviewDateStart}T00:00:00`);
+          if (this.reviewDateEnd) {
+            const endExclusive = new Date(`${this.reviewDateEnd}T00:00:00`);
+            endExclusive.setDate(endExclusive.getDate() + 1);
+            reviewsQuery = reviewsQuery.lt("ins_dtm", endExclusive.toISOString().slice(0, 19));
+          }
+          const { data: reviews, error, count } = await reviewsQuery;
+          if (error) throw error;
+
+          this.reviewList = reviews || [];
+          this.reviewTotalCount = count || 0;
+          if (this.reviewList.length === 0) {
+            this.reviewDisplayMap = {};
+            listEl.innerHTML = `<span class="image-preview-empty">등록된 시야 제보가 없습니다.</span>`;
+            this.renderReviewCountAndPagination();
+            this.renderReviewDetail(null);
+            return;
+          }
+
+          const seatIds = [...new Set(this.reviewList.map(r => r[seatFk]).filter(id => id != null))];
+          const { data: seats } = seatIds.length
+            ? await supabaseClient.from(seatsTable).select("id, block_id, row_num, seat_num").in("id", seatIds)
+            : { data: [] };
+          const seatMap = {};
+          (seats || []).forEach(s => { seatMap[s.id] = s; });
+
+          const blockIds = [...new Set((seats || []).map(s => s.block_id).filter(id => id != null))];
+          const { data: blocks } = blockIds.length
+            ? await supabaseClient.from(blocksTable).select(`id, full_name, block_code, ${blocksFk}`).in("id", blockIds)
+            : { data: [] };
+          const blockMap = {};
+          (blocks || []).forEach(b => { blockMap[b.id] = b; });
+
+          const topIds = [...new Set((blocks || []).map(b => b[blocksFk]).filter(id => id != null))];
+          const { data: tops } = topIds.length
+            ? await supabaseClient.from(topTable).select("id, name").in("id", topIds)
+            : { data: [] };
+          const topMap = {};
+          (tops || []).forEach(t => { topMap[t.id] = t; });
+
+          const nickMap = await this.fetchNicknames(this.reviewList.filter(r => !r.is_anonymous).map(r => r.user_id));
+
+          this.reviewDisplayMap = {};
+          this.reviewList.forEach(rev => {
+            const seat = seatMap[rev[seatFk]];
+            const block = seat ? blockMap[seat.block_id] : null;
+            const top = block ? topMap[block[blocksFk]] : null;
+            const seatLabel = seat
+              ? `${top ? this.escHtml(top.name) : "?"} · ${block ? this.escHtml(block.full_name || block.block_code) : "?"} ${seat.row_num ? this.escHtml(seat.row_num) + "열 " : ""}${seat.seat_num != null ? seat.seat_num + "번" : ""}`
+              : "(좌석 정보 없음)";
+            const thumb = Array.isArray(rev.image_urls) && rev.image_urls[0] ? rev.image_urls[0] : "";
+            const uploaderLabel = rev.is_anonymous ? "익명" : (nickMap[rev.user_id] || "회원");
+            this.reviewDisplayMap[rev.id] = { seatLabel, thumb, uploaderLabel };
+          });
+
+          if (!this.reviewList.some(r => r.id === this.selectedReviewId)) {
+            this.selectedReviewId = this.reviewList[0].id;
+          }
+
+          listEl.innerHTML = this.reviewList.map(rev => {
+            const disp = this.reviewDisplayMap[rev.id];
+            const blocked = !!rev.is_blocked;
+            const active = rev.id === this.selectedReviewId;
+            return `
+              <div onclick="app.selectReview(${rev.id})" style="display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid ${active ? "var(--accent-blue, #2563eb)" : "var(--border-color)"}; border-radius: 10px; cursor: pointer; ${blocked ? "opacity: 0.5;" : ""}">
+                ${disp.thumb
+                  ? `<img src="${this.escHtml(disp.thumb)}" alt="시야사진" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">`
+                  : `<div style="width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; background: var(--bg-app); display:flex; align-items:center; justify-content:center; font-size: 0.6rem; color: var(--text-muted);">없음</div>`
+                }
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 700; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${disp.seatLabel}${blocked ? ' <span style="color:#ef4444;">[숨김]</span>' : ""}</div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${disp.uploaderLabel}</div>
+                </div>
+              </div>
+            `;
+          }).join("");
+
+          this.renderReviewCountAndPagination();
+          this.renderReviewDetail(this.selectedReviewId);
+        } catch (e) {
+          console.error("loadRecentReviews failed:", e);
+          this.showToast("오류", "시야 제보 목록을 불러오지 못했습니다.", "danger");
+        } finally {
+          if (overlay) overlay.style.display = "none";
+        }
+      }
+
+      renderReviewCountAndPagination() {
+        const countLabel = document.getElementById("review-count-label");
+        const pagination = document.getElementById("review-pagination");
+        const totalPages = Math.max(1, Math.ceil(this.reviewTotalCount / this.reviewPageSize));
+        if (countLabel) countLabel.textContent = `총 ${this.reviewTotalCount}건`;
+        if (!pagination) return;
+
+        if (this.reviewTotalCount === 0) {
+          pagination.innerHTML = "";
+          return;
+        }
+
+        pagination.innerHTML = `
+          <button class="btn btn-sm" ${this.reviewPage <= 1 ? "disabled" : ""} onclick="app.goToReviewPage(${this.reviewPage - 1})">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <span style="font-size: 0.82rem; color: var(--text-secondary);">${this.reviewPage} / ${totalPages} 페이지</span>
+          <button class="btn btn-sm" ${this.reviewPage >= totalPages ? "disabled" : ""} onclick="app.goToReviewPage(${this.reviewPage + 1})">
+            <i data-lucide="chevron-right"></i>
+          </button>
+        `;
+        lucide.createIcons();
+      }
+
+      selectReview(reviewId) {
+        this.selectedReviewId = reviewId;
+        document.querySelectorAll("#review-list-container > div").forEach((el, idx) => {
+          const rev = this.reviewList[idx];
+          if (rev) el.style.borderColor = rev.id === reviewId ? "var(--accent-blue, #2563eb)" : "var(--border-color)";
+        });
+        this.renderReviewDetail(reviewId);
+      }
+
+      renderReviewDetail(reviewId) {
+        const container = document.getElementById("review-detail-container");
+        const rev = this.reviewList.find(r => r.id === reviewId);
+        if (!rev) {
+          container.innerHTML = `<span class="image-preview-empty">왼쪽 목록에서 시야 제보를 선택하세요.</span>`;
+          return;
+        }
+        const disp = this.reviewDisplayMap[rev.id] || {};
+        const images = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+        const blocked = !!rev.is_blocked;
+
+        container.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <div style="font-weight: 700; font-size: 1.05rem;">${disp.seatLabel || ""}${blocked ? ' <span style="color:#ef4444;">[숨김 처리됨]</span>' : ""}</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">${disp.uploaderLabel || ""} · ${this.escHtml(this.formatWatchedAndInsDate(rev))}</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+              <button class="btn btn-sm" onclick="app.toggleReviewBlock(${rev.id}, ${blocked})">
+                <i data-lucide="${blocked ? "eye" : "eye-off"}"></i> ${blocked ? "복원" : "숨기기"}
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="app.deleteReview(${rev.id})">
+                <i data-lucide="trash-2"></i> 삭제
+              </button>
+            </div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+            ${images.length > 0
+              ? images.map(u => `<img src="${this.escHtml(u)}" alt="시야사진" style="max-width: 100%; max-height: 480px; border-radius: 10px; object-fit: contain; background: var(--bg-app);">`).join("")
+              : `<span class="image-preview-empty">등록된 사진이 없습니다.</span>`
+            }
+          </div>
+          <div style="font-size: 0.9rem; color: var(--text-primary); white-space: pre-wrap; line-height: 1.6;">${this.escHtml(rev.content) || "등록된 관람평이 없습니다."}</div>
+        `;
+        lucide.createIcons();
+      }
+
+      async toggleReviewBlock(reviewId, currentlyBlocked) {
+        const { table } = this.reviewTables();
+        try {
+          const { error } = await supabaseClient
+            .from(table)
+            .update({ is_blocked: !currentlyBlocked })
+            .eq("id", reviewId);
+          if (error) throw error;
+          this.showToast("성공", currentlyBlocked ? "다시 노출시켰습니다." : "숨김 처리했습니다.", "success");
+          await this.loadRecentReviews();
+        } catch (e) {
+          console.error("toggleReviewBlock failed:", e);
+          this.showToast("오류", `처리 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      async deleteReview(reviewId) {
+        if (!confirm("이 시야 제보를 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+        const { table } = this.reviewTables();
+        try {
+          const { error } = await supabaseClient
+            .from(table)
+            .delete()
+            .eq("id", reviewId);
+          if (error) throw error;
+          this.selectedReviewId = null;
+          this.showToast("성공", "삭제했습니다.", "success");
+          await this.loadRecentReviews();
+        } catch (e) {
+          console.error("deleteReview failed:", e);
           this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
         }
       }

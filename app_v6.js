@@ -21,6 +21,11 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 // --- 1. Seed & Mock Database ---
 let STADIUMS_DB = [];
 let VENUES_DB = [];
+// One shopping-ad banner per category (baseball/musical), keyed by category —
+// managed from admin's "광고 관리" tab (shopping_ads table). Empty until
+// loadShoppingAds() resolves, so buildShoppingAdCard() just skips the ad
+// slot on the very first render instead of showing stale/placeholder content.
+let SHOPPING_ADS_DB = {};
 const MOCK_STADIUMS_DB = [
   {
     id: "jamsil",
@@ -529,6 +534,10 @@ class SeatViewApp {
       this.checkUserSession();
     });
     this.loadVenues().then(() => this.renderVenueList());
+    this.loadShoppingAds().then(() => {
+      this.renderStadiumList();
+      this.renderVenueList();
+    });
     this.loadCategories();
     this.updateCompareBadge();
 
@@ -1099,33 +1108,19 @@ class SeatViewApp {
     const backBtn = document.getElementById("header-back-btn");
     const titleEl = document.getElementById("header-title");
 
+    // Logo is always visible now (tap → home from anywhere), replacing the
+    // old "logo on main page, page-name title everywhere else" split.
+    // Every subpage already shows what screen it is from its own content
+    // (venue/stadium-detail have their own name banner below the header,
+    // compare/ticketbook have their own headings/empty-states) — surveyed
+    // before making the title unconditionally hidden so nothing actually
+    // relied on it as the only "where am I" cue.
+    if (logoEl) logoEl.style.display = "block";
+    if (titleEl) titleEl.style.display = "none";
     if (viewId === "main") {
-      // Main page layout: Logo & Hamburger only
-      if (logoEl) logoEl.style.display = "block";
       if (backBtn) backBtn.style.display = "none";
-      if (titleEl) titleEl.style.display = "none";
     } else {
-      // Subpage/Detail layout: Back button, Page Title, Hamburger
-      if (logoEl) logoEl.style.display = "none";
       if (backBtn) backBtn.style.display = "flex";
-      if (titleEl) {
-        titleEl.style.display = "block";
-        if (viewId === "stadiums") {
-          titleEl.textContent = "구장 시야 탐색";
-        } else if (viewId === "venues") {
-          titleEl.textContent = "공연장 시야 탐색";
-        } else if (viewId === "venue-detail" && state.selectedVenue) {
-          titleEl.textContent = state.selectedVenue.name;
-        } else if (viewId === "compare") {
-          titleEl.textContent = "1:1 시야 비교";
-        } else if (viewId === "ticketbook") {
-          titleEl.textContent = state.userId ? "마이페이지" : "로그인";
-        } else if (viewId === "stadium-detail" && state.selectedStadium) {
-          titleEl.textContent = state.selectedStadium.name;
-        } else {
-          titleEl.textContent = "상세 정보";
-        }
-      }
     }
 
     // Specific Screen Initialization
@@ -1138,8 +1133,10 @@ class SeatViewApp {
       this.renderCompareView();
     } else if (viewId === "stadiums") {
       this.renderStadiumList();
+      this.reloadKakaoAd("ad-stadiums-list");
     } else if (viewId === "venues") {
       this.renderVenueList();
+      this.reloadKakaoAd("ad-venues-list");
     } else if (viewId === "stadium-detail" && state.selectedBlock) {
       // Re-fetch the seat grid when the back-stack lands us back on a
       // block that was already open — otherwise a seat just registered
@@ -1434,7 +1431,8 @@ class SeatViewApp {
 
     sortedStadiums.forEach((st, index) => {
       if (adInsertBeforeIndices.includes(index)) {
-        container.appendChild(this.buildShoppingAdCard());
+        const adCard = this.buildShoppingAdCard('baseball', 0);
+        if (adCard) container.appendChild(adCard);
       }
 
       const card = document.createElement("div");
@@ -1473,29 +1471,88 @@ class SeatViewApp {
     // it to trigger the "insert before" check in the loop above) needs to
     // be appended here instead.
     if (adInsertBeforeIndices.includes(sortedStadiums.length)) {
-      container.appendChild(this.buildShoppingAdCard());
+      const adCard = this.buildShoppingAdCard('baseball', 0);
+      if (adCard) container.appendChild(adCard);
     }
     lucide.createIcons();
   }
 
-  // Placeholder shopping-mall product ad card, same size/grid slot as a
-  // stadium card. Swap the image/link/click handler once real ad content
-  // (product image, name, click-through URL) is provided.
-  buildShoppingAdCard() {
-    const card = document.createElement("div");
-    card.className = "stadium-card";
-    card.style.backgroundImage = "linear-gradient(135deg, rgba(51, 41, 82, 0.9), rgba(15, 23, 42, 0.9))";
-    card.style.border = "1px dashed rgba(255, 255, 255, 0.2)";
-    card.style.cursor = "default";
+  // Kakao AdFit's script (ba.min.js) only scans the DOM for .kakao_ad_area
+  // elements once, at initial page load — it has no MutationObserver to
+  // notice new/newly-visible slots later. Since this is an SPA, the
+  // stadium-list and venue-list ad slots are still inside a display:none
+  // section at that first scan (only the home screen starts visible), so
+  // they're silently skipped forever — not a "pending approval" issue, the
+  // home slot fills fine. Swapping in a fresh <ins> (a node Kakao's script
+  // has never seen) and re-appending the loader script the first time each
+  // view is actually shown gives it a second, now-visible chance to fill.
+  reloadKakaoAd(insId) {
+    if (!this._kakaoAdReloaded) this._kakaoAdReloaded = {};
+    if (this._kakaoAdReloaded[insId]) return;
+    const old = document.getElementById(insId);
+    if (!old) return;
+    this._kakaoAdReloaded[insId] = true;
 
-    card.innerHTML = `
-      <span style="position: absolute; top: 10px; right: 10px; font-size: 0.6rem; background: rgba(255, 255, 255, 0.15); color: var(--text-secondary); padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em;">AD</span>
-      <div class="stadium-card-main">
-        <i data-lucide="shopping-bag" style="width: 20px; height: 20px; color: var(--text-muted); margin-bottom: 4px;"></i>
-        <h3 class="stadium-card-name" style="color: var(--text-secondary) !important;">상품 광고 영역</h3>
-        <span class="stadium-card-location">광고 상품이 여기에 노출됩니다</span>
-      </div>
-    `;
+    const fresh = document.createElement("ins");
+    fresh.id = insId;
+    fresh.className = "kakao_ad_area";
+    fresh.style.display = "none";
+    fresh.setAttribute("data-ad-unit", old.getAttribute("data-ad-unit"));
+    fresh.setAttribute("data-ad-width", old.getAttribute("data-ad-width"));
+    fresh.setAttribute("data-ad-height", old.getAttribute("data-ad-height"));
+    old.replaceWith(fresh);
+
+    const script = document.createElement("script");
+    script.src = "//t1.kakaocdn.net/kas/static/ba.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
+  // One row per category ('baseball'/'musical') in shopping_ads, managed
+  // from admin's "광고 관리" tab — not a hardcoded asset/link anymore.
+  async loadShoppingAds() {
+    if (!supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('shopping_ads')
+        .select('*')
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) throw error;
+      const byCategory = {};
+      (data || []).forEach(row => {
+        if (!byCategory[row.category]) byCategory[row.category] = [];
+        byCategory[row.category].push(row);
+      });
+      SHOPPING_ADS_DB = byCategory;
+    } catch (e) {
+      console.warn("Failed to load shopping ads:", e);
+    }
+  }
+
+  // Shopping-mall product ad card, same size/grid slot as a stadium/venue
+  // card. A category can have several ads registered — `occurrenceIndex`
+  // (0, 1, 2... — which ad *slot* this is within the current list render,
+  // not a position in the venue/stadium list) picks which one cycles into
+  // this particular slot, wrapping back to the first once past the end.
+  // Returns null (skip the slot entirely) when admin hasn't registered any
+  // ad for this category yet, rather than showing a broken/empty card.
+  buildShoppingAdCard(category, occurrenceIndex) {
+    const ads = SHOPPING_ADS_DB[category];
+    if (!ads || ads.length === 0) return null;
+    const ad = ads[occurrenceIndex % ads.length];
+    if (!ad || !ad.image_url) return null;
+
+    // The banner image is expected to already be a fully composed graphic
+    // (flag badge, AD mark, product name, description all baked in by
+    // whoever designs it) — this card is just a plain clickable image,
+    // no .stadium-card-main text overlay on top of it.
+    const card = document.createElement("div");
+    card.className = "stadium-card shopping-ad-card";
+    card.style.backgroundImage = `url('${ad.image_url}')`;
+    if (ad.link_url) {
+      card.onclick = () => window.open(ad.link_url, "_blank", "noopener,noreferrer");
+    }
     return card;
   }
 
@@ -1571,14 +1628,16 @@ class SeatViewApp {
     // list, so inserted before the 4th venue (0-indexed: 3). The position-6
     // slot is removed for now. Skipped while filtering — an ad wedged into
     // a short, deliberately-narrowed search result looks out of place.
-    // One ad slot every 3 venues (before the 4th, 7th, 10th... card) instead
+    // One ad slot every 4 venues (before the 5th, 9th, 13th... card) instead
     // of a single fixed slot — the list is long enough now that one ad near
     // the top left everything past it with none.
     const showAds = trimmed.length < 2;
+    let adOccurrence = 0; // which ad slot this is (1st, 2nd, 3rd...), not a venue index — cycles through registered ads in order
 
     venues.forEach((venue, index) => {
-      if (showAds && index > 0 && index % 3 === 0) {
-        container.appendChild(this.buildShoppingAdCard());
+      if (showAds && index > 0 && index % 4 === 0) {
+        const adCard = this.buildShoppingAdCard('musical', adOccurrence);
+        if (adCard) { container.appendChild(adCard); adOccurrence++; }
       }
 
       const card = document.createElement("div");
@@ -2790,26 +2849,65 @@ class SeatViewApp {
     wrapper.style.display = "block";
     container.innerHTML = "";
 
-    // Prepend Field/Stage direction indicator at the top
+    // Field/ground direction indicator, shown once above the seat rows.
+    // The bar itself spans the full width of the seat grid (every block's
+    // seats, not just whatever fits on screen) so it still reads as "this
+    // whole strip faces the field" once scrolled past the first screenful —
+    // so it stays the first child of #seat-rows-container, the same
+    // intrinsically-wide element the seat rows lay out in.
+    // The label needs to *look* centered in whatever's currently visible,
+    // not centered in the full (e.g. 800px+) bar — CSS alone can't express
+    // that (position:sticky only holds an element at a fixed edge once
+    // scrolling would carry it past that edge; it can't keep an
+    // already-centered-in-a-wider-box label main visible from the very
+    // first, unscrolled render). So its horizontal position is recomputed
+    // from wrapper's actual scroll position instead, on load and on every
+    // scroll tick.
     if (state.selectedStadium) {
       const isPerformance = state.selectedStadium.category === "musical" || state.selectedStadium.id === "musical";
       const directionText = isPerformance ? "▲ 🎭 무대 (STAGE) 방면 ▲" : "▲ ⚾ 그라운드 (경기장) 방면 ▲";
-      
+
       const indicator = document.createElement("div");
       indicator.className = "field-direction-indicator";
       indicator.style.width = "100%";
-      indicator.style.textAlign = "center";
+      indicator.style.position = "relative";
       indicator.style.background = "rgba(255, 255, 255, 0.04)";
       indicator.style.border = "1px dashed rgba(255, 255, 255, 0.15)";
       indicator.style.borderRadius = "6px";
       indicator.style.padding = "6px 8px";
+      indicator.style.marginTop = "12px";
       indicator.style.marginBottom = "14px";
-      indicator.style.fontSize = "0.7rem";
-      indicator.style.color = "rgba(255, 255, 255, 0.5)";
-      indicator.style.fontWeight = "bold";
-      indicator.style.letterSpacing = "2px";
-      indicator.textContent = directionText;
+      indicator.style.boxSizing = "border-box";
+      indicator.style.minHeight = "26px";
+
+      const label = document.createElement("span");
+      label.style.position = "absolute";
+      label.style.top = "50%";
+      label.style.whiteSpace = "nowrap";
+      label.style.fontSize = "0.7rem";
+      label.style.color = "rgba(255, 255, 255, 0.5)";
+      label.style.fontWeight = "bold";
+      label.style.letterSpacing = "2px";
+      label.textContent = directionText;
+      indicator.appendChild(label);
       container.appendChild(indicator);
+
+      const recenterLabel = () => {
+        const barWidth = indicator.clientWidth;
+        const labelWidth = label.offsetWidth;
+        const viewportCenter = wrapper.scrollLeft + wrapper.clientWidth / 2;
+        const idealLeft = viewportCenter - labelWidth / 2 - 8; // -8 = indicator's own left padding
+        const maxLeft = Math.max(0, barWidth - labelWidth - 16); // -16 = left+right padding
+        const clampedLeft = Math.min(Math.max(idealLeft, 0), maxLeft);
+        label.style.left = `${clampedLeft}px`;
+        label.style.transform = "translateY(-50%)";
+      };
+      recenterLabel();
+      // Each block selection re-renders this indicator from scratch — drop
+      // the previous block's listener first so they don't pile up.
+      if (wrapper._recenterFieldLabel) wrapper.removeEventListener("scroll", wrapper._recenterFieldLabel);
+      wrapper._recenterFieldLabel = recenterLabel;
+      wrapper.addEventListener("scroll", recenterLabel, { passive: true });
     }
 
     // Fetch and render seats from Supabase if available
@@ -3483,11 +3581,19 @@ class SeatViewApp {
     const reportBtn = document.getElementById("btn-detail-report");
     const editBtn = document.getElementById("btn-detail-edit");
     const deleteBtn = document.getElementById("btn-detail-delete");
+    const expiredNoteEl = document.getElementById("detail-edit-window-expired-note");
     const ownMode = state.activeModalOwnReviewsOnly && hasPhotos;
+    // The buttons themselves used to stay visible past the 3-day edit/delete
+    // window — clicking either still worked, just to bounce you off an
+    // "expired" alert dialog. Terms 제7조 says the capability is simply gone
+    // after 3 days, so the buttons should read that way too: hidden, with a
+    // short note instead of a dead-looking control that invites a click.
+    const withinWindow = ownMode && this.modalImages.length > 0 && this.isWithinEditWindow(this.modalImages[0].insDtm);
     if (compareBtn) compareBtn.style.display = state.activeModalOwnReviewsOnly ? "none" : "";
     if (reportBtn) reportBtn.style.display = state.activeModalOwnReviewsOnly ? "none" : "";
-    if (editBtn) editBtn.style.display = ownMode ? "flex" : "none";
-    if (deleteBtn) deleteBtn.style.display = ownMode ? "flex" : "none";
+    if (editBtn) editBtn.style.display = withinWindow ? "flex" : "none";
+    if (deleteBtn) deleteBtn.style.display = withinWindow ? "flex" : "none";
+    if (expiredNoteEl) expiredNoteEl.style.display = (ownMode && !withinWindow) ? "block" : "none";
 
     this.openModal("modal-seat-detail");
   }
@@ -4214,14 +4320,14 @@ class SeatViewApp {
   // Shopping-mall-style 1열/2열 toggle for the ticketbook grid. Defaults to
   // 2 columns; the choice is remembered in localStorage across visits.
   toggleTicketViewMode() {
-    const current = localStorage.getItem("seatview_ticket_view") || "1col";
+    const current = localStorage.getItem("seatview_ticket_view") || "2col";
     const next = current === "2col" ? "1col" : "2col";
     localStorage.setItem("seatview_ticket_view", next);
     this.applyTicketViewMode();
   }
 
   applyTicketViewMode() {
-    const mode = localStorage.getItem("seatview_ticket_view") || "1col";
+    const mode = localStorage.getItem("seatview_ticket_view") || "2col";
     const container = document.getElementById("tickets-archive-container");
     const btn = document.getElementById("btn-ticket-view-toggle");
     if (container) container.classList.toggle("view-list", mode === "1col");
@@ -4372,11 +4478,13 @@ class SeatViewApp {
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-Math.PI / 6);
 
-    // ~1/3 the tile density of the original spacing (area scales with the
-    // square of the step, so ~1.7x the linear gap gives ~3x fewer repeats).
+    // Step scales with the canvas itself (not a fixed pixel gap) so the
+    // repeat count stays ~5-10 regardless of photo resolution or aspect
+    // ratio — a fixed-pixel step tiled a portrait photo with 3-4x the
+    // canvas area of a typical landscape one into far more repeats.
     const textWidth = ctx.measureText(text).width;
-    const stepX = (textWidth + 60) * 1.7;
-    const stepY = fontSize * 5 * 1.7;
+    const stepX = Math.max(width * 1.1, textWidth + 60);
+    const stepY = Math.max(height * 1.1, fontSize * 5);
     // Tile well past the canvas bounds so rotation doesn't leave gaps at
     // the corners.
     const diag = Math.sqrt(width * width + height * height);
@@ -4399,9 +4507,15 @@ class SeatViewApp {
           let width = img.width;
           let height = img.height;
 
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
+          // Scale by whichever side is longer — width-only checks left a
+          // tall portrait photo (width under maxWidth, height far past it)
+          // completely uncompressed, which also fed the watermark tiler a
+          // much taller canvas than intended (see drawDiagonalWatermark).
+          const longSide = Math.max(width, height);
+          if (longSide > maxWidth) {
+            const scale = maxWidth / longSide;
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
           }
 
           canvas.width = width;
@@ -4433,9 +4547,15 @@ class SeatViewApp {
           let width = img.width;
           let height = img.height;
 
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
+          // Scale by whichever side is longer — width-only checks left a
+          // tall portrait photo (width under maxWidth, height far past it)
+          // completely uncompressed, which also fed the watermark tiler a
+          // much taller canvas than intended (see drawDiagonalWatermark).
+          const longSide = Math.max(width, height);
+          if (longSide > maxWidth) {
+            const scale = maxWidth / longSide;
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
           }
 
           canvas.width = width;
