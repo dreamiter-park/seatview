@@ -62,7 +62,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.11">
+  <link rel="stylesheet" href="style_v6.css?v=5.12">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -412,9 +412,14 @@
           <div class="ticketbook-stats" id="ticketbook-stats-card">
             <div class="stat-main" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
               <div class="stat-summary-text" style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                <img id="my-profile-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple); display: block;" alt="Profile Avatar" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23a78bfa\' stroke=\'%237c3aed\' stroke-width=\'1.5\'><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/></svg>'">
+                <img id="my-profile-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-purple); display: block;" alt="Profile Avatar" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\'><circle cx=\'12\' cy=\'12\' r=\'12\' fill=\'%23c4c9d3\'/><path d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\' fill=\'%23ffffff\'/></svg>'">
                 <div>
-                  <h3 id="my-profile-nickname" style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">@야구러버</h3>
+                  <h3 style="margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <span id="my-profile-nickname" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">@야구러버</span>
+                    <button onclick="app.openEditProfileModal()" aria-label="닉네임 수정" style="padding: 0; background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center;">
+                      <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+                    </button>
+                  </h3>
                   <span id="my-profile-email" style="font-size: 0.72rem; color: var(--text-muted); display: none; margin-top: 2px;"></span>
                 </div>
               </div>
@@ -423,7 +428,9 @@
                 <span class="win-rate-lbl">등록 수</span>
               </div>
             </div>
-            <div class="stat-details" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <!-- 프로야구장 미오픈 상태라 최애구장/응원구단/정보수정 버튼 잠정 비노출.
+                 야구장 오픈 시 이 style만 지우면 원래대로 복원됨. -->
+            <div class="stat-details" id="ticketbook-stat-details" style="display: none; align-items: center; justify-content: space-between; gap: 12px;">
               <div style="display: flex; gap: 20px;">
                 <div class="stat-sub">
                   <span class="stat-sub-label">최애 구장</span>
@@ -813,13 +820,21 @@
                 <label for="profile-nickname-input">닉네임</label>
                 <input type="text" id="profile-nickname-input" required maxlength="12" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
               </div>
-              <div class="form-group" style="margin-bottom: 12px;">
+              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <label for="profile-show-kakao-avatar-toggle" style="margin: 0; font-size: 0.82rem;">카카오 프로필 사진 사용</label>
+                <label class="ios-toggle" style="flex-shrink: 0;">
+                  <input type="checkbox" id="profile-show-kakao-avatar-toggle" checked>
+                  <span class="ios-toggle-track"></span>
+                </label>
+              </div>
+              <!-- 프로야구장 미오픈 상태라 잠정 비노출 (오픈 시 display:none만 지우면 복원) -->
+              <div class="form-group" style="margin-bottom: 12px; display: none;">
                 <label for="profile-stadium-select">최애 구장</label>
                 <select id="profile-stadium-select">
                   <!-- Dynamic options -->
                 </select>
               </div>
-              <div class="form-group" style="margin-bottom: 20px;">
+              <div class="form-group" style="margin-bottom: 20px; display: none;">
                 <label for="profile-team-select">응원 구단</label>
                 <select id="profile-team-select">
                   <option value="" disabled selected>응원 구단을 선택해주세요</option>
@@ -836,7 +851,7 @@
                 </select>
               </div>
               <button type="submit" class="btn btn-primary btn-full-width" style="padding: 10px; font-weight: 700; font-size: 0.88rem; border-radius: 10px; width: 100%; cursor: pointer;">
-                저장 완료
+                저장
               </button>
             </form>
             <div style="text-align: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-color);">
@@ -858,7 +873,7 @@
           </div>
           <div class="modal-body" style="padding: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
             <p style="margin-bottom: 16px;">
-              정말 탈퇴하시겠습니까? 탈퇴 시 프로필 및 설정 내역은 즉시 파기되지만, <b>작성해주신 시야 사진 및 관람평 데이터는 다른 야구팬들을 위해 삭제되지 않고 보존됩니다.</b>
+              정말 탈퇴하시겠습니까? 탈퇴 시 프로필 및 설정 내역은 즉시 파기되지만, <b>작성해주신 시야 사진 및 관람평 데이터는 다른 사용자들을 위해 삭제되지 않고 보존됩니다.</b>
             </p>
             <div style="display: flex; gap: 8px; margin-top: 20px;">
               <button class="btn btn-secondary" onclick="app.closeModal('modal-withdraw')" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
@@ -909,7 +924,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.46"></script>
+  <script src="app_v6.js?v=8.51"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

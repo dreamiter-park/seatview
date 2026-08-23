@@ -3618,7 +3618,7 @@
               ? `${top ? this.escHtml(top.name) : "?"} · ${block ? this.escHtml(block.full_name || block.block_code) : "?"} ${seat.row_num ? this.escHtml(seat.row_num) + "열 " : ""}${seat.seat_num != null ? seat.seat_num + "번" : ""}`
               : "(좌석 정보 없음)";
             const thumb = Array.isArray(rev.image_urls) && rev.image_urls[0] ? rev.image_urls[0] : "";
-            const uploaderLabel = rev.is_anonymous ? "익명" : (nickMap[rev.user_id] || "회원");
+            const uploaderLabel = rev.is_anonymous ? "익명" : this.escHtml(nickMap[rev.user_id] || "회원");
             this.reviewDisplayMap[rev.id] = { seatLabel, thumb, uploaderLabel };
           });
 

@@ -1218,8 +1218,10 @@ class SeatViewApp {
     state.userId = null;
     state.userNickname = "@\uC57C\uAD6C\uB7EC\uBC84";
     state.userAvatarUrl = "";
+    state.kakaoAvatarUrl = "";
+    state.showKakaoAvatar = true;
     state.userEmail = "";
-    
+
     localStorage.removeItem("seatview_nickname");
     localStorage.removeItem("seatview_favorite_stadium");
     localStorage.removeItem("seatview_cheering_team");
@@ -1235,7 +1237,7 @@ class SeatViewApp {
     const profileEmailEl = document.getElementById("my-profile-email");
     const profileAvatarEl = document.getElementById("my-profile-avatar");
     if (profileEmailEl) profileEmailEl.textContent = "(\uC774\uBA54\uC77C \uC815\uBCF4 \uC81C\uAC70)";
-    if (profileAvatarEl) profileAvatarEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+    if (profileAvatarEl) profileAvatarEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>";
 
     this.renderTicketbook();
     this.navigateTo("main");
@@ -1263,11 +1265,17 @@ class SeatViewApp {
           state.userNickname = profile.nickname || "@\uC57C\uAD6C\uB7EC\uBC84";
           state.favoriteStadiumId = profile.favorite_stadium_id || null;
           state.cheeringTeam = profile.cheering_team || null;
-          state.userAvatarUrl = profile.profile_image_url || "";
+          // null/undefined (column not set yet on older rows) defaults to
+          // showing the Kakao photo, same as before this toggle existed.
+          state.kakaoAvatarUrl = profile.profile_image_url || "";
+          state.showKakaoAvatar = profile.show_kakao_avatar !== false;
+          state.userAvatarUrl = state.showKakaoAvatar ? state.kakaoAvatarUrl : "";
         } else {
           const meta = session.user.user_metadata || {};
           state.userNickname = meta.name || meta.full_name || "@\uC57C\uAD6C\uB7EC\uBC84";
-          state.userAvatarUrl = meta.avatar_url || "";
+          state.kakaoAvatarUrl = meta.avatar_url || "";
+          state.showKakaoAvatar = true;
+          state.userAvatarUrl = state.kakaoAvatarUrl;
         }
 
         // Fetch user reviews directly from Supabase db
@@ -1361,7 +1369,7 @@ class SeatViewApp {
           }
         }
         if (profileAvatarEl) {
-          profileAvatarEl.src = state.userAvatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+          profileAvatarEl.src = state.userAvatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>";
         }
 
         // Restore pending login state if exists
@@ -3781,7 +3789,7 @@ class SeatViewApp {
       descEl.style.display = comment ? "block" : "none";
     }
 
-    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+    const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>";
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
@@ -4355,7 +4363,11 @@ class SeatViewApp {
       // user's saved view-mode preference — that preference only matters
       // once there's an actual grid of cards to lay out.
       archiveContainer.classList.add("view-list");
-      const emptyNavTarget = activeCategory === "musical" ? "venues" : "stadiums";
+      // \uD504\uB85C\uC57C\uAD6C\uC7A5\uC740 \uC544\uC9C1 \uC624\uD508 \uC804\uC774\uB77C \uD648 \uD654\uBA74 \uCE74\uD14C\uACE0\uB9AC \uCE74\uB4DC\uC640 \uB3D9\uC77C\uD558\uAC8C
+      // "\uC900\uBE44 \uC911" \uC548\uB0B4\uB85C \uB9C9\uB294\uB2E4 \u2014 \uC2E4\uC81C \uC57C\uAD6C\uC7A5 \uBAA9\uB85D\uC73C\uB85C \uB4E4\uC5B4\uAC00\uC9C0\uC9C0 \uC54A\uAC8C.
+      const emptyNavAction = activeCategory === "musical"
+        ? "app.navigateTo('venues')"
+        : "app.showCategoryComingSoon('\uD504\uB85C\uC57C\uAD6C\uC7A5')";
       const emptyLabel = activeCategory === "musical" ? "\uACF5\uC5F0\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30" : "\uC57C\uAD6C\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30";
       archiveContainer.innerHTML = `
         <div class="compare-empty" style="border-style: solid;">
@@ -4363,8 +4375,8 @@ class SeatViewApp {
             <i data-lucide="${activeCategory === 'musical' ? 'drama' : 'book-open'}"></i>
           </div>
           <h3>\uB4F1\uB85D\uD558\uC2E0 \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
-          <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4 \uC81C\uBCF4\uB97C \uD1B5\uD574<br>\uB098\uB9CC\uC758 \uC2DC\uC57C \uB370\uC774\uD130\uB97C \uC313\uACE0<br>\uB2E4\uC591\uD55C \uC774\uBCA4\uD2B8\uC5D0 \uC790\uB3D9\uC73C\uB85C \uC751\uBAA8\uD574\uBCF4\uC138\uC694</p>
-          <button class="add-ticket-btn" onclick="app.navigateTo('${emptyNavTarget}')" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto; margin-top: 16px;">
+          <p>\uC0C8\uB85C\uC6B4 \uC2DC\uC57C \uC0AC\uC9C4\uACFC \uD6C4\uAE30\uB97C \uB4F1\uB85D\uD574\uC11C<br>\uB098\uB9CC\uC758 \uC2DC\uC57C \uAE30\uB85D\uC744 \uB0A8\uACA8\uBCF4\uC138\uC694</p>
+          <button class="add-ticket-btn" onclick="${emptyNavAction}" style="background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(168, 85, 247, 0.3); color: #c084fc; font-weight: 700; font-size: 0.72rem; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto; margin-top: 16px;">
             <i data-lucide="map-pin" style="width: 12px; height: 12px;"></i> ${emptyLabel}
           </button>
         </div>
@@ -4966,7 +4978,8 @@ class SeatViewApp {
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .update(updatePayload)
-          .eq('id', state.editingReviewId);
+          .eq('id', state.editingReviewId)
+          .eq('user_id', state.userId);
         if (error) throw error;
 
         // Now that the DB row no longer references the old list, it's safe
@@ -5150,7 +5163,8 @@ class SeatViewApp {
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .delete()
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', state.userId);
         if (error) throw error;
       } catch (e) {
         console.error("Supabase review delete error:", e);
@@ -6211,6 +6225,9 @@ class SeatViewApp {
     }
     if (teamSelect) teamSelect.value = state.cheeringTeam || "";
 
+    const avatarToggle = document.getElementById("profile-show-kakao-avatar-toggle");
+    if (avatarToggle) avatarToggle.checked = state.showKakaoAvatar !== false;
+
     this.openModal("modal-edit-profile");
   }
 
@@ -6219,6 +6236,7 @@ class SeatViewApp {
     const nickVal = document.getElementById("profile-nickname-input").value.trim();
     const stadiumVal = document.getElementById("profile-stadium-select").value || null;
     const teamVal = document.getElementById("profile-team-select").value || null;
+    const showKakaoAvatarVal = document.getElementById("profile-show-kakao-avatar-toggle").checked;
 
     if (!nickVal) return;
 
@@ -6229,6 +6247,7 @@ class SeatViewApp {
           nickname: nickVal,
           favorite_stadium_id: stadiumVal,
           cheering_team: teamVal,
+          show_kakao_avatar: showKakaoAvatarVal,
           mod_dtm: new Date().toISOString()
         })
         .eq('id', state.userId)
@@ -6255,6 +6274,8 @@ class SeatViewApp {
     state.userNickname = nickVal;
     state.favoriteStadiumId = stadiumVal;
     state.cheeringTeam = teamVal;
+    state.showKakaoAvatar = showKakaoAvatarVal;
+    state.userAvatarUrl = showKakaoAvatarVal ? (state.kakaoAvatarUrl || "") : "";
 
     localStorage.setItem("seatview_nickname", nickVal);
     localStorage.setItem("seatview_favorite_stadium", stadiumVal);
@@ -6269,6 +6290,10 @@ class SeatViewApp {
     if (profileStadiumEl) profileStadiumEl.textContent = favStadiumObj ? favStadiumObj.name : "\uBBF8\uC124\uC815";
     if (profileTeamEl) profileTeamEl.textContent = teamVal || "\uBBF8\uC124\uC815";
     if (profileNicknameEl) profileNicknameEl.textContent = nickVal;
+    const profileAvatarEl = document.getElementById("my-profile-avatar");
+    if (profileAvatarEl) {
+      profileAvatarEl.src = state.userAvatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>";
+    }
 
     this.closeModal("modal-edit-profile");
     this.showToast("\uD83C\uDF89", "\uD504\uB85C\uD544 \uC124\uC815\uC774 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
@@ -6489,7 +6514,7 @@ class SeatViewApp {
     const descEl = document.getElementById("coming-soon-desc");
     if (titleEl) titleEl.textContent = "서비스 준비 중입니다";
     if (descEl) {
-      descEl.innerHTML = `${categoryName} 시야 정보는<br>초기 서비스 안정화 후 곧 오픈될 예정입니다.<br>야구장 데이터부터 먼저 체험해 보세요!`;
+      descEl.innerHTML = `${categoryName} 시야 정보는<br>초기 서비스 안정화 후 곧 오픈될 예정입니다.<br>공연장 데이터부터 먼저 체험해 보세요!`;
     }
     this.openModal("modal-coming-soon");
   }
@@ -6613,12 +6638,11 @@ class SeatViewApp {
     const toast = document.createElement("div");
     toast.className = "toast";
     
-    let iconHTML = `<span style="font-size: 1.1rem; line-height: 1;">${icon}</span>`;
-    
-    toast.innerHTML = `
-      ${iconHTML}
-      <span class="toast-message">${message}</span>
-    `;
+    // message can echo back raw user input (e.g. a search query with no
+    // match) — build it as a text node instead of interpolating into
+    // innerHTML, so it can never be parsed as markup/script.
+    toast.innerHTML = `<span style="font-size: 1.1rem; line-height: 1;">${icon}</span><span class="toast-message"></span>`;
+    toast.querySelector(".toast-message").textContent = message;
 
     container.appendChild(toast);
 
