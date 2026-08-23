@@ -105,6 +105,11 @@ img {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  /* Desktop-only widening (see the min-width:900px rule below) used to snap
+     straight to its new max-width, which read as the screen glitching/
+     resizing on its own. Animating it makes the same size change look
+     like a deliberate "panel expands" motion instead. */
+  transition: max-width 0.35s ease;
 }
 
 /* Responsive adjustment for actual mobile screens */
@@ -127,6 +132,27 @@ img {
   body {
     overflow: auto;
     overscroll-behavior-y: none;
+    /* .app-content hides its own scrollbar for a clean app look, but on
+       this breakpoint body (not .app-content) is the real scroller — match
+       that same treatment here so a desktop browser resized narrow (or any
+       environment that always shows scrollbars) doesn't reveal a raw
+       scrollbar track/arrows down the right edge.
+       Both body AND html need this: body's overflow:auto propagates to the
+       <html> element (the actual root scroller per the CSS overflow
+       propagation spec), but scrollbar-width/::-webkit-scrollbar are NOT
+       part of that propagation — the visible scrollbar is drawn against
+       whichever element is the real scroller, i.e. html, so hiding it only
+       on body left the real one showing. */
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar {
+    display: none;
+  }
+  html {
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar {
+    display: none;
   }
   body.modal-open {
     overflow: hidden;
@@ -516,6 +542,15 @@ img {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Referenced by the submit button's loading spinner (inline-styled, see
+   saveNewTicket in app_v6.js) — was missing entirely, so the "spinner" was
+   just a static circle with a gap at the top, sitting still instead of
+   spinning (reads as a stray "C" next to "등록 중..."). */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .view-header {
@@ -1541,7 +1576,9 @@ img {
      A plain white icon with no backdrop was too small/low-contrast to
      spot against the seat's own color — a solid green disc behind it
      (plus a white ring) keeps it visible no matter what's behind or
-     under it. */
+     under it. Redrawn (not traced from any stock asset) to read more
+     clearly as the standard seated-wheelchair-user pictogram — head,
+     seated torso, arm reaching to the wheel, and a footrest. */
   content: "";
   position: absolute;
   bottom: -4px;
@@ -1551,7 +1588,7 @@ img {
   border-radius: 50%;
   background-color: #16a34a;
   border: 1px solid rgba(255, 255, 255, 0.7);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='5' r='1.8' fill='white' stroke='none'/%3E%3Cpath d='M9 6.5V11h5'/%3E%3Cpath d='M9 11l3 7h3'/%3E%3Cpath d='M5 11h4'/%3E%3Ccircle cx='10.5' cy='17' r='5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='white' stroke='white'%3E%3Ccircle cx='13.6' cy='3.6' r='2' stroke='none'/%3E%3Crect x='11.7' y='6' width='3.6' height='6' rx='1.8' stroke='none'/%3E%3Crect x='8.6' y='11.6' width='6.4' height='2' rx='1' stroke='none'/%3E%3Cline x1='12.6' y1='7.6' x2='10.6' y2='12.6' stroke-width='2.2' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='9.3' cy='16.6' r='5.6' fill='none' stroke-width='2'/%3E%3Cline x1='9.3' y1='16.6' x2='12.6' y2='13' stroke-width='1.4' stroke-linecap='round' fill='none'/%3E%3Ccircle cx='9.3' cy='16.6' r='0.8' stroke='none'/%3E%3Cline x1='14.4' y1='11.8' x2='15.6' y2='16.2' stroke-width='2.2' stroke-linecap='round' fill='none'/%3E%3Crect x='15.5' y='17.2' width='2.6' height='1.6' rx='0.8' stroke='none'/%3E%3C/g%3E%3C/svg%3E");
   background-size: 65%;
   background-position: center;
   background-repeat: no-repeat;
@@ -2654,6 +2691,7 @@ img {
   color: var(--text-primary);
   font-size: 0.8rem;
   font-weight: 500;
+  word-break: keep-all;
   box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;

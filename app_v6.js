@@ -21,6 +21,9 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 // --- 1. Seed & Mock Database ---
 let STADIUMS_DB = [];
 let VENUES_DB = [];
+// STADIUMS_DB uses string ids (jamsil, gocheok, ...) but the baseball_blocks/
+// baseball_seats tables key off the stadiums table's real numeric id.
+const BASEBALL_DB_ID_MAP = { jamsil: 1, gocheok: 2, incheon: 3, suwon: 4, daejeon: 5, daegu: 6, gwangju: 7, changwon: 8, busan: 9 };
 // One shopping-ad banner per category (baseball/musical), keyed by category —
 // managed from admin's "광고 관리" tab (shopping_ads table). Empty until
 // loadShoppingAds() resolves, so buildShoppingAdCard() just skips the ad
@@ -331,7 +334,7 @@ const SEAT_VIEWS_DB = {
     seatName: "1열 1번",
     image: "assets/seat_view_clean.png",
     uploader: "@twins_victory",
-    uploaderBadge: "골드 제보자",
+    uploaderBadge: "골드 등록자",
     upvotes: 34,
     downvotes: 0,
     userVoted: null,
@@ -344,7 +347,7 @@ const SEAT_VIEWS_DB = {
     seatName: "1열 7번",
     image: "assets/seat_view_clean.png",
     uploader: "@stadium_goer",
-    uploaderBadge: "VIP 제보자",
+    uploaderBadge: "VIP 등록자",
     upvotes: 56,
     downvotes: 2,
     userVoted: null,
@@ -357,7 +360,7 @@ const SEAT_VIEWS_DB = {
     seatName: "1열 14번",
     image: "assets/seat_view_clean.png",
     uploader: "@lotte_no_lg",
-    uploaderBadge: "일반 제보자",
+    uploaderBadge: "일반 등록자",
     upvotes: 12,
     downvotes: 1,
     userVoted: null,
@@ -370,7 +373,7 @@ const SEAT_VIEWS_DB = {
     seatName: "10열 95번",
     image: "assets/seat_view_blocked.png",
     uploader: "@silent_fan",
-    uploaderBadge: "실버 제보자",
+    uploaderBadge: "실버 등록자",
     upvotes: 8,
     downvotes: 15,
     userVoted: null,
@@ -384,7 +387,7 @@ const SEAT_VIEWS_DB = {
     seatName: "3열 4번",
     image: "assets/seat_view_clean.png",
     uploader: "@baseball_lover",
-    uploaderBadge: "골드 제보자",
+    uploaderBadge: "골드 등록자",
     upvotes: 28,
     downvotes: 1,
     userVoted: null,
@@ -398,7 +401,7 @@ const SEAT_VIEWS_DB = {
     seatName: "4열 2번",
     image: "assets/seat_view_blocked.png",
     uploader: "@twins_victory",
-    uploaderBadge: "일반 제보자",
+    uploaderBadge: "일반 등록자",
     upvotes: 3,
     downvotes: 12,
     userVoted: null,
@@ -412,7 +415,7 @@ const SEAT_VIEWS_DB = {
     seatName: "2열 5번",
     image: "assets/seat_view_clean.png",
     uploader: "@cheer_king",
-    uploaderBadge: "VIP 제보자",
+    uploaderBadge: "VIP 등록자",
     upvotes: 45,
     downvotes: 4,
     userVoted: null,
@@ -426,7 +429,7 @@ const SEAT_VIEWS_DB = {
     seatName: "2열 6번",
     image: "assets/seat_view_clean.png",
     uploader: "@dome_fan",
-    uploaderBadge: "골드 제보자",
+    uploaderBadge: "골드 등록자",
     upvotes: 15,
     downvotes: 0,
     userVoted: null,
@@ -846,6 +849,13 @@ class SeatViewApp {
       });
     }
 
+    const ocrPickerSearchInput = document.getElementById("ocr-picker-venue-search");
+    if (ocrPickerSearchInput) {
+      ocrPickerSearchInput.addEventListener("input", () => {
+        this.renderOcrPickerVenueList(ocrPickerSearchInput.value);
+      });
+    }
+
     // Set up click-and-drag horizontal scroll for the grade filter bar
     this.setupDragScroll("grade-filter-bar");
 
@@ -1125,9 +1135,12 @@ class SeatViewApp {
 
     // Specific Screen Initialization
     if (viewId === "ticketbook") {
-      // Default to 프로야구장 the first time mypage is visited this
+      // Default to 공연장 the first time mypage is visited this
       // session; a later category switch is remembered on repeat visits.
-      if (!state.ticketbookCategory) state.ticketbookCategory = "baseball";
+      if (!state.ticketbookCategory) state.ticketbookCategory = "musical";
+      if (state.ticketbookCategory === "musical" && !state.musicalTickets) {
+        this.loadMusicalTickets().then(() => this.renderTicketbook());
+      }
       this.renderTicketbook();
     } else if (viewId === "compare") {
       this.renderCompareView();
@@ -1303,7 +1316,8 @@ class SeatViewApp {
                 seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
                 comment: r.content,
                 image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
-                images: r.image_urls || []
+                images: r.image_urls || [],
+                isTicketVerified: !!r.is_ticket_verified
               };
             });
           } else {
@@ -2838,7 +2852,7 @@ class SeatViewApp {
   handleNoPhotoSeatClick(blockName, seatName) {
     if (!state.selectedStadium) return;
     const stadiumName = state.selectedStadium.name;
-    this.showToast("ℹ️", `📷 [${stadiumName} - ${blockName} ${seatName}] 최초 시야 사진 제보 및 등록 기능은 정식 오픈 시 지원 예정입니다. 첫 제보자가 되어 보세요!`);
+    this.showToast("ℹ️", `📷 [${stadiumName} - ${blockName} ${seatName}] 최초 시야 사진 등록 기능은 정식 오픈 시 지원 예정입니다. 첫 등록자가 되어 보세요!`);
   }
 
   async renderSeatingGrid(blockId) {
@@ -3057,7 +3071,7 @@ class SeatViewApp {
                         seatName: `${seat.row_num || r}열 ${seat.seat_num}번`,
                         image: "assets/seat_view_clean.png",
                         uploader: "@anonymous",
-                        uploaderBadge: "일반 제보자",
+                        uploaderBadge: "일반 등록자",
                         upvotes: 0,
                         downvotes: 0,
                         userVoted: null,
@@ -3508,8 +3522,10 @@ class SeatViewApp {
                 reviewId: rev.id,
                 insDtm: rev.ins_dtm,
                 isAnonymous: !!rev.is_anonymous,
+                isTicketVerified: !!rev.is_ticket_verified,
+                ticketPhotoUrl: rev.ticket_photo_url || null,
                 direction: dir,
-                comment: rev.content || "\uB4F1\uB85D\uB41C \uC2DC\uC57C \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
+                comment: rev.content || "",
                 uploader: uploaderName,
                 uploaderBadge: uploaderBadge,
                 watchedDate: rev.watched_date || null,
@@ -3518,6 +3534,22 @@ class SeatViewApp {
               });
             });
           });
+
+          // \uC6B0\uC120\uC21C\uC704: \uC778\uC99D\uB428 > \uCD5C\uADFC\uAD00\uB78C\uC77C > \uCD5C\uADFC\uB4F1\uB85D\uC77C > \uB2C9\uB124\uC784 \uC788\uC74C > \uB2C9\uB124\uC784 \uBE44\uACF5\uAC1C.
+          // A review's multiple photos share the same sort keys, so a
+          // stable sort keeps them adjacent in their original order.
+          dbImages.sort((a, b) => {
+            if (a.isTicketVerified !== b.isTicketVerified) return a.isTicketVerified ? -1 : 1;
+            const aWatched = a.watchedDate || "";
+            const bWatched = b.watchedDate || "";
+            if (aWatched !== bWatched) return aWatched > bWatched ? -1 : 1;
+            const aIns = a.insDtm || "";
+            const bIns = b.insDtm || "";
+            if (aIns !== bIns) return aIns > bIns ? -1 : 1;
+            if (a.isAnonymous !== b.isAnonymous) return a.isAnonymous ? 1 : -1;
+            return 0;
+          });
+
           if (dbImages.length > 0) {
             images = dbImages;
           }
@@ -3624,6 +3656,37 @@ class SeatViewApp {
       await this.showAlertDialog("수정할 수 없어요", "등록 후 3일이 경과한 기록은 직접 수정이 불가능합니다.\n\n수정이 필요하신 경우 고객센터 이메일(j2mi.help@gmail.com)로 요청주시기 바랍니다.");
       return;
     }
+    // Unlike a fresh registration, an edit can already be verified — start
+    // from that actual status (not a blind reset to unverified) so the
+    // "좌석 인증(티켓)" field shows "인증됨" as-is when it already is, and so
+    // saving without touching it doesn't silently un-verify the review. If
+    // it's not yet verified, this still leaves the "인증하기" button live so
+    // it can be verified right here during the edit.
+    state.ticketVerified = !!current.isTicketVerified;
+    state.ticketVerifiedCategory = state.ticketVerified ? state.activeModalCategory : null;
+    // A ticket photo attached earlier but not yet reviewed by an admin —
+    // reflect that pending state (and its thumbnail) too, not just the
+    // final verified/not.
+    state.ticketPendingReview = !state.ticketVerified && !!current.ticketPhotoUrl;
+    state.pendingTicketPhotoBlob = null;
+    if (state.ticketPendingPhotoPreviewUrl) URL.revokeObjectURL(state.ticketPendingPhotoPreviewUrl);
+    state.ticketPendingPhotoPreviewUrl = null;
+    // current.ticketPhotoUrl is a private-bucket storage path, not a URL —
+    // resolve it to a short-lived signed URL so the owner can preview their
+    // own still-pending photo here.
+    state.ticketPendingExistingPath = state.ticketPendingReview ? current.ticketPhotoUrl : null;
+    state.ticketPendingExistingUrl = state.ticketPendingReview
+      ? await this.getTicketPhotoSignedUrl(current.ticketPhotoUrl)
+      : null;
+    state.ticketPhotoRemovedExisting = null;
+    this.updateTicketVerifyFormUI();
+    // "변경" doesn't make sense while editing — the seat itself can't
+    // actually change here (saving an edit never touches which seat the
+    // review belongs to), so unlike a fresh registration there's nothing
+    // for that button to coherently do. Force it hidden regardless of
+    // verified state.
+    const wrongSeatLinkEl = document.getElementById("form-wrong-seat-link");
+    if (wrongSeatLinkEl) wrongSeatLinkEl.style.display = "none";
 
     // Gather every photo that belongs to this specific review (a review can
     // have multiple photos, and the carousel mixes photos from other
@@ -3644,6 +3707,7 @@ class SeatViewApp {
     }
     const anonEl = document.getElementById("form-is-anonymous");
     if (anonEl) anonEl.checked = !!current.isAnonymous;
+    this.setTicketDateFieldDefaults();
     const dateEl = document.getElementById("form-match-date");
     if (dateEl) dateEl.value = current.watchedDate || "";
 
@@ -3707,12 +3771,22 @@ class SeatViewApp {
       dirEl.style.display = "flex";
       dirEl.innerHTML = `\uD83D\uDCF8 ${displayDir}`;
     }
-    if (descEl) descEl.textContent = this.truncateComment(curImg.comment) || "\uB4F1\uB85D\uB41C \uD3C9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
+    if (descEl) {
+      // Attaching a comment is optional, and most submissions skip it \u2014 a
+      // "no review registered" placeholder read as if the whole submission
+      // were incomplete, not just the (fully optional) text. Just hide the
+      // line instead of saying anything when there's no comment.
+      const comment = this.truncateComment(curImg.comment);
+      descEl.textContent = comment || "";
+      descEl.style.display = comment ? "block" : "none";
+    }
 
     const defaultAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa' stroke='%237c3aed' stroke-width='1.5'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
+    const verifiedBadgeEl = document.getElementById("modal-seat-verified-badge");
+    if (verifiedBadgeEl) verifiedBadgeEl.style.display = curImg.isTicketVerified ? "block" : "none";
     if (dateEl) {
       // Unlabeled, a bare date is ambiguous — it could be the day the
       // reviewer actually watched the show, or (when they skipped that
@@ -3802,6 +3876,11 @@ class SeatViewApp {
 
   // --- 1:1 Side-by-Side Comparison ---
   addCurrentSeatToCompare() {
+    if (!state.isLoggedIn) {
+      this.openModal("modal-login-confirm");
+      return;
+    }
+
     // SEAT_VIEWS_DB only ever holds baseball's legacy placeholder data —
     // musical seats never get an entry there, which silently no-op'd this
     // whole function for them. state.activeModalDisplayInfo and
@@ -3944,7 +4023,7 @@ class SeatViewApp {
               url: u,
               reviewId: rev.id,
               comment: rev.content || "",
-              uploader: rev.is_anonymous ? "익명" : (nickMap[rev.user_id] || "@제보자")
+              uploader: rev.is_anonymous ? "익명" : (nickMap[rev.user_id] || "@등록자")
             });
           });
         });
@@ -4171,7 +4250,8 @@ class SeatViewApp {
           seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
           comment: r.content,
           image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
-          images: r.image_urls || []
+          images: r.image_urls || [],
+          isTicketVerified: !!r.is_ticket_verified
         };
       });
     } catch (e) {
@@ -4270,6 +4350,11 @@ class SeatViewApp {
     }
 
     if (sortedTickets.length === 0) {
+      // The empty-state card looks lopsided squeezed into one cell of the
+      // 2-column album grid, so force list layout for it regardless of the
+      // user's saved view-mode preference — that preference only matters
+      // once there's an actual grid of cards to lay out.
+      archiveContainer.classList.add("view-list");
       const emptyNavTarget = activeCategory === "musical" ? "venues" : "stadiums";
       const emptyLabel = activeCategory === "musical" ? "\uACF5\uC5F0\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30" : "\uC57C\uAD6C\uC7A5 \uB458\uB7EC\uBCF4\uB7EC \uAC00\uAE30";
       archiveContainer.innerHTML = `
@@ -4298,6 +4383,7 @@ class SeatViewApp {
       card.innerHTML = `
         <div class="ticket-img-header">
           <img src="${ticket.image}" alt="\uAD00\uC804 \uC2DC\uC57C \uC0AC\uC9C4">
+          ${ticket.isTicketVerified ? `<span style="position: absolute; top: 8px; left: 8px; background: rgba(5, 150, 105, 0.9); color: #fff; font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 20px;">\u2713 \uC778\uC99D\uB428</span>` : ""}
           ${photoCount > 1 ? `<span style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; display: flex; align-items: center; gap: 3px;"><i data-lucide="images" style="width: 11px; height: 11px;"></i> ${photoCount}</span>` : ""}
         </div>
         <div class="ticket-body">
@@ -4470,9 +4556,9 @@ class SeatViewApp {
     const fontSize = Math.max(14, Math.round(Math.max(width, height) * 0.025));
     ctx.save();
     ctx.font = `${fontSize}px 'Noto Sans KR', sans-serif`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.13)";
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.10)";
-    ctx.lineWidth = 1;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.16)";
+    ctx.lineWidth = 1.2;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.translate(width / 2, height / 2);
@@ -4495,6 +4581,46 @@ class SeatViewApp {
       }
     }
     ctx.restore();
+  }
+
+  // Exact SHA-256 of the compressed file's bytes. Unlike a perceptual hash
+  // (aHash etc.), this only ever matches a byte-for-byte identical file —
+  // two genuinely different photos colliding by chance is practically
+  // impossible (this was tried first as an 8x8 average-hash, but that
+  // flagged visually-similar-but-different photos as duplicates too, e.g.
+  // two adjacent seats' shots of the same stage, or even two solid-color
+  // test swatches with matching average brightness — a real risk of
+  // blocking an honest new submission). This only catches the exact-file
+  // repost case, not a re-saved/recompressed copy of the same photo, but
+  // every photo already goes through this app's own WebP compression on
+  // upload, so a re-upload of "the same photo" downloaded and re-submitted
+  // elsewhere still round-trips through identical compression here.
+  async computeExactPhotoHash(blob) {
+    const buf = await blob.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  // Looks up whether any of these photo hashes are already attached to a
+  // review on a *different* seat — the same seat re-saving its own photo
+  // (an edit) is fine, reposting it under a different seat is what this
+  // catches. category-scoped only (a baseball photo reposted as a musical
+  // one is out of scope for now).
+  async checkDuplicatePhotoHashes(hashes, isMusical, excludeSeatId) {
+    if (!supabaseClient || !hashes || hashes.length === 0) return null;
+    const table = isMusical ? "musical_seat_reviews" : "baseball_seat_reviews";
+    const seatFk = isMusical ? "musical_seat_id" : "baseball_seat_id";
+    try {
+      const { data, error } = await supabaseClient
+        .from(table)
+        .select(`id, ${seatFk}`)
+        .overlaps("photo_hashes", hashes);
+      if (error || !data) return null;
+      return data.find(row => String(row[seatFk]) !== String(excludeSeatId)) || null;
+    } catch (e) {
+      console.warn("checkDuplicatePhotoHashes failed:", e);
+      return null;
+    }
   }
 
   compressImageToWebP(file, maxWidth = 1024, quality = 0.7) {
@@ -4635,6 +4761,52 @@ class SeatViewApp {
     }
   }
 
+  // Ticket photos go to a *private* bucket, separate from seat-photos —
+  // unlike seat-view photos (meant to be public), a ticket photo can show a
+  // real name/booking number, and anyone with the public anon key can query
+  // ticket_photo_url straight off the reviews table regardless of what the
+  // UI shows other users. Storing it in a public bucket meant that URL was
+  // directly fetchable by anyone who bothered to query the table, even
+  // though no page ever links to it. Returns a storage *path*, not a URL —
+  // there's no such thing as a usable public URL for a private object, so
+  // every reader (this client's own preview, admin's review queue) has to
+  // turn the path into a short-lived signed URL on demand instead.
+  async uploadTicketPhoto(blob) {
+    const prefix = state.userId ? String(state.userId) : "guest";
+    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+    const { error } = await supabaseClient.storage
+      .from("ticket-photos")
+      .upload(fileName, blob, { contentType: "image/webp", upsert: false });
+    if (error) throw error;
+    return fileName;
+  }
+
+  async deleteTicketPhotosFromStorage(paths) {
+    if (!supabaseClient || !paths || paths.length === 0) return;
+    const clean = paths.filter(p => typeof p === "string" && p);
+    if (clean.length === 0) return;
+    try {
+      const { error } = await supabaseClient.storage.from("ticket-photos").remove(clean);
+      if (error) console.warn("Ticket photo storage cleanup warning:", error);
+    } catch (e) {
+      console.warn("Ticket photo storage cleanup error:", e);
+    }
+  }
+
+  // Short-lived (10 min) signed URL so the owner can preview their own
+  // pending ticket photo without the bucket needing to be public.
+  async getTicketPhotoSignedUrl(path) {
+    if (!supabaseClient || !path) return "";
+    try {
+      const { data, error } = await supabaseClient.storage.from("ticket-photos").createSignedUrl(path, 600);
+      if (error) throw error;
+      return (data && data.signedUrl) || "";
+    } catch (e) {
+      console.warn("Ticket photo signed URL error:", e);
+      return "";
+    }
+  }
+
   async handleTicketPhotoSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -4675,7 +4847,7 @@ class SeatViewApp {
     const hasPhotos = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0;
     if (!hasPhotos && !state.currentUploadedPhotoBase64) {
       this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
-      await this.showAlertDialog("사진 업로드 필요", "시야 제보 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
+      await this.showAlertDialog("사진 업로드 필요", "시야 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnHtml;
@@ -4691,6 +4863,23 @@ class SeatViewApp {
       const realSeatIdForCheck = /^\d+$/.test(String(dbKeyForCheck)) ? parseInt(dbKeyForCheck, 10) : null;
       if (await this.hasExistingSeatReview(realSeatIdForCheck, isMusical)) {
         await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요. 기존 등록 내역은 마이페이지에서 수정하거나 삭제할 수 있습니다.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+        return;
+      }
+
+      // Same photo reposted under a different seat — catches copy/paste
+      // reuse (own or someone else's photo) rather than a genuine new-seat
+      // submission. Only checked for brand-new reviews; edits to an
+      // existing review's own photos are left alone.
+      const newHashes = (state.tempUploadedPhotos || [])
+        .filter(p => p.type === "new" && p.hash)
+        .map(p => p.hash);
+      const dupe = await this.checkDuplicatePhotoHashes(newHashes, isMusical, realSeatIdForCheck);
+      if (dupe) {
+        await this.showAlertDialog("등록 불가", "이미 다른 좌석에 등록된 사진과 동일합니다.\n\n본인이 실제로 관람한 좌석에서 촬영한 사진만 등록해 주세요.");
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnHtml;
@@ -4731,19 +4920,52 @@ class SeatViewApp {
     }
     const finalImage = finalImagesList[0];
 
+    // Ticket photo attached via "좌석 인증(티켓)" — upload now only if a new
+    // one was picked this session. Goes to the private "ticket-photos"
+    // bucket (see uploadTicketPhoto) — the admin panel deletes it the
+    // moment a decision is made, so it never lingers, and it's never public
+    // in the meantime either. Left out of the payload entirely on edits
+    // where nothing new was chosen, so an already-pending (or
+    // already-cleared) value isn't accidentally overwritten. Despite the
+    // name, this now holds a storage *path*, not a URL.
+    let newTicketPhotoUrl = null;
+    if (state.pendingTicketPhotoBlob) {
+      try {
+        newTicketPhotoUrl = await this.uploadTicketPhoto(state.pendingTicketPhotoBlob);
+      } catch (err) {
+        console.error("Ticket photo upload error:", err);
+        this.showToast("❌", "티켓 사진 업로드 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+        return;
+      }
+    }
+
     // Editing an existing review (opened via 기록 수정) updates that one row
     // instead of creating a new ticket/review.
     if (state.editingReviewId) {
       try {
+        const updatePayload = {
+          image_urls: finalImagesList,
+          content: commentVal,
+          is_anonymous: isAnonymous,
+          watched_date: dateVal || null,
+          is_ticket_verified: !!state.ticketVerified,
+          mod_dtm: new Date().toISOString()
+        };
+        if (newTicketPhotoUrl) {
+          updatePayload.ticket_photo_url = newTicketPhotoUrl;
+        } else if (state.ticketPhotoRemovedExisting) {
+          // "x" on a previously-attached (already-uploaded) pending photo —
+          // clear it rather than leaving it dangling as a pending review
+          // for a photo the user no longer wants attached.
+          updatePayload.ticket_photo_url = null;
+        }
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
-          .update({
-            image_urls: finalImagesList,
-            content: commentVal,
-            is_anonymous: isAnonymous,
-            watched_date: dateVal || null,
-            mod_dtm: new Date().toISOString()
-          })
+          .update(updatePayload)
           .eq('id', state.editingReviewId);
         if (error) throw error;
 
@@ -4751,11 +4973,14 @@ class SeatViewApp {
         // to delete any photos the user removed during this edit.
         const removedUrls = (state.editingOriginalPhotos || []).filter(u => !finalImagesList.includes(u));
         this.deleteSeatPhotosFromStorage(removedUrls);
+        if (state.ticketPhotoRemovedExisting && !newTicketPhotoUrl) {
+          this.deleteTicketPhotosFromStorage([state.ticketPhotoRemovedExisting]);
+        }
         state.editingOriginalPhotos = null;
 
         state.editingReviewId = null;
         const titleEl = document.getElementById("add-ticket-modal-title");
-        if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+        if (titleEl) titleEl.textContent = "좌석 시야 사진 등록";
         if (submitBtn) {
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalBtnHtml;
@@ -4814,12 +5039,12 @@ class SeatViewApp {
           image: finalImage,
           images: finalImagesList,
           uploader: isAnonymous ? "익명" : state.userNickname,
-          uploaderBadge: isAnonymous ? "일반 제보자" : "골드 제보자",
+          uploaderBadge: isAnonymous ? "일반 등록자" : "골드 등록자",
           upvotes: 0,
           downvotes: 0,
           userVoted: null,
-          tags: [resultVal === "승리" ? "✅ 직관 승요 기운" : "⚠️ 아쉬운 패배 기운", "✅ 직접 제보"],
-          comment: commentVal || "유저가 직접 아카이빙한 소중한 시야 제보 데이터입니다."
+          tags: [resultVal === "승리" ? "✅ 직관 승요 기운" : "⚠️ 아쉬운 패배 기운", "✅ 직접 등록"],
+          comment: commentVal || "유저가 직접 아카이빙한 소중한 시야 등록 데이터입니다."
         };
       }
     }
@@ -4835,9 +5060,19 @@ class SeatViewApp {
     // reject them; those stay local-only, same as before)
     if (supabaseClient && state.userId && realSeatId !== null) {
       try {
+        const photoHashesForInsert = (state.tempUploadedPhotos || []).map(p => p.hash || null);
+        // What "인증됨" actually vouches for is the seat (venue/floor/block/
+        // seat number) matching the ticket — not the watched date, which is
+        // just metadata. state.ticketVerified is only ever true while the
+        // seat currently loaded in this form is exactly the one OCR
+        // matched: opening the form manually (including via the "다른
+        // 좌석인가요?" escape hatch) always calls resetTicketVerifiedState()
+        // first, so there's no path where the seat changes underneath an
+        // still-true flag.
+        const isTicketVerified = !!state.ticketVerified;
         const insertPayload = isMusical
-          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null }
-          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null };
+          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null }
+          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null };
 
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
@@ -4957,6 +5192,716 @@ class SeatViewApp {
     }
   }
 
+  // --- Ticket-photo OCR shortcut (header camera icon) ---------------------
+  // Scans a ticket photo via a Supabase Edge Function (which holds the
+  // Anthropic API key server-side — never in this file), matches the
+  // extracted venue/block/row/seat text against real DB rows, then opens
+  // the same 시야사진 등록 sheet a normal seat-grid click would, pre-filled.
+  // If the Edge Function has no key configured (paused for budget reasons)
+  // or nothing matches, this just falls back to a toast telling the user to
+  // pick their seat manually — never a dead end.
+
+  resetTicketVerifiedState() {
+    state.ticketVerified = false;
+    state.ticketVerifiedCategory = null;
+    state.ticketPendingReview = false;
+    if (state.ticketPendingPhotoPreviewUrl) URL.revokeObjectURL(state.ticketPendingPhotoPreviewUrl);
+    state.ticketPendingPhotoPreviewUrl = null;
+    state.pendingTicketPhotoBlob = null;
+    state.ticketPendingExistingUrl = null;
+    state.ticketPendingExistingPath = null;
+    state.ticketPhotoRemovedExisting = null;
+    this.updateTicketVerifyFormUI();
+  }
+
+  // Toggles the "좌석 인증(티켓)" field in modal-add-ticket between three
+  // states: the "인증하기" action button, a thumbnail preview + "관리자
+  // 확인 중" pending, and "✓ 인증됨" done. OCR-based auto-verification
+  // turned out too unreliable across real ticket formats/photo quality, so
+  // this is now an admin-review workflow instead — attaching a photo here
+  // just queues it for manual approval (see saveNewTicket for the upload,
+  // and the admin panel for the approve/reject action that sets
+  // is_ticket_verified). Also toggles the seat banner's "변경" button —
+  // it's only meaningful once there's a verification to lose, so it stays
+  // hidden otherwise (see handleWrongSeatFromOcr for the confirm prompt).
+  updateTicketVerifyFormUI() {
+    const actionEl = document.getElementById("form-ticket-verify-action");
+    const pendingEl = document.getElementById("form-ticket-verify-pending");
+    const pendingImg = document.getElementById("form-ticket-verify-pending-img");
+    const doneEl = document.getElementById("form-ticket-verify-done");
+    const wrongSeatLink = document.getElementById("form-wrong-seat-link");
+    const verified = !!state.ticketVerified;
+    const pending = !verified && !!state.ticketPendingReview;
+    if (actionEl) actionEl.style.display = (!verified && !pending) ? "block" : "none";
+    if (pendingEl) pendingEl.style.display = pending ? "flex" : "none";
+    if (pendingImg && pending) pendingImg.src = state.ticketPendingPhotoPreviewUrl || state.ticketPendingExistingUrl || "";
+    if (doneEl) doneEl.style.display = verified ? "flex" : "none";
+    if (wrongSeatLink) wrongSeatLink.style.display = verified ? "inline-block" : "none";
+  }
+
+  // "좌석 인증(티켓)" button inside modal-add-ticket — lets a manually-
+  // opened registration attach a ticket photo for admin review in the same
+  // sheet instead of only being possible later from 마이페이지.
+  startInlineTicketVerify() {
+    document.getElementById("form-ticket-verify-input").click();
+  }
+
+  // Just queues the photo for the admin to review — no more OCR call here.
+  // Mirrors resolveFinalImageUrls' deferred-upload pattern: the file is
+  // compressed and held in memory, and only actually uploaded to Storage
+  // if the user goes on to submit the form (see saveNewTicket), so an
+  // abandoned form never leaves an orphaned file behind.
+  async handleInlineTicketVerifyFileSelect(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+
+    let blob;
+    try {
+      blob = await this.compressImageToWebPBlob(file);
+    } catch (err) {
+      console.error("Ticket photo compress error:", err);
+      this.showToast("⚠️", "사진을 처리하는 중 오류가 발생했어요.");
+      return;
+    }
+
+    if (state.ticketPendingPhotoPreviewUrl) URL.revokeObjectURL(state.ticketPendingPhotoPreviewUrl);
+    state.pendingTicketPhotoBlob = blob;
+    state.ticketPendingPhotoPreviewUrl = URL.createObjectURL(blob);
+    state.ticketPendingExistingUrl = null;
+    state.ticketPendingExistingPath = null;
+    state.ticketPhotoRemovedExisting = null;
+    state.ticketPendingReview = true;
+    this.updateTicketVerifyFormUI();
+    this.showToast("📎", "티켓 사진이 첨부됐어요. 관리자 확인 후 인증돼요.");
+  }
+
+  // "x" button on the attached ticket photo thumbnail. A freshly-picked
+  // photo (not yet saved) is just discarded from memory; an already-
+  // uploaded one (attached in an earlier session, editing now) is flagged
+  // so saveNewTicket clears ticket_photo_url and deletes the file on save
+  // instead of silently leaving orphaned pending state behind.
+  removeTicketPhoto() {
+    if (state.ticketPendingPhotoPreviewUrl) {
+      URL.revokeObjectURL(state.ticketPendingPhotoPreviewUrl);
+      state.ticketPendingPhotoPreviewUrl = null;
+    }
+    state.pendingTicketPhotoBlob = null;
+    if (state.ticketPendingExistingPath) {
+      state.ticketPhotoRemovedExisting = state.ticketPendingExistingPath;
+      state.ticketPendingExistingUrl = null;
+      state.ticketPendingExistingPath = null;
+    }
+    state.ticketPendingReview = false;
+    this.updateTicketVerifyFormUI();
+  }
+
+  // "변경" button on the seat banner — only shown once verified (see
+  // updateTicketVerifyFormUI), so clicking it always means giving up an
+  // existing verification. Confirm that's really what they want before
+  // closing this sheet and sending them into the manual 공연장/구장 list →
+  // 좌석 selection flow to pick a different seat. That manual path always
+  // calls resetTicketVerifiedState() when it reopens this form, so there's
+  // no separate "clear verified" step needed after confirming here.
+  async handleWrongSeatFromOcr() {
+    const confirmed = await this.showConfirmDialog(
+      "좌석 변경",
+      "좌석을 변경하면 지금까지의 티켓 인증이 취소돼요.\n\n계속하시겠어요?",
+      { okText: "변경할게요", cancelText: "취소" }
+    );
+    if (!confirmed) return;
+
+    const category = state.ticketVerifiedCategory;
+    this.closeModal("modal-add-ticket");
+    this.resetTicketVerifiedState();
+    // Stay on the specific venue/stadium they were already on (state.
+    // selectedVenue/selectedStadium is already set — either from opening
+    // this form directly off that detail page, or from triggerOcrPhotoAttach
+    // navigating there before the OCR scan even ran) rather than dropping
+    // them back at the full list to find it again.
+    const isMusical = category === "musical";
+    const current = isMusical ? state.selectedVenue : state.selectedStadium;
+    if (current) {
+      this.navigateTo(isMusical ? "venue-detail" : "stadium-detail");
+    } else {
+      this.navigateTo(isMusical ? "venues" : "stadiums");
+    }
+  }
+
+  // Header entry point: which venue this is isn't known yet, so ask
+  // category → venue before running OCR at all. This means OCR never has
+  // to guess the venue name from the ticket photo — the least reliable
+  // field to read (small text, easily hidden behind a finger or blurred
+  // out by resizing) — matching only has to find block/row/seat within a
+  // venue we already know for certain.
+  startTicketScan() {
+    if (!state.isLoggedIn) {
+      this.openModal("modal-login-confirm");
+      return;
+    }
+    const stepCategory = document.getElementById("ocr-picker-step-category");
+    const stepVenue = document.getElementById("ocr-picker-step-venue");
+    const stepAttach = document.getElementById("ocr-picker-step-attach");
+    const stepConfirm = document.getElementById("ocr-picker-step-confirm");
+    if (stepCategory) stepCategory.style.display = "flex";
+    if (stepVenue) stepVenue.style.display = "none";
+    if (stepAttach) stepAttach.style.display = "none";
+    if (stepConfirm) stepConfirm.style.display = "none";
+    this.openModal("modal-ocr-venue-picker");
+  }
+
+  selectOcrScanCategory(category) {
+    const stepCategory = document.getElementById("ocr-picker-step-category");
+    const stepVenue = document.getElementById("ocr-picker-step-venue");
+    const searchWrap = document.getElementById("ocr-picker-venue-search-wrap");
+    const searchInput = document.getElementById("ocr-picker-venue-search");
+    state.ocrPickerCategory = category;
+    state.ocrPickerList = category === "musical" ? (VENUES_DB || []) : (STADIUMS_DB || []);
+    // Baseball only has 9 stadiums (a short static list), so a search box
+    // there is just noise — musical has enough venues that finding one by
+    // scrolling gets tedious, same as the full 공연장 list screen.
+    if (searchWrap) searchWrap.style.display = category === "musical" ? "flex" : "none";
+    if (searchInput) searchInput.value = "";
+    this.renderOcrPickerVenueList("");
+    if (stepCategory) stepCategory.style.display = "none";
+    if (stepVenue) stepVenue.style.display = "flex";
+  }
+
+  renderOcrPickerVenueList(filterText) {
+    const listEl = document.getElementById("ocr-picker-venue-list");
+    if (!listEl) return;
+    const list = state.ocrPickerList || [];
+    const trimmed = String(filterText || "").trim();
+    const q = trimmed.toLowerCase();
+    const filtered = q ? list.filter(v => String(v.name || "").toLowerCase().includes(q)) : list;
+
+    if (filtered.length === 0) {
+      // Same empty-state pattern as renderVenueList's search-miss case, so
+      // it doesn't look like a different feature — and a fixed-height list
+      // container (set in index.html) means this never makes the popup
+      // itself grow or shrink as the result count changes.
+      listEl.innerHTML = `
+        <div class="compare-empty" style="border-style: solid; padding: 32px 16px;">
+          <div class="compare-empty-icon"><i data-lucide="search-x"></i></div>
+          <h3 style="font-size: 0.85rem;">'${this.escapeHtml(trimmed)}'와(과) 일치하는 공연장이 없습니다</h3>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
+    listEl.innerHTML = filtered.map((v) => {
+      const idx = list.indexOf(v);
+      return `<button class="btn btn-secondary" onclick="app.selectOcrScanVenueByIndex(${idx})" style="flex: none; padding: 12px 14px; font-weight: 600; font-size: 0.85rem; border-radius: 10px; text-align: left;">${this.escapeHtml(v.name)}</button>`;
+    }).join("");
+  }
+
+  // Picking a venue no longer jumps straight to the OS file picker — that
+  // felt like a dead end with zero context ("뭐지?"). Instead it moves to a
+  // third in-modal step with a couple of quick tips for getting a
+  // recognizable ticket photo, and the actual attach happens from there.
+  selectOcrScanVenueByIndex(index) {
+    const list = state.ocrPickerList || [];
+    const v = list[index];
+    if (!v) return;
+    const category = state.ocrPickerCategory;
+    const dbId = category === "musical" ? Number(v.id) : BASEBALL_DB_ID_MAP[v.id];
+    if (!dbId) return;
+    state.pendingOcrScan = { category, dbId, rawId: v.id, venueName: v.name };
+
+    // Already inside one category, so the generic "공연장/구장" label is just
+    // noise — say the one that actually applies.
+    const venueWord = category === "musical" ? "공연장" : "구장";
+    const labelEl = document.getElementById("ocr-picker-selected-venue-label");
+    if (labelEl) labelEl.textContent = `선택한 ${venueWord}`;
+    const tipWordEl = document.getElementById("ocr-picker-tip-venue-word");
+    if (tipWordEl) tipWordEl.textContent = venueWord;
+    const nameEl = document.getElementById("ocr-picker-selected-venue-name");
+    if (nameEl) nameEl.textContent = v.name;
+    const stepVenue = document.getElementById("ocr-picker-step-venue");
+    const stepAttach = document.getElementById("ocr-picker-step-attach");
+    if (stepVenue) stepVenue.style.display = "none";
+    if (stepAttach) stepAttach.style.display = "flex";
+  }
+
+  // "변경" button on the attach step — back to picking a different venue,
+  // without losing the category or the already-rendered list/search state.
+  backToOcrPickerVenueList() {
+    const stepVenue = document.getElementById("ocr-picker-step-venue");
+    const stepAttach = document.getElementById("ocr-picker-step-attach");
+    if (stepAttach) stepAttach.style.display = "none";
+    if (stepVenue) stepVenue.style.display = "flex";
+  }
+
+  triggerOcrPhotoAttach() {
+    // Navigate to the picked venue/stadium right away — not just after OCR
+    // finishes — so the screen behind the OS file picker is already the
+    // right context instead of whatever screen the header button happened
+    // to be opened from (e.g. the venues list).
+    this.goToPendingVenueDetail(state.pendingOcrScan);
+    this.closeModal("modal-ocr-venue-picker");
+    document.getElementById("ticket-scan-input").click();
+  }
+
+  // Jumps straight to the picked venue's/stadium's seat grid — called right
+  // when the photo attach starts (see triggerOcrPhotoAttach), so the right
+  // screen is already showing underneath the OS file picker and again
+  // behind the OCR loading state, whatever the outcome ends up being.
+  goToPendingVenueDetail(pending) {
+    if (!pending) return;
+    if (pending.category === "musical") {
+      this.loadVenueDetail(pending.rawId);
+    } else {
+      this.loadStadiumDetail(pending.rawId);
+    }
+  }
+
+  // Downscales client-side before sending — the Edge Function only needs
+  // enough resolution to read printed text, and a smaller payload is
+  // cheaper per Claude API call.
+  // maxWidth was 1200 originally, but real-world ticket photos usually have
+  // a lot of background (hand, venue interior) around a small ticket, so the
+  // seat/date text shrank to unreadable at 1200px — raised to 2000 (roughly
+  // 2-3x more image tokens/cost per scan, still a fraction of a cent).
+  resizeImageToBase64ForOcr(file, maxWidth = 2000, quality = 0.9) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          const longSide = Math.max(width, height);
+          if (longSide > maxWidth) {
+            const scale = maxWidth / longSide;
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve({ base64: dataUrl.split(",")[1], mediaType: "image/jpeg" });
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async handleTicketScanFileSelect(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const pending = state.pendingOcrScan;
+    state.pendingOcrScan = null;
+    if (!pending) return;
+
+    this.showToast("🔍", "티켓 정보를 읽는 중...");
+    let result;
+    try {
+      console.log("[OCR debug] original file:", { name: file.name, type: file.type, sizeKB: Math.round(file.size / 1024) });
+      const { base64, mediaType } = await this.resizeImageToBase64ForOcr(file);
+      console.log("[OCR debug] resized image:", { mediaType, base64Length: base64.length, approxKB: Math.round(base64.length * 0.75 / 1024) });
+      console.log("[OCR debug] paste this whole line into a new browser tab's address bar to SEE the exact image that was sent:");
+      console.log("data:" + mediaType + ";base64," + base64);
+      const cleanUrl = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "");
+      const resp = await fetch(`${cleanUrl}/functions/v1/ocr-ticket`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "apikey": SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ imageBase64: base64, mediaType })
+      });
+      result = await resp.json();
+    } catch (err) {
+      console.error("Ticket OCR request error:", err);
+      // Already on the picked venue's detail screen (navigated there as
+      // soon as "티켓 사진 첨부하기" was tapped) — just let them pick manually.
+      this.showToast("⚠️", "티켓 인식 중 오류가 발생했어요. 직접 좌석을 선택해 등록해 주세요.");
+      return;
+    }
+
+    if (!result || !result.ok) {
+      // Covers: no API key configured (feature paused for budget reasons),
+      // Anthropic billing/rate-limit errors, or a genuine parse failure —
+      // all treated the same way from the user's side.
+      console.log("[OCR debug] edge function did not return ok:", result);
+      this.showToast("ℹ️", "지금은 티켓 인식 기능을 사용할 수 없어요. 직접 좌석을 선택해 등록해 주세요.");
+      return;
+    }
+
+    console.log("[OCR debug] raw extracted fields:", result.data);
+    const parsedSeat = this.parseSeatText(result.data && result.data.seatText);
+    console.log("[OCR debug] parsed seatText:", parsedSeat);
+    const matchData = { ...result.data, ...parsedSeat };
+    const match = await this.matchOcrToKnownVenue(matchData, pending.category, pending.dbId);
+    if (!match) {
+      console.log("[OCR debug] no match — see [OCR match debug] lines above for the exact step that failed");
+      this.showToast("ℹ️", "티켓에서 좌석 정보를 정확히 찾지 못했어요. 직접 좌석을 선택해 등록해 주세요.");
+      return;
+    }
+    match.stadiumName = pending.venueName;
+
+    if (await this.hasExistingSeatReview(match.realSeatId, match.category === "musical")) {
+      await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요.");
+      return;
+    }
+
+    // OCR's guess still needs a human sanity check before committing to it —
+    // confirm the exact seat up front instead of just opening the form and
+    // hoping the user notices if it's wrong. A dedicated step inside this
+    // same modal reads better than the generic system-alert-style confirm
+    // dialog for something this central to the flow.
+    state.pendingOcrMatchConfirm = match;
+    const venueEl = document.getElementById("ocr-picker-confirm-venue");
+    const seatEl = document.getElementById("ocr-picker-confirm-seat");
+    if (venueEl) venueEl.textContent = match.stadiumName;
+    if (seatEl) seatEl.textContent = `${match.blockName} ${match.seatName}`;
+    const stepAttach = document.getElementById("ocr-picker-step-attach");
+    const stepConfirm = document.getElementById("ocr-picker-step-confirm");
+    if (stepAttach) stepAttach.style.display = "none";
+    if (stepConfirm) stepConfirm.style.display = "flex";
+    this.openModal("modal-ocr-venue-picker");
+  }
+
+  resolveOcrSeatConfirm(confirmed) {
+    const match = state.pendingOcrMatchConfirm;
+    state.pendingOcrMatchConfirm = null;
+    this.closeModal("modal-ocr-venue-picker");
+    if (confirmed && match) {
+      this.openTicketFormFromOcrMatch(match);
+    } else {
+      this.showToast("ℹ️", "직접 좌석을 선택해 등록해 주세요.");
+    }
+  }
+
+  // Splits the Edge Function's verbatim seatText into floor/block/row/
+  // seatNum ourselves, client-side — deliberately NOT asking the vision
+  // model to do this split (see the Edge Function prompt comment): across
+  // several real tickets it read the text fine but reliably misassigned it
+  // (dropped a zone letter, shifted row into seatNum, etc.). Copying text
+  // verbatim is a task it's good at; splitting Korean seat notation into
+  // fields apparently isn't, at this model size. This can be tested/fixed
+  // directly against real ticket strings without a redeploy.
+  parseSeatText(seatText) {
+    const text = String(seatText || "").trim();
+    if (!text) return { floor: null, block: null, row: null, seatNum: null };
+
+    const floorMatch = text.match(/(\d+)\s*층/);
+    const floor = floorMatch ? Number(floorMatch[1]) : null;
+
+    // The value right before "열" — usually digits, but sometimes a zone
+    // letter/한글 stands in for the row (see matchBlockFromOcr's row-as-
+    // block-code fallback). Greedy matching plus backtracking naturally
+    // skips over an earlier "C구역"-style chunk that isn't immediately
+    // followed by "열", landing on the real "16열" instead of grabbing
+    // "구역 16" as one blob.
+    const rowMatch = text.match(/([A-Za-z가-힣0-9]+)\s*열/);
+    const row = rowMatch ? rowMatch[1] : null;
+
+    let seatNum = null;
+    const seatWithSuffix = text.match(/(\d+)\s*번/);
+    if (seatWithSuffix) {
+      seatNum = Number(seatWithSuffix[1]);
+    } else {
+      // Some tickets never print "번" at all — fall back to the last
+      // standalone number in the string, since the seat number is almost
+      // always the final token (but not if it's the only number and that
+      // number was already claimed as the floor).
+      const allNums = text.match(/\d+/g);
+      if (allNums && allNums.length > 0) {
+        const last = allNums[allNums.length - 1];
+        if (!(floorMatch && allNums.length === 1 && last === floorMatch[1])) {
+          seatNum = Number(last);
+        }
+      }
+    }
+
+    let block = text
+      .replace(/\d+\s*층/, "")
+      .replace(/[A-Za-z가-힣0-9]+\s*열/, "")
+      .replace(/\d+\s*번/, "")
+      .trim();
+    if (!seatWithSuffix && seatNum != null) {
+      block = block.replace(new RegExp(String(seatNum) + "\\s*$"), "").trim();
+    }
+    block = block || null;
+
+    return { floor, block, row, seatNum };
+  }
+
+  // Shared text normalizer for OCR matching — venue/block names in our DB
+  // sometimes use "_" as a separator (e.g. "세종문화회관_대극장") where a
+  // printed ticket uses a space, so strip common separators, not just
+  // whitespace, before comparing.
+  normOcrText(s) {
+    return String(s || "").replace(/[\s_·,.\-]+/g, "").toLowerCase();
+  }
+
+  // Finds the block a ticket's "구역" text refers to, within one venue's/
+  // stadium's block list (already narrowed down by the caller — this never
+  // searches across venues). Falls back to treating the "row" field as a
+  // bare block_code, since some venues print the zone letter under "열" on
+  // the ticket (e.g. "1층 D열 41번" actually means zone D, seat 41 — no row
+  // is printed at all).
+  matchBlockFromOcr(blocks, data) {
+    const norm = this.normOcrText;
+    const blockNorm = norm(data.block);
+    const rowAsBlockNorm = norm(data.row);
+    const tryFind = (list) => {
+      let m = list.find(b => blockNorm && (
+        norm(b.full_name).includes(blockNorm) || norm(b.block_code).includes(blockNorm) ||
+        blockNorm.includes(norm(b.block_code)) || (b.seat_grade && norm(b.seat_grade).includes(blockNorm))
+      ));
+      if (!m) {
+        m = list.find(b => rowAsBlockNorm && norm(b.block_code) === rowAsBlockNorm);
+      }
+      return m || null;
+    };
+
+    // Block codes repeat across floors at the same venue (e.g. block "D"
+    // exists on 1층, 2층 AND 3층) — narrow to the floor OCR actually read
+    // first, or .find() silently grabs whichever floor's same-lettered
+    // block happens to come first in the query result, which can be a
+    // completely different (wrong) block. Only falls back to a venue-wide
+    // search if that comes up empty (e.g. OCR misread the floor).
+    let blockMatch = null;
+    if (data.floor != null) {
+      const sameFloor = blocks.filter(b => b.floor != null && String(b.floor) === String(data.floor));
+      console.log(`[OCR match debug] data.floor="${data.floor}" narrowed ${blocks.length} blocks down to ${sameFloor.length} on that floor`);
+      if (sameFloor.length > 0) blockMatch = tryFind(sameFloor);
+    } else {
+      console.log("[OCR match debug] data.floor is null — OCR didn't read a floor, searching all floors at once (risk of grabbing the wrong same-lettered block)");
+    }
+    if (!blockMatch) blockMatch = tryFind(blocks);
+    return blockMatch || null;
+  }
+
+  // Finds the seat a ticket's row/seat number refers to, within one block's
+  // seat list. Prefers an exact row+seat match; falls back to seat_num
+  // alone (only when it's unambiguous within the block) since seat_num runs
+  // continuously across rows at some venues and the row itself isn't always
+  // printed on the ticket.
+  matchSeatFromOcr(seats, data) {
+    if (data.seatNum == null) return null;
+    let seatMatch = data.row != null
+      ? seats.find(s => String(s.row_num) === String(data.row) && String(s.seat_num) === String(data.seatNum))
+      : null;
+    if (!seatMatch) {
+      const bySeatNum = seats.filter(s => String(s.seat_num) === String(data.seatNum));
+      if (bySeatNum.length === 1) seatMatch = bySeatNum[0];
+    }
+    return seatMatch || null;
+  }
+
+  // Matches OCR-extracted block/row/seat text against one already-known
+  // venue/stadium (picked by the user before scanning — see
+  // startTicketScan/startTicketScanForCurrentVenue), so this never has to
+  // read the venue name off the ticket itself.
+  async matchOcrToKnownVenue(data, category, dbId) {
+    if (!data || data.seatNum == null) {
+      console.log("[OCR match debug] no data.seatNum at all — OCR didn't extract a seat number, matching never had a chance", data);
+      return null;
+    }
+    const isMusical = category === "musical";
+    try {
+      const { data: blocks, error } = await supabaseClient
+        .from(isMusical ? "musical_blocks" : "baseball_blocks")
+        .select(isMusical ? "id, block_code, full_name, floor" : "id, block_code, full_name, seat_grade")
+        .eq(isMusical ? "venue_id" : "stadium_id", dbId);
+      if (error || !blocks) {
+        console.log("[OCR match debug] block list query failed:", error);
+        return null;
+      }
+      console.log(`[OCR match debug] fetched ${blocks.length} blocks for dbId=${dbId}:`, blocks.map(b => b.full_name || b.block_code));
+
+      const blockMatch = this.matchBlockFromOcr(blocks, data);
+      if (!blockMatch) {
+        console.log(`[OCR match debug] no block matched data.block="${data.block}" / data.row="${data.row}" against any of the ${blocks.length} blocks above`);
+        // Some venues only print 층/열/좌석번호 with no 구역 at all (e.g. a
+        // ticket that literally just says "1층 5열 22번") — there's no zone
+        // text to match against, ever. Last resort: search row+seat across
+        // every block on that floor, and accept it only if it's unique —
+        // otherwise this would risk silently guessing the wrong zone.
+        return await this.matchByFloorRowSeatOnly(blocks, data, isMusical, category);
+      }
+      console.log("[OCR match debug] block matched:", blockMatch.full_name || blockMatch.block_code);
+
+      const { data: seats, error: seatErr } = await supabaseClient
+        .from(isMusical ? "musical_seats" : "baseball_seats")
+        .select("id, row_num, seat_num")
+        .eq("block_id", blockMatch.id);
+      if (seatErr || !seats) {
+        console.log("[OCR match debug] seat list query failed:", seatErr);
+        return null;
+      }
+      console.log(`[OCR match debug] fetched ${seats.length} seats in that block, looking for row="${data.row}" seatNum="${data.seatNum}"`);
+
+      const seatMatch = this.matchSeatFromOcr(seats, data);
+      if (!seatMatch) {
+        const sameSeatNum = seats.filter(s => String(s.seat_num) === String(data.seatNum));
+        console.log(`[OCR match debug] no seat matched — ${sameSeatNum.length} seat(s) in this block share seat_num="${data.seatNum}" (need exactly 1 to fall back safely):`, sameSeatNum);
+        return null;
+      }
+
+      return {
+        category,
+        realSeatId: seatMatch.id,
+        blockName: blockMatch.full_name || blockMatch.block_code,
+        seatName: `${seatMatch.row_num}열 ${seatMatch.seat_num}번`,
+        watchedDate: data.date || null
+      };
+    } catch (e) {
+      console.warn("OCR venue-scoped match failed:", e);
+      return null;
+    }
+  }
+
+  // Fallback for tickets with no 구역 text at all — searches row+seat across
+  // every block on the read floor and only returns a match if it's unique
+  // venue-wide on that floor. Never guesses between ambiguous candidates.
+  async matchByFloorRowSeatOnly(blocks, data, isMusical, category) {
+    if (data.floor == null || data.row == null || data.seatNum == null) {
+      console.log("[OCR match debug] floor-wide fallback skipped — missing floor, row, or seatNum");
+      return null;
+    }
+    const sameFloorBlocks = blocks.filter(b => b.floor != null && String(b.floor) === String(data.floor));
+    if (sameFloorBlocks.length === 0) {
+      console.log(`[OCR match debug] floor-wide fallback skipped — no blocks found on floor="${data.floor}"`);
+      return null;
+    }
+
+    // Fetches every seat on the floor rather than filtering row/seat_num
+    // server-side (column types are inconsistent enough across tables —
+    // row_num is text, seat_num numeric — that a strict .eq() risks a
+    // type-mismatch false miss); the same String()-normalized comparison
+    // used everywhere else in this matcher is more robust here too.
+    const { data: floorSeats, error } = await supabaseClient
+      .from(isMusical ? "musical_seats" : "baseball_seats")
+      .select("id, block_id, row_num, seat_num")
+      .in("block_id", sameFloorBlocks.map(b => b.id));
+    if (error || !floorSeats) {
+      console.log("[OCR match debug] floor-wide fallback query failed:", error);
+      return null;
+    }
+
+    const candidates = floorSeats.filter(s => String(s.row_num) === String(data.row) && String(s.seat_num) === String(data.seatNum));
+    if (candidates.length !== 1) {
+      console.log(`[OCR match debug] floor-wide fallback found ${candidates.length} seat(s) matching row="${data.row}" seatNum="${data.seatNum}" across ${sameFloorBlocks.length} blocks on floor="${data.floor}" — need exactly 1 to accept it:`, candidates);
+      return null;
+    }
+
+    const seatMatch = candidates[0];
+    const blockMatch = sameFloorBlocks.find(b => b.id === seatMatch.block_id);
+    console.log("[OCR match debug] floor-wide fallback uniquely matched:", blockMatch && (blockMatch.full_name || blockMatch.block_code));
+
+    return {
+      category,
+      realSeatId: seatMatch.id,
+      blockName: (blockMatch && (blockMatch.full_name || blockMatch.block_code)) || "",
+      seatName: `${seatMatch.row_num}열 ${seatMatch.seat_num}번`,
+      watchedDate: data.date || null
+    };
+  }
+
+  // Used by the "좌석 인증(티켓)" field inside modal-add-ticket (both new
+  // registration and 기록 수정): checks whether a freshly-scanned ticket's
+  // block/row/seat matches the seat already selected for this form, rather
+  // than searching for a seat to match. No venue check needed — the seat is
+  // already known, so we only need to confirm this ticket describes it.
+  async verifyOcrMatchesSeat(data, seatId, isMusical) {
+    if (!data || data.seatNum == null) return false;
+    try {
+      const { data: seatRow, error: seatErr } = await supabaseClient
+        .from(isMusical ? "musical_seats" : "baseball_seats")
+        .select("id, row_num, seat_num, block_id")
+        .eq("id", seatId)
+        .single();
+      if (seatErr || !seatRow) return false;
+
+      const { data: blockRow, error: blockErr } = await supabaseClient
+        .from(isMusical ? "musical_blocks" : "baseball_blocks")
+        .select(isMusical ? "id, block_code, full_name" : "id, block_code, full_name, seat_grade")
+        .eq("id", seatRow.block_id)
+        .single();
+      if (blockErr || !blockRow) return false;
+
+      const blockMatch = this.matchBlockFromOcr([blockRow], data);
+      if (!blockMatch) return false;
+
+      const norm = this.normOcrText;
+      const rowOk = data.row == null || String(data.row) === String(seatRow.row_num) || norm(data.row) === norm(blockRow.block_code);
+      return rowOk && String(data.seatNum) === String(seatRow.seat_num);
+    } catch (e) {
+      console.warn("verifyOcrMatchesSeat failed:", e);
+      return false;
+    }
+  }
+
+  // Same form the seat-grid click path opens, just pre-filled from the
+  // OCR match instead of from whichever seat the user tapped.
+  openTicketFormFromOcrMatch(match) {
+    state.activeModalCategory = match.category;
+    state.activeModalSeatKey = String(match.realSeatId);
+
+    document.getElementById("add-ticket-form").reset();
+    const commentEl = document.getElementById("form-comment");
+    if (commentEl) {
+      commentEl.style.height = "auto";
+      this.updateCommentCounter(commentEl);
+    }
+
+    const labelEl = document.getElementById("form-seat-info-label");
+    if (labelEl) labelEl.innerHTML = `${match.stadiumName}<br>${match.blockName} ${match.seatName}`;
+
+    const dateEl = document.getElementById("form-match-date");
+    if (dateEl) dateEl.value = match.watchedDate || "";
+
+    // Verified is about the seat matching the ticket, not the date — so it
+    // isn't reconsidered if the user edits 관람일 afterward. It only ever
+    // goes false again by leaving this form (see handleWrongSeatFromOcr /
+    // resetTicketVerifiedState), which re-fetches with a genuinely
+    // different seat, or none at all.
+    state.ticketVerified = true;
+    state.ticketVerifiedCategory = match.category;
+    this.updateTicketVerifyFormUI();
+    const wrongSeatLink = document.getElementById("form-wrong-seat-link");
+    if (wrongSeatLink) wrongSeatLink.style.display = "inline-block";
+
+    state.tempUploadedPhotos = [];
+    this.renderUploadedPhotosThumbnails();
+    state.editingReviewId = null;
+
+    const titleEl = document.getElementById("add-ticket-modal-title");
+    if (titleEl) titleEl.textContent = "좌석 시야 사진 등록";
+
+    const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = "등록하기";
+      lucide.createIcons();
+    }
+
+    this.showToast("✅", "티켓 정보를 확인했어요. 내용을 확인하고 등록해 주세요.");
+    this.openModal("modal-add-ticket");
+  }
+
+  // 관람일은 미래 날짜를 고를 수 없어야 함(아직 안 본 공연/경기의 시야를
+  // 등록할 순 없으니까) — 기본값을 오늘로 채워주지는 않음. 실제 관람일이
+  // 등록일과 다른 경우가 많아서, 안 건드리면 그냥 빈 채로 둔다.
+  setTicketDateFieldDefaults() {
+    const dateEl = document.getElementById("form-match-date");
+    if (!dateEl) return;
+    dateEl.max = new Date().toISOString().split("T")[0];
+  }
+
   async addCurrentSeatToTicketbook() {
     if (!state.isLoggedIn) {
       this.openModal("modal-login-confirm");
@@ -4991,18 +5936,20 @@ class SeatViewApp {
       const info = state.activeModalDisplayInfo || {};
       const labelEl = document.getElementById("form-seat-info-label");
       if (labelEl) labelEl.innerHTML = `${info.stadiumName || ""}<br>${info.blockName || ""} ${info.seatName || ""}`;
+      this.setTicketDateFieldDefaults();
+      this.resetTicketVerifiedState();
 
       state.tempUploadedPhotos = [];
       this.renderUploadedPhotosThumbnails();
       state.editingReviewId = null;
 
       const titleEl = document.getElementById("add-ticket-modal-title");
-      if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+      if (titleEl) titleEl.textContent = "좌석 시야 사진 등록";
 
       const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = "<i data-lucide=\"check\"></i> 시야 사진 제보하기";
+        submitBtn.innerHTML = "등록하기";
         lucide.createIcons();
       }
 
@@ -5053,6 +6000,8 @@ class SeatViewApp {
     if (labelEl) {
       labelEl.innerHTML = `${stadiumName}<br>${seatInfo ? seatInfo.blockName : blockName} ${seatInfo ? seatInfo.seatName : seatName}`;
     }
+    this.setTicketDateFieldDefaults();
+    this.resetTicketVerifiedState();
 
     state.tempUploadedPhotos = [];
     this.renderUploadedPhotosThumbnails();
@@ -5060,12 +6009,12 @@ class SeatViewApp {
     // Make sure nothing carries over from a previous edit/submission
     state.editingReviewId = null;
     const titleEl = document.getElementById("add-ticket-modal-title");
-    if (titleEl) titleEl.textContent = "좌석 시야 사진 제보";
+    if (titleEl) titleEl.textContent = "좌석 시야 사진 등록";
 
     const submitBtn = document.querySelector("#add-ticket-form button[type='submit']");
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = "<i data-lucide=\"check\"></i> 시야 사진 제보하기";
+      submitBtn.innerHTML = "등록하기";
       lucide.createIcons();
     }
 
@@ -5119,9 +6068,9 @@ class SeatViewApp {
 
   showSubmissionPolicyDetail() {
     this.showAlertDialog(
-      "시야 제보 정책 및 유의사항",
+      "시야 등록 정책 및 유의사항",
       "• 등록 후 3일이 지난 시야 사진 및 관람평은 서비스 특성상 직접 삭제할 수 없으며, 회원 탈퇴 시에도 다른 이용자들을 위해 삭제되지 않고 유지될 수 있습니다.\n\n" +
-      "• 좌석 시야와 무관하거나 부적절한 사진이 제보된 경우, 운영자가 임의로 삭제하거나 노출을 제한할 수 있습니다.\n\n" +
+      "• 좌석 시야와 무관하거나 부적절한 사진이 등록된 경우, 운영자가 임의로 삭제하거나 노출을 제한할 수 있습니다.\n\n" +
       "• 사진에 타인의 얼굴이 포함된 경우, 초상권 보호를 위해 모자이크 처리 등 식별이 어렵게 조치해 주세요."
     );
   }
@@ -5178,7 +6127,7 @@ class SeatViewApp {
       body.innerHTML = `
         <div class="profile-card-large">
           <img class="profile-avatar-large" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="프로필">
-          <div class="profile-username">${state.userNickname} <span class="uploader-badge">VIP 제보자</span></div>
+          <div class="profile-username">${state.userNickname} <span class="uploader-badge">VIP 등록자</span></div>
           
           <div class="profile-stats-grid">
             <div class="profile-stat-box">
@@ -5393,8 +6342,9 @@ class SeatViewApp {
     // then removing a photo before saving never touches the bucket.
     try {
       const blobs = await Promise.all(toUpload.map(file => this.compressImageToWebPBlob(file)));
-      blobs.forEach(blob => {
-        state.tempUploadedPhotos.push({ type: "new", blob, previewUrl: URL.createObjectURL(blob) });
+      const hashes = await Promise.all(blobs.map(blob => this.computeExactPhotoHash(blob).catch(() => null)));
+      blobs.forEach((blob, i) => {
+        state.tempUploadedPhotos.push({ type: "new", blob, hash: hashes[i], previewUrl: URL.createObjectURL(blob) });
       });
       this.renderUploadedPhotosThumbnails();
     } catch (err) {
@@ -5611,6 +6561,48 @@ class SeatViewApp {
     document.getElementById("tab-content-info").classList.remove("active");
 
     document.getElementById(`tab-content-${tabName}`).classList.add("active");
+  }
+
+  // Small anchored speech-bubble tooltip (shopping-site style) for a "!"
+  // info button — not a toast, since a bottom-of-screen notification reads
+  // as a status update, not an explanation tied to a specific field. Tap
+  // anywhere else to dismiss; only one shows at a time.
+  showFieldTooltip(triggerEl, message) {
+    const existing = document.getElementById("field-tooltip-bubble");
+    if (existing) existing.remove();
+    if (this._fieldTooltipDismissHandler) {
+      document.removeEventListener("click", this._fieldTooltipDismissHandler, true);
+      this._fieldTooltipDismissHandler = null;
+    }
+
+    const bubble = document.createElement("div");
+    bubble.id = "field-tooltip-bubble";
+    bubble.textContent = message;
+    bubble.style.cssText = "position:fixed; z-index:4000; max-width:270px; white-space:pre-line; word-break:keep-all; background:#1f2430; color:#f3f4f6; font-size:0.72rem; font-weight:600; line-height:1.5; padding:9px 12px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08);";
+
+    const arrow = document.createElement("div");
+    arrow.style.cssText = "position:absolute; width:9px; height:9px; background:#1f2430; border-left:1px solid rgba(255,255,255,0.08); border-top:1px solid rgba(255,255,255,0.08); transform:rotate(45deg); top:-5px;";
+    bubble.appendChild(arrow);
+
+    document.body.appendChild(bubble);
+
+    const rect = triggerEl.getBoundingClientRect();
+    const bubbleRect = bubble.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - bubbleRect.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - bubbleRect.width - 8));
+    bubble.style.left = left + "px";
+    bubble.style.top = (rect.bottom + 8) + "px";
+    arrow.style.left = (rect.left + rect.width / 2 - left - 4.5) + "px";
+
+    const dismiss = (e) => {
+      if (bubble.contains(e.target) || e.target === triggerEl) return;
+      bubble.remove();
+      document.removeEventListener("click", dismiss, true);
+      this._fieldTooltipDismissHandler = null;
+    };
+    this._fieldTooltipDismissHandler = dismiss;
+    // Deferred so the same click that opened it doesn't immediately close it.
+    setTimeout(() => document.addEventListener("click", dismiss, true), 0);
   }
 
   // --- Toast System ---

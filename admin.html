@@ -770,6 +770,9 @@
     <button class="page-nav-btn" id="page-nav-review-monitor" onclick="app.switchPage('review-monitor')">
       <i data-lucide="images"></i> 시야사진 모니터링
     </button>
+    <button class="page-nav-btn" id="page-nav-ticket-approval" onclick="app.switchPage('ticket-approval')">
+      <i data-lucide="badge-check"></i> 티켓 인증 승인
+    </button>
   </div>
 
   <div id="page-seat-editor" class="page-content active">
@@ -780,7 +783,7 @@
       <label for="category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
       <select id="category-select">
         <option value="baseball">⚾ 야구장</option>
-        <option value="musical">🎭 공연장</option>
+        <option value="musical" selected>🎭 공연장</option>
       </select>
     </div>
 
@@ -909,7 +912,7 @@
         <label for="bm-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
         <select id="bm-category-select">
           <option value="baseball">⚾ 야구장</option>
-          <option value="musical">🎭 공연장</option>
+          <option value="musical" selected>🎭 공연장</option>
         </select>
       </div>
 
@@ -1016,7 +1019,7 @@
         <label for="im-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
         <select id="im-category-select">
           <option value="baseball">⚾ 야구장</option>
-          <option value="musical">🎭 공연장</option>
+          <option value="musical" selected>🎭 공연장</option>
         </select>
       </div>
 
@@ -1080,7 +1083,7 @@
         <label for="ad-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
         <select id="ad-category-select" onchange="app.handleAdCategoryChange(this.value)">
           <option value="baseball">⚾ 야구장 목록 광고</option>
-          <option value="musical">🎭 공연장 목록 광고</option>
+          <option value="musical" selected>🎭 공연장 목록 광고</option>
         </select>
         <span class="field-hint" style="margin-top: 4px; display: block;">
           여러 개 등록하면 목록에 광고 슬롯이 여러 번 나올 때(예: 공연장은 3개마다 1번씩) 아래 순서대로 하나씩 돌아가며 노출됩니다.
@@ -1142,7 +1145,7 @@
         <label for="review-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
         <select id="review-category-select" onchange="app.handleReviewCategoryChange(this.value)">
           <option value="baseball">⚾ 야구장</option>
-          <option value="musical">🎭 공연장</option>
+          <option value="musical" selected>🎭 공연장</option>
         </select>
       </div>
       <div class="card form-group">
@@ -1181,7 +1184,7 @@
           <button class="btn btn-sm" onclick="app.setReviewDateToday()">오늘</button>
         </div>
         <div class="grid-actions">
-          <span style="font-size: 1rem; font-weight: 700;">최근 등록된 시야 제보</span>
+          <span style="font-size: 1rem; font-weight: 700;">최근 등록된 시야 정보</span>
           <span id="review-count-label" style="font-size: 0.8rem; color: var(--text-muted);"></span>
         </div>
         <div id="review-list-container" style="display: flex; flex-direction: column; gap: 8px;">
@@ -1194,9 +1197,52 @@
 
       <div class="card" id="review-detail-panel" style="position: relative; min-height: 400px;">
         <div id="review-detail-container">
-          <span class="image-preview-empty">왼쪽 목록에서 시야 제보를 선택하세요.</span>
+          <span class="image-preview-empty">왼쪽 목록에서 등록 내역을 선택하세요.</span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="page-ticket-approval" class="page-content">
+    <div class="selector-container" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 12px;">
+      <div class="card form-group">
+        <label for="ticket-approval-category-select"><i data-lucide="layers"></i> 카테고리 선택</label>
+        <select id="ticket-approval-category-select" onchange="app.handleTicketApprovalCategoryChange(this.value)">
+          <option value="baseball">⚾ 야구장</option>
+          <option value="musical" selected>🎭 공연장</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="ticket-approval-entity-select"><i data-lucide="map"></i> <span id="ticket-approval-entity-label">야구장 선택</span></label>
+        <select id="ticket-approval-entity-select" onchange="app.handleTicketApprovalEntityChange(this.value)">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="ticket-approval-grade-select"><i data-lucide="tag"></i> 등급 선택</label>
+        <select id="ticket-approval-grade-select" onchange="app.handleTicketApprovalGradeChange(this.value)" disabled>
+          <option value="">야구장/공연장을 먼저 선택하세요...</option>
+        </select>
+      </div>
+      <div class="card form-group">
+        <label for="ticket-approval-block-select"><i data-lucide="layout-list"></i> 구역 선택</label>
+        <select id="ticket-approval-block-select" onchange="app.handleTicketApprovalBlockChange(this.value)" disabled>
+          <option value="">구역을 선택하세요...</option>
+        </select>
+      </div>
+    </div>
+    <span class="field-hint" style="display: block; margin: -8px 0 12px;">
+      1뎁스(카테고리)만 선택해도 전체 데이터가 보입니다. 야구장/공연장 → 등급 → 구역은 선택하지 않으면 "전체"로 취급되는 선택적 필터입니다.
+    </span>
+    <div class="card" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 1rem; font-weight: 700;">인증 대기중인 등록 내역</span>
+      <span id="ticket-approval-count-label" style="font-size: 0.85rem; color: var(--text-muted);"></span>
+    </div>
+    <span class="field-hint" style="display: block; margin: -6px 0 12px;">
+      회원이 시야 등록 시 첨부한 티켓 사진과 시야 사진을 비교해서 승인/거부해 주세요. 승인하든 거부하든 티켓 사진은 개인정보 보호를 위해 즉시 삭제되고, 승인 여부만 남습니다.
+    </span>
+    <div id="ticket-approval-list" style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Dynamically populated -->
     </div>
   </div>
 
@@ -1299,7 +1345,7 @@
 
     class AdminApp {
       constructor() {
-        this.category = 'baseball'; // 'baseball' | 'musical'
+        this.category = 'musical'; // 'baseball' | 'musical'
         this.stadiums = [];
         this.selectedStadium = null;
         this.selectedBlock = null;
@@ -1322,23 +1368,30 @@
 
         // Block manager state
         this.currentPage = 'seat-editor';
-        this.bmCategory = 'baseball';
+        this.bmCategory = 'musical';
         this.bmEntities = [];
         this.bmSelectedEntity = null;
         this.bmBlocks = [];
 
         // Image manager state (stadium/venue bg_image_url + map_image_url)
-        this.imCategory = 'baseball';
+        this.imCategory = 'musical';
         this.imEntities = [];
         this.imSelectedEntity = null;
 
         // Ad manager state (one shopping_ads row per category)
-        this.adCategory = 'baseball';
+        this.adCategory = 'musical';
         this.adList = [];
         this.editingAdId = null;
 
         // Review monitor state (recent baseball_seat_reviews/musical_seat_reviews)
-        this.reviewCategory = 'baseball';
+        this.reviewCategory = 'musical';
+        this.ticketApprovalCategory = 'musical';
+        this.ticketApprovalEntityId = '';
+        this.ticketApprovalGrade = '';
+        this.ticketApprovalBlockId = '';
+        this.ticketApprovalEntities = [];
+        this.ticketApprovalBlocks = [];
+        this._ticketApprovalInited = false;
         this.reviewEntityId = '';
         this.reviewGrade = '';
         this.reviewBlockId = '';
@@ -1468,6 +1521,8 @@
 
       async loadStadiums() {
         const placeholder = this.category === 'musical' ? '공연장을 선택하세요...' : '야구장을 선택하세요...';
+        const stadiumLabel = document.getElementById("stadium-select-label");
+        if (stadiumLabel) stadiumLabel.textContent = this.category === 'musical' ? '공연장 선택' : '야구장 선택';
         try {
           const list = await this.fnFetchStadiums();
           this.stadiums = list;
@@ -2532,6 +2587,14 @@
             this.loadRecentReviews();
           }
         }
+        if (pageName === "ticket-approval") {
+          if (!this._ticketApprovalInited) {
+            this._ticketApprovalInited = true;
+            this.loadTicketApprovalEntities().then(() => this.loadTicketApprovalQueue());
+          } else {
+            this.loadTicketApprovalQueue();
+          }
+        }
       }
 
       bmGetTopTable() { return this.bmCategory === "musical" ? "venues" : "stadiums"; }
@@ -3310,6 +3373,8 @@
         const entitySelect = document.getElementById("review-entity-select");
         const gradeSelect = document.getElementById("review-grade-select");
         const blockSelect = document.getElementById("review-block-select");
+        const entityLabel = document.getElementById("review-entity-label");
+        if (entityLabel) entityLabel.textContent = isMusical ? "공연장 선택" : "야구장 선택";
 
         gradeSelect.innerHTML = '<option value="">야구장/공연장을 먼저 선택하세요...</option>';
         gradeSelect.disabled = true;
@@ -3485,7 +3550,7 @@
             this.reviewList = [];
             this.reviewDisplayMap = {};
             this.reviewTotalCount = 0;
-            listEl.innerHTML = `<span class="image-preview-empty">해당 조건의 시야 제보가 없습니다.</span>`;
+            listEl.innerHTML = `<span class="image-preview-empty">해당 조건의 등록 내역이 없습니다.</span>`;
             this.renderReviewCountAndPagination();
             this.renderReviewDetail(null);
             return;
@@ -3515,7 +3580,7 @@
           this.reviewTotalCount = count || 0;
           if (this.reviewList.length === 0) {
             this.reviewDisplayMap = {};
-            listEl.innerHTML = `<span class="image-preview-empty">등록된 시야 제보가 없습니다.</span>`;
+            listEl.innerHTML = `<span class="image-preview-empty">등록된 시야 정보가 없습니다.</span>`;
             this.renderReviewCountAndPagination();
             this.renderReviewDetail(null);
             return;
@@ -3583,7 +3648,7 @@
           this.renderReviewDetail(this.selectedReviewId);
         } catch (e) {
           console.error("loadRecentReviews failed:", e);
-          this.showToast("오류", "시야 제보 목록을 불러오지 못했습니다.", "danger");
+          this.showToast("오류", "시야 등록 목록을 불러오지 못했습니다.", "danger");
         } finally {
           if (overlay) overlay.style.display = "none";
         }
@@ -3626,7 +3691,7 @@
         const container = document.getElementById("review-detail-container");
         const rev = this.reviewList.find(r => r.id === reviewId);
         if (!rev) {
-          container.innerHTML = `<span class="image-preview-empty">왼쪽 목록에서 시야 제보를 선택하세요.</span>`;
+          container.innerHTML = `<span class="image-preview-empty">왼쪽 목록에서 등록 내역을 선택하세요.</span>`;
           return;
         }
         const disp = this.reviewDisplayMap[rev.id] || {};
@@ -3676,7 +3741,7 @@
       }
 
       async deleteReview(reviewId) {
-        if (!confirm("이 시야 제보를 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+        if (!confirm("이 시야 등록 내역을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
         const { table } = this.reviewTables();
         try {
           const { error } = await supabaseClient
@@ -3690,6 +3755,367 @@
         } catch (e) {
           console.error("deleteReview failed:", e);
           this.showToast("오류", `삭제 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      // --- 티켓 인증 승인 (OCR 자동인증 대신 관리자가 시야사진+티켓사진을
+      // 직접 비교해서 승인/거부하는 큐). 승인/거부 어느 쪽이든 티켓 사진은
+      // 즉시 스토리지에서 삭제되고, is_ticket_verified 결과값만 남는다 —
+      // 예매자명 등 개인정보가 찍혀 있을 수 있는 사진을 계속 갖고 있을
+      // 이유가 없어서.
+      ticketApprovalTables() {
+        const isMusical = this.ticketApprovalCategory === "musical";
+        return {
+          isMusical,
+          table: isMusical ? "musical_seat_reviews" : "baseball_seat_reviews",
+          seatFk: isMusical ? "musical_seat_id" : "baseball_seat_id",
+          seatsTable: isMusical ? "musical_seats" : "baseball_seats",
+          blocksTable: isMusical ? "musical_blocks" : "baseball_blocks",
+          blocksFk: isMusical ? "venue_id" : "stadium_id",
+          topTable: isMusical ? "venues" : "stadiums"
+        };
+      }
+
+      handleTicketApprovalCategoryChange(category) {
+        this.ticketApprovalCategory = category;
+        this.ticketApprovalEntityId = '';
+        this.ticketApprovalGrade = '';
+        this.ticketApprovalBlockId = '';
+        const label = document.getElementById("ticket-approval-entity-label");
+        if (label) label.textContent = category === "musical" ? "공연장 선택" : "야구장 선택";
+        this.loadTicketApprovalEntities().then(() => this.loadTicketApprovalQueue());
+      }
+
+      async loadTicketApprovalEntities() {
+        const { isMusical, topTable } = this.ticketApprovalTables();
+        const entitySelect = document.getElementById("ticket-approval-entity-select");
+        const gradeSelect = document.getElementById("ticket-approval-grade-select");
+        const blockSelect = document.getElementById("ticket-approval-block-select");
+        const entityLabel = document.getElementById("ticket-approval-entity-label");
+        if (entityLabel) entityLabel.textContent = isMusical ? "공연장 선택" : "야구장 선택";
+
+        gradeSelect.innerHTML = '<option value="">야구장/공연장을 먼저 선택하세요...</option>';
+        gradeSelect.disabled = true;
+        blockSelect.innerHTML = '<option value="">구역을 선택하세요...</option>';
+        blockSelect.disabled = true;
+
+        try {
+          const { data, error } = await supabaseClient
+            .from(topTable)
+            .select("id, name")
+            .order("display_order", { ascending: true, nullsFirst: false })
+            .order("name", { ascending: true });
+          if (error) throw error;
+          this.ticketApprovalEntities = data || [];
+          entitySelect.innerHTML = `<option value="">전체 ${isMusical ? "공연장" : "야구장"}</option>` +
+            this.ticketApprovalEntities.map(e => `<option value="${e.id}">${this.escHtml(e.name)}</option>`).join("");
+          entitySelect.value = "";
+        } catch (e) {
+          console.error("loadTicketApprovalEntities failed:", e);
+        }
+      }
+
+      handleTicketApprovalEntityChange(entityId) {
+        this.ticketApprovalEntityId = entityId;
+        this.ticketApprovalGrade = '';
+        this.ticketApprovalBlockId = '';
+        this.loadTicketApprovalBlocksForEntity();
+      }
+
+      async loadTicketApprovalBlocksForEntity() {
+        const { isMusical, blocksTable, blocksFk } = this.ticketApprovalTables();
+        const gradeSelect = document.getElementById("ticket-approval-grade-select");
+
+        if (!this.ticketApprovalEntityId) {
+          gradeSelect.innerHTML = '<option value="">야구장/공연장을 먼저 선택하세요...</option>';
+          gradeSelect.disabled = true;
+          this.ticketApprovalBlocks = [];
+          this.populateTicketApprovalBlockSelect([]);
+          document.getElementById("ticket-approval-block-select").innerHTML = '<option value="">구역을 선택하세요...</option>';
+          document.getElementById("ticket-approval-block-select").disabled = true;
+          this.loadTicketApprovalQueue();
+          return;
+        }
+
+        try {
+          const selectCols = isMusical ? "id, block_code, full_name" : "id, block_code, full_name, seat_grade";
+          const { data: blocks, error } = await supabaseClient
+            .from(blocksTable)
+            .select(selectCols)
+            .eq(blocksFk, this.ticketApprovalEntityId)
+            .order("block_code", { ascending: true });
+          if (error) throw error;
+          this.ticketApprovalBlocks = blocks || [];
+
+          if (isMusical) {
+            gradeSelect.innerHTML = '<option value="">등급 구분 없음 (좌석 단위)</option>';
+            gradeSelect.disabled = true;
+          } else {
+            const grades = [...new Set(this.ticketApprovalBlocks.map(b => b.seat_grade).filter(Boolean))];
+            gradeSelect.innerHTML = '<option value="">전체 등급</option>' +
+              grades.map(g => `<option value="${this.escHtml(g)}">${this.escHtml(g)}</option>`).join("");
+            gradeSelect.disabled = grades.length === 0;
+          }
+
+          this.populateTicketApprovalBlockSelect(this.ticketApprovalBlocks);
+          this.loadTicketApprovalQueue();
+        } catch (e) {
+          console.error("loadTicketApprovalBlocksForEntity failed:", e);
+          this.showToast("오류", "구역 목록을 불러오지 못했습니다.", "danger");
+        }
+      }
+
+      handleTicketApprovalGradeChange(grade) {
+        this.ticketApprovalGrade = grade;
+        this.ticketApprovalBlockId = '';
+        const filtered = grade === "" ? this.ticketApprovalBlocks : this.ticketApprovalBlocks.filter(b => b.seat_grade === grade);
+        this.populateTicketApprovalBlockSelect(filtered);
+        this.loadTicketApprovalQueue();
+      }
+
+      populateTicketApprovalBlockSelect(blocks) {
+        const blockSelect = document.getElementById("ticket-approval-block-select");
+        if (!blocks || blocks.length === 0) {
+          blockSelect.innerHTML = '<option value="">전체 구역</option>';
+          blockSelect.disabled = blocks === null;
+          return;
+        }
+        blockSelect.innerHTML = '<option value="">전체 구역</option>' +
+          blocks.map(b => `<option value="${b.id}">${this.escHtml(b.full_name || b.block_code)}</option>`).join("");
+        blockSelect.disabled = false;
+      }
+
+      handleTicketApprovalBlockChange(blockId) {
+        this.ticketApprovalBlockId = blockId;
+        this.loadTicketApprovalQueue();
+      }
+
+      // Resolves the seat-id constraint implied by the current entity/grade/
+      // block selection. null means "no filter" (category-only, show all).
+      async resolveTicketApprovalSeatIdFilter() {
+        const { seatsTable, blocksTable, blocksFk } = this.ticketApprovalTables();
+        if (!this.ticketApprovalEntityId) return null;
+
+        if (this.ticketApprovalBlockId) {
+          const { data: seats } = await supabaseClient.from(seatsTable).select("id").eq("block_id", this.ticketApprovalBlockId);
+          return (seats || []).map(s => s.id);
+        }
+
+        let blocksQuery = supabaseClient.from(blocksTable).select("id").eq(blocksFk, this.ticketApprovalEntityId);
+        if (this.ticketApprovalGrade) blocksQuery = blocksQuery.eq("seat_grade", this.ticketApprovalGrade);
+        const { data: blocks } = await blocksQuery;
+        const blockIds = (blocks || []).map(b => b.id);
+        if (blockIds.length === 0) return [];
+
+        const { data: seats } = await supabaseClient.from(seatsTable).select("id").in("block_id", blockIds);
+        return (seats || []).map(s => s.id);
+      }
+
+      async loadTicketApprovalQueue() {
+        const container = document.getElementById("ticket-approval-list");
+        container.innerHTML = `<span class="image-preview-empty">불러오는 중...</span>`;
+        try {
+          const { table, seatFk } = this.ticketApprovalTables();
+
+          const seatIdFilter = await this.resolveTicketApprovalSeatIdFilter();
+          if (seatIdFilter !== null && seatIdFilter.length === 0) {
+            const countLabel = document.getElementById("ticket-approval-count-label");
+            if (countLabel) countLabel.textContent = "0건";
+            container.innerHTML = `<span class="image-preview-empty">해당 조건의 등록 내역이 없습니다.</span>`;
+            return;
+          }
+
+          let query = supabaseClient.from(table).select("*").not("ticket_photo_url", "is", null).order("ins_dtm", { ascending: false });
+          if (seatIdFilter !== null) query = query.in(seatFk, seatIdFilter);
+          const res = await query;
+          if (res.error) throw res.error;
+
+          const all = (res.data || []).map(r => ({ ...r, _category: this.ticketApprovalCategory }));
+
+          const countLabel = document.getElementById("ticket-approval-count-label");
+          if (countLabel) countLabel.textContent = `${all.length}건`;
+
+          if (all.length === 0) {
+            container.innerHTML = `<span class="image-preview-empty">인증 대기중인 등록 내역이 없습니다.</span>`;
+            return;
+          }
+
+          const seatLabels = await this.resolveSeatLabelsForApprovalQueue(all);
+          const ticketPhotoUrls = await this.resolveTicketPhotoUrls(all);
+
+          container.innerHTML = all.map(rev => {
+            const images = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+            const label = seatLabels[`${rev._category}_${rev.id}`] || "";
+            const ticketPhotoDisplayUrl = ticketPhotoUrls[`${rev._category}_${rev.id}`] || "";
+            return `
+              <div class="card" style="padding: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight:700;">${this.escHtml(label)}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${rev._category === "musical" ? "🎭 공연장" : "⚾ 야구장"} · ${this.escHtml((rev.ins_dtm || "").split("T")[0])} 등록</div>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button class="btn btn-sm" style="background:#16a34a; color:#fff;" onclick="app.approveTicket('${rev._category}', ${rev.id})">
+                      <i data-lucide="check"></i> 승인
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="app.rejectTicket('${rev._category}', ${rev.id})">
+                      <i data-lucide="x"></i> 거부
+                    </button>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px;">시야 사진</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                      ${images.length > 0
+                        ? images.map(u => `<img src="${this.escHtml(u)}" alt="시야사진" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; background:var(--bg-app);">`).join("")
+                        : `<span class="image-preview-empty">사진 없음</span>`
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px;">첨부된 티켓 사진</div>
+                    ${ticketPhotoDisplayUrl
+                      ? `<img src="${this.escHtml(ticketPhotoDisplayUrl)}" alt="티켓사진" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; background:var(--bg-app);">`
+                      : `<span class="image-preview-empty">불러오기 실패</span>`
+                    }
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join("");
+          lucide.createIcons();
+        } catch (e) {
+          console.error("loadTicketApprovalQueue failed:", e);
+          container.innerHTML = `<span class="image-preview-empty">불러오기 실패: ${this.escHtml(e.message)}</span>`;
+        }
+      }
+
+      // Ticket photos live in the private "ticket-photos" bucket (see the
+      // matching client-side uploadTicketPhoto in app_v6.js) as bare storage
+      // paths, not public URLs — a private bucket has no usable public URL,
+      // so every reader has to turn a path into a short-lived signed URL.
+      // admin.html runs with the service_role key, which bypasses storage
+      // RLS entirely, so this always succeeds regardless of bucket policy.
+      // Rows written before this fix still hold a full https:// URL into
+      // the old public "seat-photos" bucket — pass those through as-is so
+      // the few already-pending rows from before the migration still render.
+      async resolveTicketPhotoUrls(rows) {
+        const urls = {};
+        const toSign = rows.filter(r => r.ticket_photo_url && !/^https?:\/\//i.test(r.ticket_photo_url));
+        rows.forEach(r => {
+          if (r.ticket_photo_url && /^https?:\/\//i.test(r.ticket_photo_url)) {
+            urls[`${r._category}_${r.id}`] = r.ticket_photo_url;
+          }
+        });
+        if (toSign.length > 0) {
+          const paths = toSign.map(r => r.ticket_photo_url);
+          const { data, error } = await supabaseClient.storage.from("ticket-photos").createSignedUrls(paths, 600);
+          if (!error && data) {
+            toSign.forEach((r, i) => {
+              const signed = data[i];
+              if (signed && !signed.error) urls[`${r._category}_${r.id}`] = signed.signedUrl;
+            });
+          } else if (error) {
+            console.error("resolveTicketPhotoUrls signing failed:", error);
+          }
+        }
+        return urls;
+      }
+
+      // Batch-resolves "공연장/구장명 구역 열 번" display labels for a mixed
+      // list of musical/baseball rows — same nested seat→block→venue chain
+      // the client app itself walks, just done here for the admin's benefit.
+      async resolveSeatLabelsForApprovalQueue(rows) {
+        const labels = {};
+
+        const musicalIds = [...new Set(rows.filter(r => r._category === "musical").map(r => r.musical_seat_id).filter(id => id != null))];
+        if (musicalIds.length > 0) {
+          const { data: seats } = await supabaseClient.from("musical_seats").select("id, row_num, seat_num, block_id").in("id", musicalIds);
+          const blockIds = [...new Set((seats || []).map(s => s.block_id).filter(id => id != null))];
+          const { data: blocks } = blockIds.length > 0 ? await supabaseClient.from("musical_blocks").select("id, full_name, block_code, venue_id").in("id", blockIds) : { data: [] };
+          const venueIds = [...new Set((blocks || []).map(b => b.venue_id).filter(id => id != null))];
+          const { data: venues } = venueIds.length > 0 ? await supabaseClient.from("venues").select("id, name").in("id", venueIds) : { data: [] };
+          const seatMap = Object.fromEntries((seats || []).map(s => [s.id, s]));
+          const blockMap = Object.fromEntries((blocks || []).map(b => [b.id, b]));
+          const venueMap = Object.fromEntries((venues || []).map(v => [v.id, v]));
+          rows.filter(r => r._category === "musical").forEach(r => {
+            const s = seatMap[r.musical_seat_id];
+            const b = s ? blockMap[s.block_id] : null;
+            const v = b ? venueMap[b.venue_id] : null;
+            labels[`musical_${r.id}`] = s ? `${v ? v.name : ""} ${b ? (b.full_name || b.block_code) : ""} ${s.row_num}열 ${s.seat_num}번`.trim() : "(좌석 정보 없음)";
+          });
+        }
+
+        const baseballIds = [...new Set(rows.filter(r => r._category === "baseball").map(r => r.baseball_seat_id).filter(id => id != null))];
+        if (baseballIds.length > 0) {
+          const { data: seats } = await supabaseClient.from("baseball_seats").select("id, row_num, seat_num, block_id").in("id", baseballIds);
+          const blockIds = [...new Set((seats || []).map(s => s.block_id).filter(id => id != null))];
+          const { data: blocks } = blockIds.length > 0 ? await supabaseClient.from("baseball_blocks").select("id, full_name, block_code, stadium_id").in("id", blockIds) : { data: [] };
+          const stadiumIds = [...new Set((blocks || []).map(b => b.stadium_id).filter(id => id != null))];
+          const { data: stadiums } = stadiumIds.length > 0 ? await supabaseClient.from("stadiums").select("id, name").in("id", stadiumIds) : { data: [] };
+          const seatMap = Object.fromEntries((seats || []).map(s => [s.id, s]));
+          const blockMap = Object.fromEntries((blocks || []).map(b => [b.id, b]));
+          const stadiumMap = Object.fromEntries((stadiums || []).map(s => [s.id, s]));
+          rows.filter(r => r._category === "baseball").forEach(r => {
+            const s = seatMap[r.baseball_seat_id];
+            const b = s ? blockMap[s.block_id] : null;
+            const st = b ? stadiumMap[b.stadium_id] : null;
+            labels[`baseball_${r.id}`] = s ? `${st ? st.name : ""} ${b ? (b.full_name || b.block_code) : ""} ${s.row_num}열 ${s.seat_num}번`.trim() : "(좌석 정보 없음)";
+          });
+        }
+
+        return labels;
+      }
+
+      async approveTicket(category, reviewId) {
+        const table = category === "musical" ? "musical_seat_reviews" : "baseball_seat_reviews";
+        try {
+          const { data: row } = await supabaseClient.from(table).select("ticket_photo_url").eq("id", reviewId).single();
+          const { error } = await supabaseClient.from(table).update({ is_ticket_verified: true, ticket_photo_url: null }).eq("id", reviewId);
+          if (error) throw error;
+          if (row && row.ticket_photo_url) await this.deleteTicketPhotoFromStorage(row.ticket_photo_url);
+          this.showToast("성공", "인증 승인했습니다.", "success");
+          await this.loadTicketApprovalQueue();
+        } catch (e) {
+          console.error("approveTicket failed:", e);
+          this.showToast("오류", `처리 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      async rejectTicket(category, reviewId) {
+        if (!confirm("이 티켓 인증 요청을 거부하시겠습니까? 미인증 상태로 되돌아갑니다.")) return;
+        const table = category === "musical" ? "musical_seat_reviews" : "baseball_seat_reviews";
+        try {
+          const { data: row } = await supabaseClient.from(table).select("ticket_photo_url").eq("id", reviewId).single();
+          const { error } = await supabaseClient.from(table).update({ is_ticket_verified: false, ticket_photo_url: null }).eq("id", reviewId);
+          if (error) throw error;
+          if (row && row.ticket_photo_url) await this.deleteTicketPhotoFromStorage(row.ticket_photo_url);
+          this.showToast("완료", "거부 처리했습니다.", "success");
+          await this.loadTicketApprovalQueue();
+        } catch (e) {
+          console.error("rejectTicket failed:", e);
+          this.showToast("오류", `처리 중 오류가 발생했습니다: ${e.message}`, "danger");
+        }
+      }
+
+      async deleteTicketPhotoFromStorage(value) {
+        if (typeof value !== "string" || !value) return;
+        try {
+          // Old rows (pre-migration) still hold a full public seat-photos
+          // URL; new rows hold a bare ticket-photos path directly.
+          const legacyMarker = "/object/public/seat-photos/";
+          if (/^https?:\/\//i.test(value)) {
+            if (!value.includes(legacyMarker)) return;
+            const path = value.split(legacyMarker)[1];
+            const { error } = await supabaseClient.storage.from("seat-photos").remove([path]);
+            if (error) console.warn("Ticket photo cleanup warning (legacy):", error);
+          } else {
+            const { error } = await supabaseClient.storage.from("ticket-photos").remove([value]);
+            if (error) console.warn("Ticket photo cleanup warning:", error);
+          }
+        } catch (e) {
+          console.warn("Ticket photo cleanup warning:", e);
         }
       }
     }

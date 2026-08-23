@@ -62,7 +62,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.7">
+  <link rel="stylesheet" href="style_v6.css?v=5.11">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -89,6 +89,12 @@
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
         <div class="header-right">
+          <!-- OCR 자동 티켓 인식/등록 기능 보류 (정확도 문제로 관리자 승인 방식으로
+               전환 — 나중에 다시 켤 수 있게 주석으로만 남겨둠)
+          <button class="icon-btn" onclick="app.startTicketScan()" aria-label="티켓으로 시야사진 등록">
+            <i data-lucide="camera"></i>
+          </button>
+          -->
           <button class="icon-btn" onclick="app.navigateTo('compare')" aria-label="1:1 시야 비교">
             <i data-lucide="columns"></i>
           </button>
@@ -96,6 +102,8 @@
             <i data-lucide="user"></i>
           </button>
         </div>
+        <!-- <input type="file" id="ticket-scan-input" accept="image/*" style="display: none;" onchange="app.handleTicketScanFileSelect(event)"> -->
+        <input type="file" id="form-ticket-verify-input" accept="image/*" style="display: none;" onchange="app.handleInlineTicketVerifyFileSelect(event)">
       </header>
 
       <!-- Main Scrollable Content Area -->
@@ -193,14 +201,17 @@
 
           <!-- Section Navigation -->
           <div class="detail-tabs">
-            <button class="tab-btn active" onclick="app.switchVenueDetailTab('map')">공연장 지도 & 시야</button>
+            <button class="tab-btn active" onclick="app.switchVenueDetailTab('map')">공연장 좌석배치도</button>
             <button class="tab-btn" onclick="app.switchVenueDetailTab('info')">공연장 정보</button>
           </div>
 
+
           <!-- Tab Content: Map & Seating -->
           <div id="venue-tab-content-map" class="tab-pane active">
-            <!-- Collapsible Venue Map Accordion -->
-            <div class="map-guide-card" style="margin-bottom: 16px;">
+            <!-- Collapsible Venue Map Accordion — hidden for now (not
+                 deleted, may be needed again later); flip display back on
+                 to restore it. -->
+            <div class="map-guide-card" style="display: none; margin-bottom: 16px;">
               <button class="map-collapse-btn" onclick="app.toggleVenueMapCollapse()" id="venue-map-collapse-btn">
                 <span>🗺️ 좌석 이미지 펼치기</span>
                 <i data-lucide="chevron-down" class="collapse-icon" id="venue-map-collapse-icon"></i>
@@ -269,7 +280,7 @@
 
           <!-- Section Navigation -->
           <div class="detail-tabs">
-            <button class="tab-btn active" onclick="app.switchDetailTab('map')">구장 지도 & 시야</button>
+            <button class="tab-btn active" onclick="app.switchDetailTab('map')">구장 좌석배치도</button>
             <button class="tab-btn" onclick="app.switchDetailTab('info')">구장 정보</button>
           </div>
 
@@ -278,8 +289,10 @@
             <!-- Depth 3: Overall Map View -->
             <div id="stadium-overall-map-view" class="stadium-map-wrapper">
               
-              <!-- Collapsible Stadium Map Accordion -->
-              <div class="map-guide-card" style="margin-bottom: 16px;">
+              <!-- Collapsible Stadium Map Accordion — hidden for now (not
+                   deleted, may be needed again later); flip display back on
+                   to restore it. -->
+              <div class="map-guide-card" style="display: none; margin-bottom: 16px;">
                 <button class="map-collapse-btn" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
                   <span>🗺️ 좌석 이미지 펼치기</span>
                   <i data-lucide="chevron-down" class="collapse-icon" id="map-collapse-icon"></i>
@@ -388,7 +401,7 @@
             <div style="background: rgba(168, 85, 247, 0.1); color: var(--accent-purple); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
               <i data-lucide="user" style="width: 28px; height: 28px;"></i>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; position: relative;">로그인하고 나만의 시야 제보를<br>남겨보세요!</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; position: relative;">로그인하고 나만의 시야 정보를<br>등록해보세요!</p>
             <button class="btn" onclick="app.loginWithKakao();" style="width: 100%; max-width: 240px; padding: 10px; background: #fee500; color: #191919; font-weight: 700; border-radius: 10px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; position: relative;">
               <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: #191919;"></i> 카카오 로그인
             </button>
@@ -407,7 +420,7 @@
               </div>
               <div class="stat-progress-circle" id="win-rate-circle" style="margin-left: auto; flex-shrink: 0;">
                 <span class="win-rate-val" id="win-rate-text">0회</span>
-                <span class="win-rate-lbl">제보 수</span>
+                <span class="win-rate-lbl">등록 수</span>
               </div>
             </div>
             <div class="stat-details" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
@@ -426,12 +439,12 @@
           </div>
 
           <div class="detail-tabs" id="ticketbook-category-tabs" style="margin-bottom: 14px;">
-            <button class="tab-btn active" data-category="baseball" onclick="app.switchTicketbookCategory('baseball')">⚾ 프로야구장</button>
-            <button class="tab-btn" data-category="musical" onclick="app.switchTicketbookCategory('musical')">🎭 공연장</button>
+            <button class="tab-btn active" data-category="musical" onclick="app.switchTicketbookCategory('musical')">🎭 공연장</button>
+            <button class="tab-btn" data-category="baseball" onclick="app.switchTicketbookCategory('baseball')">⚾ 프로야구장</button>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-            <h2 class="view-title" id="ticketbook-heading" style="font-size: 1rem; margin-bottom: 0;">나의 시야 제보 내역</h2>
+            <h2 class="view-title" id="ticketbook-heading" style="font-size: 1rem; margin-bottom: 0;">나의 시야 등록 내역</h2>
             <button id="btn-ticket-view-toggle" onclick="app.toggleTicketViewMode()" aria-label="보기 방식 전환" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 7px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary);"></button>
           </div>
 
@@ -459,12 +472,18 @@
               <span class="modal-subtitle" id="modal-seat-stadium">잠실 야구장</span>
               <h3 class="modal-title" id="modal-seat-title">101블록 3열 4번</h3>
               <span class="wheelchair-seat-badge" id="modal-seat-wheelchair-badge" style="display: none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="flex-shrink: 0;">
-                  <circle cx="9" cy="5" r="1.6" fill="currentColor" stroke="none"/>
-                  <path d="M9 6.5V11h5"/>
-                  <path d="M9 11l3 7h3"/>
-                  <path d="M5 11h4"/>
-                  <circle cx="10.5" cy="17" r="5"/>
+                <svg viewBox="0 0 24 24" width="12" height="12" style="flex-shrink: 0;">
+                  <g fill="currentColor" stroke="currentColor">
+                    <circle cx="13.6" cy="3.6" r="2" stroke="none"/>
+                    <rect x="11.7" y="6" width="3.6" height="6" rx="1.8" stroke="none"/>
+                    <rect x="8.6" y="11.6" width="6.4" height="2" rx="1" stroke="none"/>
+                    <line x1="12.6" y1="7.6" x2="10.6" y2="12.6" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+                    <circle cx="9.3" cy="16.6" r="5.6" fill="none" stroke-width="2"/>
+                    <line x1="9.3" y1="16.6" x2="12.6" y2="13" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+                    <circle cx="9.3" cy="16.6" r="0.8" stroke="none"/>
+                    <line x1="14.4" y1="11.8" x2="15.6" y2="16.2" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+                    <rect x="15.5" y="17.2" width="2.6" height="1.6" rx="0.8" stroke="none"/>
+                  </g>
                 </svg>
                 휠체어석
               </span>
@@ -481,7 +500,7 @@
                 <i data-lucide="camera-off" style="width: 32px; height: 32px;"></i>
               </div>
               <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">등록된 시야 사진이 없습니다</h4>
-              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 260px; word-break: keep-all; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진과 후기를 제보해주세요.</p>
+              <p style="font-size: 0.76rem; color: var(--text-muted); line-height: 1.5; max-width: 260px; word-break: keep-all; margin: 0;">이 좌석에 앉아보신 적이 있나요?<br>첫 번째 현장 시야 사진과 후기를 등록해주세요.</p>
             </div>
 
             <!-- Seat View Image Carousel -->
@@ -489,10 +508,13 @@
               <div class="modal-image-wrapper">
                 <img id="modal-seat-img" src="" alt="실제 좌석 시야">
 
-                
+                <!-- Ticket-verified badge in top-left corner (vouches for this
+                     photo/seat match, not the uploader's account) -->
+                <div id="modal-seat-verified-badge" style="display: none; position: absolute; top: 12px; left: 12px; background: rgba(5, 150, 105, 0.9); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; z-index: 5; backdrop-filter: blur(4px); pointer-events: none;">✓ 인증됨</div>
+
                 <!-- Image counter in bottom-right corner -->
                 <div id="modal-seat-counter" style="position: absolute; bottom: 12px; right: 12px; background: rgba(0, 0, 0, 0.55); color: rgba(255, 255, 255, 0.85); padding: 3px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; z-index: 5; backdrop-filter: blur(4px); pointer-events: none;">1 / 1</div>
-                
+
                 <button class="carousel-nav-btn prev" id="btn-carousel-prev" onclick="app.prevSeatImage()" aria-label="Previous Image">
                   <i data-lucide="chevron-left"></i>
                 </button>
@@ -516,7 +538,7 @@
                 </div>
                 <span id="modal-seat-date" style="font-size: 0.72rem; color: var(--text-muted);">2026-08-01</span>
               </div>
-              <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary);">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
+              <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary); word-break: keep-all;">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
             </div>
           </div>
 
@@ -528,7 +550,7 @@
               <i data-lucide="plus-square"></i> 1:1 비교함 담기
             </button>
             <button class="btn btn-primary" id="btn-detail-report" onclick="app.addCurrentSeatToTicketbook()">
-              <i data-lucide="camera"></i> 시야 사진 제보하기
+              <i data-lucide="camera"></i> 시야 사진 등록하기
             </button>
             <button class="btn btn-secondary" id="btn-detail-edit" onclick="app.editCurrentModalReview()" style="display: none;">
               <i data-lucide="pencil"></i> 기록 수정
@@ -546,7 +568,7 @@
         <div class="modal-backdrop" onclick="app.closeModal('modal-add-ticket')"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h3 class="modal-title" id="add-ticket-modal-title">좌석 시야 사진 제보</h3>
+            <h3 class="modal-title" id="add-ticket-modal-title">좌석 시야 사진 등록</h3>
             <button class="close-btn" onclick="app.closeModal('modal-add-ticket')" aria-label="Close">
               <i data-lucide="x"></i>
             </button>
@@ -555,14 +577,17 @@
           <div class="modal-body">
             <form id="add-ticket-form" onsubmit="app.saveNewTicket(event)">
               
-              <!-- 1. 제보 좌석 정보 헤더 배너 -->
+              <!-- 1. 등록 좌석 정보 헤더 배너 -->
               <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
                 <div style="background: var(--accent-blue); color: #fff; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                   <i data-lucide="map-pin" style="width: 20px; height: 20px;"></i>
                 </div>
-                <div>
-                  <span style="font-size: 0.72rem; color: var(--text-muted); display: block;">제보 대상 좌석</span>
-                  <span id="form-seat-info-label" style="font-size: 0.92rem; font-weight: 800; color: var(--text-primary);">잠실 야구장 - 101블록 12열 3번</span>
+                <div style="flex: 1; min-width: 0;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">등록 대상 좌석</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="form-seat-info-label" style="font-size: 0.92rem; font-weight: 800; color: var(--text-primary);">잠실 야구장 - 101블록 12열 3번</span>
+                    <button type="button" id="form-wrong-seat-link" onclick="app.handleWrongSeatFromOcr()" style="display: none; flex-shrink: 0; background: none; border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 7px; cursor: pointer;">변경</button>
+                  </div>
                 </div>
               </div>
 
@@ -571,9 +596,15 @@
               <input type="hidden" id="form-block">
               <input type="hidden" id="form-seat">
 
-              <!-- 2. 실제 좌석 시야 사진 업로드 (최대 5개, 삭제 X 버튼) -->
+              <!-- 2. 실제 좌석 시야 사진 업로드 — the one actually-required
+                   field, called out with a "필수" badge instead of blending
+                   in with the optional fields below it. -->
               <div class="form-group" style="margin-bottom: 20px;">
-                <label style="margin-bottom: 8px; font-weight: 700;">📷 실제 좌석 시야 사진 업로드 <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">(최대 5개)</span></label>
+                <label style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="camera" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                  실제 좌석 시야 사진 업로드
+                  <span style="font-size: 0.66rem; font-weight: 600; color: #f87171; background: rgba(239, 68, 68, 0.12); border-radius: 6px; padding: 2px 6px;">필수</span>
+                </label>
                 <div class="photos-upload-container" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
                   <!-- Upload Trigger Box -->
                   <div class="photo-upload-box-small" id="btn-photo-upload-trigger" onclick="document.getElementById('ticket-photos-input').click()" style="width: 60px; height: 60px; border: 1px dashed var(--border-color); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); background: var(--bg-input);">
@@ -581,41 +612,81 @@
                     <span style="font-size: 0.55rem; margin-top: 4px;" id="photos-count-lbl">0/5</span>
                   </div>
                   <input type="file" id="ticket-photos-input" accept="image/*" multiple style="display: none;" onchange="app.handleMultiplePhotosSelect(event)">
-                  
+
                   <!-- Thumbnails Row -->
                   <div id="uploaded-photos-thumbnails-container" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
                 </div>
               </div>
 
-              <!-- 2.5 관람일 (선택) — 없으면 등록일이 대신 노출됨 -->
-              <div class="form-group" style="margin-bottom: 20px;">
-                <label for="form-match-date" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary);">🗓 관람일 <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 500;">(선택 — 입력 안 하면 등록일이 대신 표시돼요)</span></label>
-                <input type="date" id="form-match-date" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 0.85rem;">
-              </div>
-
               <!-- 3. 관람평 / 좌석 꿀팁 (자동 확장형 textarea) -->
               <div class="form-group" style="margin-bottom: 20px;">
                 <label for="form-comment" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: baseline; color: var(--text-primary);">
-                  <span>📝 관람평 / 좌석 꿀팁</span>
+                  <span style="display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="pen-line" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                    관람평 / 좌석 꿀팁 <span style="font-size: 0.66rem; font-weight: 600; color: #94a3b8; background: rgba(148, 163, 184, 0.14); border-radius: 6px; padding: 2px 6px;">선택</span>
+                  </span>
                   <span id="form-comment-counter" style="font-weight: 500; font-size: 0.7rem; color: var(--text-muted);">0/120</span>
                 </label>
                 <textarea id="form-comment" rows="2" maxlength="120" oninput="app.autoResizeTextarea(this); app.updateCommentCounter(this);" style="resize: none; overflow-y: hidden; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); line-height: 1.5; font-size: 0.78rem;" placeholder="이 좌석의 시야(방해물 여부), 햇빛 방향, 앰프 소음 등 다른 팬들에게 도움이 될 팁을 적어주세요. (최대 120자)"></textarea>
               </div>
 
-              <!-- 3.5 익명 표기 여부 체크박스 -->
-              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="form-is-anonymous" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-purple);">
-                <label for="form-is-anonymous" style="font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">익명으로 표기 (제보 시 닉네임을 노출하지 않습니다)</label>
+              <!-- 4. 관람일 (선택) — 없으면 등록일이 대신 노출됨 -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="form-match-date" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="calendar" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  관람일 <span style="font-size: 0.66rem; font-weight: 600; color: #94a3b8; background: rgba(148, 163, 184, 0.14); border-radius: 6px; padding: 2px 6px;">선택</span>
+                  <button type="button" onclick="app.showFieldTooltip(this, '실제 관람하신 날짜를 입력해주세요.\n입력하지 않는 경우 등록일로 표시됩니다.')" aria-label="관람일 안내" style="display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--text-muted); color: var(--text-muted); background: none; font-size: 0.62rem; font-weight: 800; cursor: pointer; padding: 0; line-height: 1; flex-shrink: 0;">!</button>
+                </label>
+                <input type="date" id="form-match-date">
               </div>
 
-              <!-- 4. 안내문구 영역 (짧게, 상세 내용은 더보기 팝업으로) -->
+              <!-- 5. 좌석 인증(티켓) — 선택. OCR 자동 인증은 정확도 문제로 보류하고
+                   관리자 승인 방식으로 전환함: 여기서 첨부한 사진은 저장 시
+                   업로드만 되고, 관리자가 시야사진과 함께 확인해서 승인하면
+                   인증됨으로 바뀜(안 하면 마이페이지에서 3일 이내에 나중에
+                   해도 됨). 부가 기능이라 버튼을 작은 칩 형태로 눌러서 필수
+                   항목(사진)만큼 무게감이 실리지 않도록 함. -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label style="margin-bottom: 10px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="ticket" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  좌석 인증(티켓) <span style="font-size: 0.66rem; font-weight: 600; color: #94a3b8; background: rgba(148, 163, 184, 0.14); border-radius: 6px; padding: 2px 6px;">선택</span>
+                  <button type="button" onclick="app.showFieldTooltip(this, '티켓 사진을 첨부하면 관리자 확인 후 게시물에 \'인증됨\' 표시가 노출돼요.')" aria-label="좌석 인증 안내" style="display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--text-muted); color: var(--text-muted); background: none; font-size: 0.62rem; font-weight: 800; cursor: pointer; padding: 0; line-height: 1; flex-shrink: 0;">!</button>
+                </label>
+                <div id="form-ticket-verify-action">
+                  <button type="button" onclick="app.startInlineTicketVerify()" style="display: inline-flex; align-items: center; gap: 5px; background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.35); color: #059669; font-weight: 700; font-size: 0.76rem; padding: 7px 12px; border-radius: 20px; cursor: pointer;">
+                    <i data-lucide="ticket" style="width: 13px; height: 13px;"></i> 티켓 사진 첨부하기
+                  </button>
+                </div>
+                <div id="form-ticket-verify-pending" style="display: none; flex-direction: column; align-items: flex-start; gap: 4px;">
+                  <div style="position: relative; width: 72px; height: 72px;">
+                    <img id="form-ticket-verify-pending-img" src="" alt="첨부된 티켓 사진" style="width: 72px; height: 72px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border-color); display: block;">
+                    <button type="button" onclick="app.removeTicketPhoto()" aria-label="티켓 사진 제거" style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0, 0, 0, 0.75); color: #fff; border: 1.5px solid var(--bg-card); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
+                      <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                    </button>
+                  </div>
+                </div>
+                <div id="form-ticket-verify-done" style="display: none; align-items: center; gap: 6px;">
+                  <span style="font-size: 0.72rem; font-weight: 700; color: #059669; background: rgba(5, 150, 105, 0.12); border-radius: 6px; padding: 3px 8px;">✓ 인증됨</span>
+                </div>
+              </div>
+
+              <!-- 6. 익명 표기 여부 체크박스 -->
+              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="form-is-anonymous" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-purple);">
+                <label for="form-is-anonymous" style="font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">익명으로 표기 (등록 시 닉네임을 노출하지 않습니다)</label>
+              </div>
+
+              <!-- 7. 안내문구 영역 (짧게, 상세 내용은 더보기 팝업으로) -->
               <div class="policy-notice-banner" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 12px; padding: 10px 14px; margin-bottom: 20px; font-size: 0.72rem; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                <span>💡 시야 제보 정책 및 유의사항 안내</span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="info" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  시야 등록 정책 및 유의사항 안내
+                </span>
                 <button type="button" onclick="app.showSubmissionPolicyDetail()" style="background: none; border: none; color: var(--accent-purple); font-weight: 700; font-size: 0.72rem; text-decoration: underline; cursor: pointer; padding: 0; flex-shrink: 0;">더보기</button>
               </div>
 
               <button type="submit" class="btn btn-primary btn-full-width" style="padding: 14px; font-weight: 800; font-size: 0.95rem; border-radius: 12px;">
-                <i data-lucide="check"></i> 시야 사진 제보하기
+                등록하기
               </button>
             </form>
           </div>
@@ -639,6 +710,78 @@
         </div>
       </div>
 
+      <!-- F0. OCR Ticket Scan — Category/Venue Picker (헤더 카메라 버튼용).
+           보류 중 (정확도 문제로 관리자 승인 방식으로 전환) — 통째로 주석처리,
+           나중에 다시 켤 수 있게 그대로 남겨둠.
+      <div class="modal modal-center" id="modal-ocr-venue-picker">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-ocr-venue-picker')"></div>
+        <div class="modal-content" style="max-width: 340px; max-height: 78vh; padding: 20px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column;">
+          <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">티켓으로 등록하기</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-ocr-venue-picker')" aria-label="Close" style="padding: 0; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div id="ocr-picker-step-category" style="display: flex; flex-direction: column; gap: 10px;">
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 2px 0;">어떤 티켓인가요?</p>
+            <button class="btn btn-secondary" onclick="app.selectOcrScanCategory('musical')" style="padding: 14px; font-weight: 700; font-size: 0.9rem; border-radius: 12px; justify-content: center;">🎭 공연 / 콘서트</button>
+            <button class="btn btn-secondary" onclick="app.selectOcrScanCategory('baseball')" style="padding: 14px; font-weight: 700; font-size: 0.9rem; border-radius: 12px; justify-content: center;">⚾ 프로야구</button>
+          </div>
+          <div id="ocr-picker-step-venue" style="display: none; flex-direction: column; gap: 8px; overflow: hidden;">
+            <div class="search-bar-container" id="ocr-picker-venue-search-wrap" style="display: none; margin: 0 0 2px 0;">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="ocr-picker-venue-search">
+            </div>
+            <div id="ocr-picker-venue-list" style="display: flex; flex-direction: column; gap: 8px; height: 340px; overflow-y: auto;"></div>
+          </div>
+          <div id="ocr-picker-step-attach" style="display: none; flex-direction: column; gap: 14px;">
+            <div>
+              <span id="ocr-picker-selected-venue-label" style="font-size: 0.72rem; color: var(--text-muted);">선택한 공연장</span>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                <p id="ocr-picker-selected-venue-name" style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;"></p>
+                <button type="button" onclick="app.backToOcrPickerVenueList()" style="flex-shrink: 0; background: none; border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 7px; cursor: pointer;">변경</button>
+              </div>
+            </div>
+            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px 14px; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
+              💡 티켓 인식 잘되는 방법
+              <ul style="margin: 6px 0 0 0; padding-left: 18px;">
+                <li>밝은 곳에서 티켓 전체가 다 나오도록 찍어주세요.</li>
+                <li><span id="ocr-picker-tip-venue-word">공연장</span>·구역·좌석번호 등이 손가락에 가리지 않게 해주세요.</li>
+                <li>초점이 흐리지 않게 찍어주세요.</li>
+                <li>글씨가 눕거나 기울지 않게, 똑바로 세워서 찍어주세요.</li>
+              </ul>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="app.triggerOcrPhotoAttach()" style="padding: 13px; font-weight: 800; font-size: 0.88rem; border-radius: 12px; justify-content: center; gap: 6px;">
+              <i data-lucide="camera"></i> 티켓 사진 첨부하기
+            </button>
+          </div>
+          Step 4: OCR match confirmation — a dedicated in-modal step instead
+          of the generic system-alert-style confirm dialog, so the seat it
+          found gets a proper visual treatment. (Not wrapped in its own
+          &lt;!-- --&gt; on purpose — HTML comments don't nest, and this
+          whole block already sits inside the outer F0 comment above; a
+          second comment here would close that outer one early and leak the
+          rest of this markup as live, unescaped page content.)
+          <div id="ocr-picker-step-confirm" style="display: none; flex-direction: column; gap: 16px;">
+            <div style="text-align: center;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(139, 92, 246, 0.14); color: var(--accent-purple); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto;">
+                <i data-lucide="ticket" style="width: 22px; height: 22px;"></i>
+              </div>
+              <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;">티켓에서 이 좌석을 찾았어요. 이 좌석이 맞나요?</p>
+            </div>
+            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 18px; text-align: center;">
+              <p id="ocr-picker-confirm-venue" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin: 0 0 6px 0;"></p>
+              <p id="ocr-picker-confirm-seat" style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.2px;"></p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-secondary" onclick="app.resolveOcrSeatConfirm(false)" style="flex: 1; padding: 12px; font-weight: 700; font-size: 0.85rem; border-radius: 12px; justify-content: center;">아니에요</button>
+              <button type="button" class="btn btn-primary" onclick="app.resolveOcrSeatConfirm(true)" style="flex: 1; padding: 12px; font-weight: 800; font-size: 0.85rem; border-radius: 12px; justify-content: center;">맞아요</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      -->
+
       <!-- F. Coming Soon Modal (준비 중 안내 팝업) -->
       <div class="modal modal-center" id="modal-coming-soon">
         <div class="modal-backdrop" onclick="app.closeModal('modal-coming-soon')"></div>
@@ -647,7 +790,7 @@
             <i data-lucide="sparkles" style="width: 28px; height: 28px; animation: pulse 2s infinite;"></i>
           </div>
           <h3 class="modal-title" id="coming-soon-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">준비 중인 구장입니다</h3>
-          <p id="coming-soon-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px;">
+          <p id="coming-soon-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; word-break: keep-all;">
             선택하신 구장의 구역 정보 및<br>시야 데이터를 열심히 준비하고 있습니다.<br>더 나은 서비스로 빠르게 찾아뵙겠습니다!
           </p>
           <button class="btn btn-primary" onclick="app.closeModal('modal-coming-soon')" style="width: 100%; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">확인</button>
@@ -733,7 +876,7 @@
             <i data-lucide="log-in" style="width: 28px; height: 28px;"></i>
           </div>
           <h3 class="modal-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">로그인이 필요합니다</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px;">시야 사진을 제보하려면 로그인이 필요합니다.<br>로그인 화면으로 이동하시겠습니까?</p>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; word-break: keep-all;">시야 사진을 등록하려면 로그인이 필요합니다.<br>로그인 화면으로 이동하시겠습니까?</p>
           <div style="display: flex; gap: 10px;">
             <button class="btn btn-secondary" onclick="app.closeModal('modal-login-confirm')" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
             <button class="btn btn-primary" onclick="app.confirmGoToLogin()" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">이동</button>
@@ -749,7 +892,7 @@
             <i data-lucide="help-circle" style="width: 28px; height: 28px;"></i>
           </div>
           <h3 class="modal-title" id="generic-confirm-title" style="font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; color: var(--text-primary);">제목</h3>
-          <p id="generic-confirm-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; white-space: pre-line;">메시지</p>
+          <p id="generic-confirm-desc" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 24px; white-space: pre-line; word-break: keep-all; text-align: left;">메시지</p>
           <div style="display: flex; gap: 10px;">
             <button class="btn btn-secondary" id="generic-confirm-cancel-btn" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">취소</button>
             <button class="btn btn-primary" id="generic-confirm-ok-btn" style="flex: 1; padding: 10px; font-weight: 700; font-size: 0.85rem; border-radius: 10px; cursor: pointer;">확인</button>
@@ -766,7 +909,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.10"></script>
+  <script src="app_v6.js?v=8.46"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
