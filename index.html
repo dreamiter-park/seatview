@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-KMVXJD2Q');</script>
+  <!-- End Google Tag Manager -->
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>잘보여유 - 좌석별 시야 공유 서비스</title>
@@ -62,10 +70,14 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.12">
+  <link rel="stylesheet" href="style_v6.css?v=5.14">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KMVXJD2Q"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
   <!-- PC / Desktop container with floating phone mock -->
   <div class="app-container">
@@ -142,6 +154,9 @@
               <span class="site-footer-divider">·</span>
               <a href="privacy.html">개인정보처리방침</a>
             </div>
+            <p class="site-footer-contact">배너 광고 문의 · 오류 제보는 언제든 <a href="mailto:j2mi.help@gmail.com">j2mi.help@gmail.com</a>로 남겨주세요!</p>
+            <p class="site-footer-notice">본 사이트의 좌석 시야 사진 사용 시 출처를 표기해주세요.<br>무단 사용 적발 시 민·형사상 책임을 물을 수 있습니다.</p>
+            <p class="site-footer-business">사업자명: 제이투미(J2MI)</p>
             <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
           </footer>
         </section>
@@ -545,7 +560,7 @@
                 </div>
                 <span id="modal-seat-date" style="font-size: 0.72rem; color: var(--text-muted);">2026-08-01</span>
               </div>
-              <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary); word-break: keep-all;">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
+              <p id="modal-seat-description" style="margin: 0; line-height: 1.5; font-size: 0.8rem; color: var(--text-secondary);">여기는 단차가 적당하고 난간 시야 방해가 없습니다. 응원 단상도 잘 보이고 투수 투구 궤적까지 훤히 보이는 진짜 꿀자리입니다!</p>
             </div>
           </div>
 
@@ -632,9 +647,9 @@
                     <i data-lucide="pen-line" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
                     관람평 / 좌석 꿀팁 <span style="font-size: 0.66rem; font-weight: 600; color: #94a3b8; background: rgba(148, 163, 184, 0.14); border-radius: 6px; padding: 2px 6px;">선택</span>
                   </span>
-                  <span id="form-comment-counter" style="font-weight: 500; font-size: 0.7rem; color: var(--text-muted);">0/120</span>
+                  <span id="form-comment-counter" style="font-weight: 500; font-size: 0.7rem; color: var(--text-muted);">0/300</span>
                 </label>
-                <textarea id="form-comment" rows="2" maxlength="120" oninput="app.autoResizeTextarea(this); app.updateCommentCounter(this);" style="resize: none; overflow-y: hidden; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); line-height: 1.5; font-size: 0.78rem;" placeholder="이 좌석의 시야(방해물 여부), 햇빛 방향, 앰프 소음 등 다른 팬들에게 도움이 될 팁을 적어주세요. (최대 120자)"></textarea>
+                <textarea id="form-comment" rows="2" maxlength="300" oninput="app.autoResizeTextarea(this); app.updateCommentCounter(this);" style="resize: none; overflow-y: hidden; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); line-height: 1.5; font-size: 0.78rem;" placeholder="이 좌석의 시야(방해물 여부), 햇빛 방향, 앰프 소음 등 다른 팬들에게 도움이 될 팁을 적어주세요. (최대 300자)"></textarea>
               </div>
 
               <!-- 4. 관람일 (선택) — 없으면 등록일이 대신 노출됨 -->
@@ -677,10 +692,13 @@
                 </div>
               </div>
 
-              <!-- 6. 익명 표기 여부 체크박스 -->
-              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="form-is-anonymous" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent-purple);">
-                <label for="form-is-anonymous" style="font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">익명으로 표기 (등록 시 닉네임을 노출하지 않습니다)</label>
+              <!-- 6. 닉네임 사용 여부 토글 -->
+              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <label for="form-show-nickname-toggle" style="margin: 0; font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">닉네임 사용</label>
+                <label class="ios-toggle" style="flex-shrink: 0;">
+                  <input type="checkbox" id="form-show-nickname-toggle" checked>
+                  <span class="ios-toggle-track"></span>
+                </label>
               </div>
 
               <!-- 7. 안내문구 영역 (짧게, 상세 내용은 더보기 팝업으로) -->
@@ -820,13 +838,6 @@
                 <label for="profile-nickname-input">닉네임</label>
                 <input type="text" id="profile-nickname-input" required maxlength="12" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary);">
               </div>
-              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                <label for="profile-show-kakao-avatar-toggle" style="margin: 0; font-size: 0.82rem;">카카오 프로필 사진 사용</label>
-                <label class="ios-toggle" style="flex-shrink: 0;">
-                  <input type="checkbox" id="profile-show-kakao-avatar-toggle" checked>
-                  <span class="ios-toggle-track"></span>
-                </label>
-              </div>
               <!-- 프로야구장 미오픈 상태라 잠정 비노출 (오픈 시 display:none만 지우면 복원) -->
               <div class="form-group" style="margin-bottom: 12px; display: none;">
                 <label for="profile-stadium-select">최애 구장</label>
@@ -924,7 +935,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.51"></script>
+  <script src="app_v6.js?v=8.60"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

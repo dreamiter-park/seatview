@@ -956,12 +956,12 @@
           <input type="hidden" id="bf-id">
 
           <div class="form-group">
-            <label for="bf-block-code">구역 코드 <span class="field-hint">(예: 301)</span></label>
-            <input type="text" id="bf-block-code" placeholder="예: 301">
+            <label for="bf-block-code">구역 코드 <span class="field-hint">(예: 301 — 단일 구역이라 코드가 없으면 비워두세요. 좌석배치도에 라벨이 안 뜹니다)</span></label>
+            <input type="text" id="bf-block-code" placeholder="예: 301 (없으면 비워두기)">
           </div>
 
           <div class="form-group">
-            <label for="bf-full-name">구역 전체명 <span class="field-hint">(예: 1루 네이비석 301블록)</span></label>
+            <label for="bf-full-name">구역 전체명 <span class="field-hint">(예: 1루 네이비석 301블록 — 구역 코드가 없으면 "1층"처럼 상세/마이페이지에 보일 이름만 적으세요)</span></label>
             <input type="text" id="bf-full-name" placeholder="예: 1루 네이비석 301블록">
           </div>
 
@@ -2804,14 +2804,12 @@
         const colorCode = document.getElementById("bf-color-code").value.trim();
         const locationType = document.getElementById("bf-location-type").value.trim();
         const isVisible = document.getElementById("bf-is-visible").checked;
-
         // Validated up front — a bad total_rows/max_seats value doesn't error
         // anywhere downstream today, it just silently makes the live seat
         // grid fall back to a "coming soon" placeholder.
-        if (!blockCode) {
-          this.showToast("오류", "구역 코드를 입력해 주세요.", "danger");
-          return;
-        }
+        // 구역 코드는 필수가 아님 — 단일 구역이라 코드가 없는 공연장은
+        // 비워두면 좌석배치도에 라벨이 안 뜨고, 상세/마이페이지는
+        // 구역 전체명만 보여준다.
         if (!fullName) {
           this.showToast("오류", "구역 전체명을 입력해 주세요.", "danger");
           return;
@@ -2827,7 +2825,7 @@
 
         const record = {
           [this.bmGetBlocksFkCol()]: this.bmSelectedEntity.id,
-          block_code: blockCode,
+          block_code: blockCode || null,
           full_name: fullName,
           total_rows: totalRows,
           max_seats: maxSeats,

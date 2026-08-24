@@ -544,6 +544,18 @@ class SeatViewApp {
     this.loadCategories();
     this.updateCompareBadge();
 
+    // The one-shot checkUserSession() above can race the OAuth redirect's
+    // async session write (worse inside slower in-app browsers like
+    // KakaoTalk's), leaving state.isLoggedIn stuck false even though the
+    // session eventually does land. Subscribing here catches that moment
+    // (and any later sign-in/refresh/sign-out) reliably instead of relying
+    // on a single point-in-time check.
+    if (supabaseClient) {
+      supabaseClient.auth.onAuthStateChange(() => {
+        this.checkUserSession();
+      });
+    }
+
     // Setup Event Listeners
     this.setupListeners();
 
@@ -1219,7 +1231,6 @@ class SeatViewApp {
     state.userNickname = "@\uC57C\uAD6C\uB7EC\uBC84";
     state.userAvatarUrl = "";
     state.kakaoAvatarUrl = "";
-    state.showKakaoAvatar = true;
     state.userEmail = "";
 
     localStorage.removeItem("seatview_nickname");
@@ -1265,16 +1276,12 @@ class SeatViewApp {
           state.userNickname = profile.nickname || "@\uC57C\uAD6C\uB7EC\uBC84";
           state.favoriteStadiumId = profile.favorite_stadium_id || null;
           state.cheeringTeam = profile.cheering_team || null;
-          // null/undefined (column not set yet on older rows) defaults to
-          // showing the Kakao photo, same as before this toggle existed.
           state.kakaoAvatarUrl = profile.profile_image_url || "";
-          state.showKakaoAvatar = profile.show_kakao_avatar !== false;
-          state.userAvatarUrl = state.showKakaoAvatar ? state.kakaoAvatarUrl : "";
+          state.userAvatarUrl = state.kakaoAvatarUrl;
         } else {
           const meta = session.user.user_metadata || {};
           state.userNickname = meta.name || meta.full_name || "@\uC57C\uAD6C\uB7EC\uBC84";
           state.kakaoAvatarUrl = meta.avatar_url || "";
-          state.showKakaoAvatar = true;
           state.userAvatarUrl = state.kakaoAvatarUrl;
         }
 
@@ -1372,46 +1379,21 @@ class SeatViewApp {
           profileAvatarEl.src = state.userAvatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='12' fill='%23c4c9d3'/><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' fill='%23ffffff'/></svg>";
         }
 
-        // Restore pending login state if exists
+        // Restore pending login state if exists — set by addCurrentSeatToTicketbook()
+        // right before the login-confirm modal opens, so a seat detail the
+        // user was about to write a review for reopens automatically instead
+        // of the OAuth redirect dropping them back on the main screen.
         const pendingJson = sessionStorage.getItem("seatview_pending_login_state");
         if (pendingJson) {
           try {
             const pending = JSON.parse(pendingJson);
             sessionStorage.removeItem("seatview_pending_login_state");
 
-            // Restore stadium/block selection state
-            if (pending.stadiumId) {
-              state.selectedStadium = STADIUMS_DB.find(st => st.id === pending.stadiumId);
-              if (state.selectedStadium && pending.blockId) {
-                state.selectedBlock = state.selectedStadium.blocks.find(b => b.id === pending.blockId);
-              }
-            }
-
-            // Restore view
-            if (pending.view) {
-              this.navigateTo(pending.view);
-            }
-
-            // Re-render blocks/seats if they were viewing stadiums page
-            if (pending.view === "stadiums" && pending.stadiumId) {
-              this.loadStadiumDetail(pending.stadiumId);
-              if (pending.blockId) {
-                const blockObj = state.selectedStadium ? state.selectedStadium.blocks.find(b => b.id === pending.blockId) : null;
-                if (blockObj) {
-                  state.selectedBlock = blockObj;
-                  setTimeout(() => {
-                    this.renderSeatingGrid(pending.blockId);
-                  }, 400);
-                }
-              }
-            }
-
-            // Resume action
-            if (pending.action && pending.action.type === "add_seat_photo") {
-              state.activeModalSeatKey = pending.action.seatKey;
-              setTimeout(() => {
-                this.addCurrentSeatToTicketbook();
-              }, 600);
+            if (pending.action && pending.action.type === "add_seat_photo" && pending.action.seatKey) {
+              setTimeout(async () => {
+                await this.openSeatDetail(pending.action.seatKey, { category: pending.action.category });
+                setTimeout(() => this.addCurrentSeatToTicketbook(), 300);
+              }, 400);
             }
           } catch (e) {
             console.warn("Restore pending login state error:", e);
@@ -1601,8 +1583,34 @@ class SeatViewApp {
           parking_info: v.parking_info,
           currentShows: v.current_shows || [],
           display_order: v.display_order,
-          status: v.status || 'open'
+          status: v.status || 'open',
+          reviewCount: 0
         }));
+
+        // 목록 정렬 기준: 등록된 시야 데이터가 많은 공연장 먼저, 같으면
+        // 기존 display_order 순 — 관리자가 정해둔 순서는 동률일 때의
+        // tie-breaker로만 쓰임. 리뷰→좌석→구역→공연장 순으로 FK를 타고
+        // 올라가야 해서(리뷰 테이블엔 venue_id가 직접 없음) 중첩 select로
+        // 한 번에 가져온다.
+        const { data: reviews, error: reviewErr } = await supabaseClient
+          .from('musical_seat_reviews')
+          .select('musical_seats(musical_blocks(venue_id))');
+        if (!reviewErr && reviews) {
+          const countByVenue = {};
+          reviews.forEach(r => {
+            const venueId = r.musical_seats && r.musical_seats.musical_blocks
+              ? r.musical_seats.musical_blocks.venue_id
+              : null;
+            if (venueId != null) countByVenue[venueId] = (countByVenue[venueId] || 0) + 1;
+          });
+          VENUES_DB.forEach(v => { v.reviewCount = countByVenue[v.id] || 0; });
+        }
+
+        const originalOrder = new Map(VENUES_DB.map((v, i) => [v.id, i]));
+        VENUES_DB.sort((a, b) => {
+          if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+          return originalOrder.get(a.id) - originalOrder.get(b.id);
+        });
       }
     } catch (e) {
       console.error("공연장 목록 로딩 에러:", e);
@@ -1937,11 +1945,10 @@ class SeatViewApp {
       container.style.gridTemplateRows = `repeat(${maxRow}, 26px)`;
 
       blocks.forEach(b => {
-        // Off for venues whose block_code is just an internal management
-        // id (e.g. numbered zones with no real on-site zone lettering) —
-        // showing "1"/"2"/"3" as if they were real section names would be
-        // misleading there.
-        if (b.show_block_label !== false) {
+        // Blocks with no real on-site zone lettering (single-zone venues)
+        // are meant to have block_code left blank in admin instead of
+        // carrying a made-up code — nothing to label here in that case.
+        if (b.block_code && String(b.block_code).trim()) {
           const label = document.createElement("div");
           label.className = "floor-grid-block-label";
           label.textContent = b.block_code;
@@ -3360,19 +3367,19 @@ class SeatViewApp {
           }
         }
         stadiumName = venueRow ? venueRow.name : (state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5");
-        // A block with show_block_label=false has no real on-site zone name
-        // (see musical_blocks \u2014 e.g. \uBE14\uB8E8\uC2A4\uD018\uC5B4) \u2014 the floor grid already
-        // hides its section header for the same reason, so the seat detail
-        // title shouldn't show a made-up block_code/full_name here either.
-        blockName = (blockRow && blockRow.show_block_label === false)
-          ? ""
-          : (blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C"));
+        // Single-zone venues (e.g. \uBE14\uB8E8\uC2A4\uD018\uC5B4) leave block_code blank in
+        // admin rather than carrying a made-up code \u2014 full_name is
+        // admin-authored free text either way (e.g. just "1\uCE35"), so it's
+        // always the right thing to show; block_code+"\uAD6C\uC5ED" is only a
+        // fallback for when full_name itself is somehow empty.
+        blockName = blockRow
+          ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "\uAD6C\uC5ED" : ""))
+          : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || (state.selectedVenueBlock.block_code ? state.selectedVenueBlock.block_code + "\uAD6C\uC5ED" : "")) : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
 
         // Row numbers only ever reach the user through the aisle
         // label_position feature \u2014 if no block on this floor drives one,
         // row_num was never actually shown anywhere on the seat map, so
-        // showing "N\uC5F4" here would surface info the map itself never did
-        // (same reasoning as hiding blockName above for show_block_label).
+        // showing "N\uC5F4" here would surface info the map itself never did.
         let showRowNum = true;
         if (blockRow) {
           const { data: floorBlocks } = await supabaseClient
@@ -3388,7 +3395,7 @@ class SeatViewApp {
       } catch (e) {
         console.warn("Failed to resolve real musical seat info:", e);
         stadiumName = state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5";
-        blockName = state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || state.selectedVenueBlock.block_code + "\uAD6C\uC5ED") : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C";
+        blockName = state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || (state.selectedVenueBlock.block_code ? state.selectedVenueBlock.block_code + "\uAD6C\uC5ED" : "")) : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C";
         seatName = "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
       }
     } else if (isRealSeat && supabaseClient) {
@@ -3536,6 +3543,11 @@ class SeatViewApp {
                 comment: rev.content || "",
                 uploader: uploaderName,
                 uploaderBadge: uploaderBadge,
+                // profiles_public only exposes id+nickname (no photo) \u2014 that's
+                // deliberate, other reviewers' avatars were never meant to
+                // show here. For the viewer's own review, though, we already
+                // have their own (toggle-aware) avatar client-side.
+                avatar: (!rev.is_anonymous && rev.user_id === state.userId) ? state.userAvatarUrl : null,
                 watchedDate: rev.watched_date || null,
                 // \uAD00\uB78C\uC77C\uC774 \uC788\uC73C\uBA74 \uADF8\uAC78 \uBCF4\uC5EC\uC8FC\uACE0, \uC5C6\uC73C\uBA74 \uB4F1\uB85D\uC77C(ins_dtm)\uB85C \uB300\uCCB4.
                 date: rev.watched_date || uploaderDate.split('T')[0]
@@ -3713,8 +3725,8 @@ class SeatViewApp {
       this.autoResizeTextarea(commentEl);
       this.updateCommentCounter(commentEl);
     }
-    const anonEl = document.getElementById("form-is-anonymous");
-    if (anonEl) anonEl.checked = !!current.isAnonymous;
+    const nickToggleEl = document.getElementById("form-show-nickname-toggle");
+    if (nickToggleEl) nickToggleEl.checked = !current.isAnonymous;
     this.setTicketDateFieldDefaults();
     const dateEl = document.getElementById("form-match-date");
     if (dateEl) dateEl.value = current.watchedDate || "";
@@ -3885,6 +3897,7 @@ class SeatViewApp {
   // --- 1:1 Side-by-Side Comparison ---
   addCurrentSeatToCompare() {
     if (!state.isLoggedIn) {
+      sessionStorage.removeItem("seatview_pending_login_state");
       this.openModal("modal-login-confirm");
       return;
     }
@@ -4254,7 +4267,7 @@ class SeatViewApp {
           seatId: r.musical_seat_id,
           ins_dtm: r.ins_dtm,
           stadiumName: venueRow ? venueRow.name : "기타 공연장",
-          blockName: blockRow ? (blockRow.full_name || blockRow.block_code + "구역") : "구역 정보 없음",
+          blockName: blockRow ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "구역" : "")) : "구역 정보 없음",
           seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
           comment: r.content,
           image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
@@ -4568,8 +4581,8 @@ class SeatViewApp {
     const fontSize = Math.max(14, Math.round(Math.max(width, height) * 0.025));
     ctx.save();
     ctx.font = `${fontSize}px 'Noto Sans KR', sans-serif`;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.16)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.32)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.24)";
     ctx.lineWidth = 1.2;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -4577,12 +4590,15 @@ class SeatViewApp {
     ctx.rotate(-Math.PI / 6);
 
     // Step scales with the canvas itself (not a fixed pixel gap) so the
-    // repeat count stays ~5-10 regardless of photo resolution or aspect
-    // ratio — a fixed-pixel step tiled a portrait photo with 3-4x the
-    // canvas area of a typical landscape one into far more repeats.
+    // repeat count holds regardless of photo resolution — but it used to
+    // scale with a >=1x multiple of width/height, which meant the *next*
+    // repeat always landed at or past the visible edge, so only ~1 copy
+    // ever actually showed inside the frame. Dividing by ~3 instead of
+    // multiplying guarantees at least a few real repeats fit inside the
+    // visible width/height on both axes, independent of orientation.
     const textWidth = ctx.measureText(text).width;
-    const stepX = Math.max(width * 1.1, textWidth + 60);
-    const stepY = Math.max(height * 1.1, fontSize * 5);
+    const stepX = Math.max(textWidth + 40, width / 2);
+    const stepY = Math.max(fontSize * 4, height / 2);
     // Tile well past the canvas bounds so rotation doesn't leave gaps at
     // the corners.
     const diag = Math.sqrt(width * width + height * height);
@@ -4911,7 +4927,8 @@ class SeatViewApp {
     const resultVal = resultEl ? resultEl.value : "\uC2B9\uB9AC \uD83C\uDF89";
     const scoreVal = scoreEl ? scoreEl.value.trim() : "";
     const commentVal = document.getElementById("form-comment").value.trim();
-    const isAnonymous = document.getElementById("form-is-anonymous") ? document.getElementById("form-is-anonymous").checked : false;
+    const nickToggleEl = document.getElementById("form-show-nickname-toggle");
+    const isAnonymous = nickToggleEl ? !nickToggleEl.checked : false;
 
     // Upload any not-yet-uploaded photos to Storage now that the user has
     // actually confirmed the submission (existing/already-hosted photos in
@@ -5092,8 +5109,17 @@ class SeatViewApp {
           .insert(insertPayload);
         if (error) throw error;
 
-        // Reload all reviews from DB to get actual autogenerated integer IDs
-        if (!isMusical) await this.checkUserSession();
+        // Reload from DB to get actual autogenerated integer IDs and pick
+        // up the just-added review — without this, 마이페이지 kept showing
+        // stale data (the local state.tickets/musicalTickets array from
+        // whenever it was last loaded) until a full page refresh.
+        if (isMusical) await this.loadMusicalTickets();
+        else await this.checkUserSession();
+
+        // Same staleness problem hits the venue list's review-count sort —
+        // it's only ever computed once at app init, so a fresh registration
+        // never bumps this venue up the list until a full page reload.
+        if (isMusical) this.loadVenues().then(() => this.renderVenueList());
       } catch (error) {
         console.warn("Supabase review insert warning:", error);
         // Unique-constraint violation means the app-level pre-check above lost
@@ -5180,6 +5206,7 @@ class SeatViewApp {
 
     if (isMusical) {
       state.musicalTickets = (state.musicalTickets || []).filter(t => String(t.id) !== String(id));
+      this.loadVenues().then(() => this.renderVenueList());
     } else {
       state.tickets = state.tickets.filter(t => String(t.id) !== String(id));
       localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
@@ -5350,6 +5377,7 @@ class SeatViewApp {
   // venue we already know for certain.
   startTicketScan() {
     if (!state.isLoggedIn) {
+      sessionStorage.removeItem("seatview_pending_login_state");
       this.openModal("modal-login-confirm");
       return;
     }
@@ -5918,6 +5946,11 @@ class SeatViewApp {
 
   async addCurrentSeatToTicketbook() {
     if (!state.isLoggedIn) {
+      if (state.activeModalSeatKey) {
+        sessionStorage.setItem("seatview_pending_login_state", JSON.stringify({
+          action: { type: "add_seat_photo", seatKey: state.activeModalSeatKey, category: state.activeModalCategory }
+        }));
+      }
       this.openModal("modal-login-confirm");
       return;
     }
@@ -6225,9 +6258,6 @@ class SeatViewApp {
     }
     if (teamSelect) teamSelect.value = state.cheeringTeam || "";
 
-    const avatarToggle = document.getElementById("profile-show-kakao-avatar-toggle");
-    if (avatarToggle) avatarToggle.checked = state.showKakaoAvatar !== false;
-
     this.openModal("modal-edit-profile");
   }
 
@@ -6236,7 +6266,6 @@ class SeatViewApp {
     const nickVal = document.getElementById("profile-nickname-input").value.trim();
     const stadiumVal = document.getElementById("profile-stadium-select").value || null;
     const teamVal = document.getElementById("profile-team-select").value || null;
-    const showKakaoAvatarVal = document.getElementById("profile-show-kakao-avatar-toggle").checked;
 
     if (!nickVal) return;
 
@@ -6247,7 +6276,6 @@ class SeatViewApp {
           nickname: nickVal,
           favorite_stadium_id: stadiumVal,
           cheering_team: teamVal,
-          show_kakao_avatar: showKakaoAvatarVal,
           mod_dtm: new Date().toISOString()
         })
         .eq('id', state.userId)
@@ -6274,8 +6302,6 @@ class SeatViewApp {
     state.userNickname = nickVal;
     state.favoriteStadiumId = stadiumVal;
     state.cheeringTeam = teamVal;
-    state.showKakaoAvatar = showKakaoAvatarVal;
-    state.userAvatarUrl = showKakaoAvatarVal ? (state.kakaoAvatarUrl || "") : "";
 
     localStorage.setItem("seatview_nickname", nickVal);
     localStorage.setItem("seatview_favorite_stadium", stadiumVal);

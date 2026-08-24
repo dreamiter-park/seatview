@@ -907,6 +907,13 @@ img {
   justify-content: center;
   height: 100px;
   cursor: pointer;
+  /* No custom :active state is defined anywhere — the browser's own default
+     tap-highlight fills that gap instead, and on mobile it can get stuck
+     visibly "pressed" after a tap opens a new tab (e.g. the ad card's
+     window.open) since the tab switch interrupts the touch sequence before
+     the highlight gets to fade. .stadium-card:hover below already supplies
+     our own press feedback, so the native one is just redundant. */
+  -webkit-tap-highlight-color: transparent;
   transition: var(--transition-normal);
   position: relative;
   overflow: hidden;
@@ -3782,6 +3789,25 @@ input[type="date"]:focus {
   font-size: 0.68rem;
   color: var(--text-muted);
   margin: 0 0 4px;
+}
+
+.site-footer-contact {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 8px 0 4px;
+  line-height: 1.5;
+}
+
+.site-footer-contact a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.site-footer-notice {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  line-height: 1.5;
 }
 
 .site-footer-copy {
