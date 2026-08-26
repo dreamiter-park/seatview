@@ -1184,6 +1184,18 @@ class SeatViewApp {
   }
 
   handleHeaderBack() {
+    // Mirror the popstate handler below: closing an open modal takes
+    // priority over navigating the underlying view. Without this, tapping
+    // "<" while e.g. the seat-detail sheet was open silently swapped the
+    // view behind it while the sheet stayed visually open — looked like
+    // the button did nothing.
+    const activeModals = document.querySelectorAll(".modal.active");
+    if (activeModals.length > 0) {
+      const lastModal = activeModals[activeModals.length - 1];
+      this.closeModal(lastModal.id);
+      return;
+    }
+
     if (state.currentView === "stadium-detail") {
       state.selectedBlock = null;
     } else if (state.currentView === "venue-detail") {
@@ -3613,7 +3625,10 @@ class SeatViewApp {
       if (placeholderEl) placeholderEl.style.display = "none";
       if (carouselEl) carouselEl.style.display = "block";
       if (uploaderRowEl) uploaderRowEl.style.display = "flex";
-      if (descBoxEl) descBoxEl.style.display = "block";
+      // .modal-desc-box is display:flex in CSS (column layout, fixed
+      // height) so its comment <p> can scroll instead of overflowing —
+      // forcing "block" here defeated that.
+      if (descBoxEl) descBoxEl.style.display = "flex";
       
       if (btnCompare) {
         btnCompare.disabled = false;
@@ -3796,7 +3811,10 @@ class SeatViewApp {
       // "no review registered" placeholder read as if the whole submission
       // were incomplete, not just the (fully optional) text. Just hide the
       // line instead of saying anything when there's no comment.
-      const comment = this.truncateComment(curImg.comment);
+      // Full text here (not truncateComment's ellipsis) \u2014 the box itself
+      // stays a fixed height either way (.modal-desc-box), so a long
+      // comment scrolls inside it instead of being cut off mid-sentence.
+      const comment = curImg.comment;
       descEl.textContent = comment || "";
       descEl.style.display = comment ? "block" : "none";
     }
@@ -3986,7 +4004,7 @@ class SeatViewApp {
   }
 
   loadComparisons() {
-    const COMPARE_SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+    const COMPARE_SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
     const ts = parseInt(localStorage.getItem("seatview_compare_ts") || "0", 10);
     const expired = !ts || (Date.now() - ts > COMPARE_SESSION_TTL_MS);
     if (expired) {
@@ -4156,7 +4174,7 @@ class SeatViewApp {
             <i data-lucide="columns"></i>
           </div>
           <h3>비교함이 비어 있습니다</h3>
-          <p>각 좌석 상세정보 창에서 '1:1 비교함 담기' 버튼을 클릭하면 한눈에 시야를 비교해볼 수 있습니다.</p>
+          <p>좌석 상세에서 '1:1 비교함 담기'를 누르면 시야를 한눈에 비교해볼 수 있어요.</p>
           <button class="btn btn-primary" onclick="app.navigateTo('main')">좌석 둘러보러 가기</button>
         </div>
       `;

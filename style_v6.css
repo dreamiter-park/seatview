@@ -2520,8 +2520,23 @@ img {
   color: var(--text-secondary);
   line-height: 1.45;
   margin: 0;
-  overflow: hidden;
+  overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.modal-desc-box p::-webkit-scrollbar {
+  width: 4px;
+}
+
+.modal-desc-box p::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-desc-box p::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.4);
+  border-radius: 10px;
 }
 
 .modal-actions {

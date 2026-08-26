@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /admin.html
+Allow: /
+
+Sitemap: https://xn--on3b27no0awn.com/sitemap.xml

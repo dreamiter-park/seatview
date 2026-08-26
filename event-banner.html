@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>이벤트 배너</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", sans-serif; }
+body { background-color: #0b0c10; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+.card { width: 440px; background: linear-gradient(180deg, #13151f 0%, #1a1d2e 100%); border: 1px solid #2e344d; border-radius: 24px; padding: 32px 24px; color: #fff; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+.badge { display: inline-block; background: #6366f1; color: #fff; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 20px; margin-bottom: 12px; letter-spacing: 0.5px; }
+.title { font-size: 22px; font-weight: 800; line-height: 1.35; margin-bottom: 8px; }
+.title span { color: #facc15; }
+.subtitle { font-size: 13px; color: #9ca3af; margin-bottom: 24px; }
+.prizes { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+.prize-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 6px; }
+.prize-item:last-child { margin-bottom: 0; }
+.prize-1 { background: rgba(99, 102, 241, 0.2); border-left: 4px solid #6366f1; }
+.prize-1 .rank { color: #c7d2fe; font-weight: 800; }
+.prize-1 .gift { color: #fff; font-weight: 700; }
+.prize-other { background: rgba(255,255,255,0.02); }
+.prize-other .rank { color: #9ca3af; }
+.prize-other .gift { color: #e5e7eb; }
+.info-box { background: rgba(0,0,0,0.25); border-radius: 12px; padding: 14px; font-size: 12px; color: #d1d5db; line-height: 1.6; margin-bottom: 14px; }
+.info-box strong { color: #fff; }
+.info-box a { color: #a5b4fc; }
+.info-box + .info-box { margin-top: -2px; }
+.privacy-box { border: 1px solid rgba(99, 102, 241, 0.25); }
+.privacy-title { color: #fff; font-weight: 700; margin-bottom: 6px; display: block; }
+.notice { font-size: 11px; color: #6b7280; line-height: 1.6; margin-bottom: 24px; margin-top: 20px; }
+.btn { width: 100%; background: #6366f1; color: #fff; font-size: 15px; font-weight: 700; padding: 14px 0; border-radius: 12px; border: none; text-align: center; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="card">
+<div style="text-align: center;">
+<span class="badge">EVENT</span>
+<h1 class="title">내가 앉은 좌석 시야 공유하고<br><span>뮤지컬 VIP석</span> 보러 가자! 📸</h1>
+<p class="subtitle">직접 찍은 시야 사진 등록하면 추첨을 통해 선물을 드려요</p>
+</div>
+
+<div class="prizes">
+<div class="prize-item prize-1">
+<span class="rank">🥇 1등 (1명)</span>
+<span class="gift">뮤지컬 VIP석 티켓 (2매)</span>
+</div>
+<div class="prize-item prize-other">
+<span class="rank">🥈 2등 (3명)</span>
+<span class="gift">대학로 연극 티켓 (2매)</span>
+</div>
+<div class="prize-item prize-other">
+<span class="rank">🥉 3등 (5명)</span>
+<span class="gift">CGV 영화 티켓 (2매)</span>
+</div>
+<div class="prize-item prize-other">
+<span class="rank">☕ 4등 (20명)</span>
+<span class="gift">스타벅스 아메리카노</span>
+</div>
+</div>
+<p style="font-size: 11px; color: #6b7280; margin: -10px 0 20px; line-height: 1.5;">* 구체적인 공연명·관람일은 당첨자 발표 후 개별 안내되며, 실제 가액은 선정 공연에 따라 달라질 수 있습니다.</p>
+
+<div class="info-box">
+<div><strong>📅 참여 기간:</strong> 2026.08.25(화) ~ 09.30(수)</div>
+<div><strong>👤 참여 대상:</strong> 회원가입 후 이용 가능 (1인 최대 3회 응모)</div>
+<div><strong>🎲 당첨자 선정:</strong> 무작위 추첨 (부적절한 사진은 제외)</div>
+<div><strong>📢 당첨 발표:</strong> 2026.10.02(금) 홈페이지 공지</div>
+<div><strong>📩 경품 지급:</strong> 가입된 이메일로 모바일 교환권 개별 발송</div>
+</div>
+
+<div class="info-box privacy-box">
+<span class="privacy-title">🔒 개인정보 수집·이용 동의</span>
+<div>수집 항목: 이메일 (당첨자 확인용)</div>
+<div>이용 목적: 당첨자 선정 및 경품 발송</div>
+<div>보유 기간: 경품 지급 완료 후 즉시 파기</div>
+<div style="margin-top: 6px;">자세한 내용은 <a href="event-terms.html">이벤트 참여규정</a>을 확인해주세요.</div>
+</div>
+
+<div class="notice">
+• 동일 사진 중복 등록 불가 / 도용 사진 적발 시 당첨 취소<br>
+• 빈 무대 또는 커튼콜 등 촬영 허용 시간 사진만 인정<br>
+• 등록된 사진은 서비스 좌석 정보 및 홍보용으로 활용됩니다.<br>
+• 제세공과금(기타소득세 등)은 당첨자 부담을 원칙으로 합니다.<br>
+• 본 이벤트는 회사 사정에 따라 사전 고지 없이 변경되거나 조기 종료될 수 있습니다.<br>
+• 문의: j2mi.help@gmail.com
+</div>
+
+<button class="btn">좌석 시야 사진 등록하러 가기 ➔</button>
+</div>
+</body>
+</html>
