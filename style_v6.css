@@ -2498,6 +2498,29 @@ img {
   background-color: var(--success-bg);
 }
 
+.ext-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ext-link-badge.naver {
+  background: rgba(3, 199, 90, 0.15);
+  color: #03c75a;
+}
+
+.ext-link-badge.instagram {
+  background: linear-gradient(45deg, rgba(240, 148, 51, 0.18), rgba(230, 64, 138, 0.18), rgba(188, 42, 141, 0.18));
+  color: #d6249f;
+}
+
 .modal-desc-box {
   background-color: var(--bg-input);
   border-radius: 16px;

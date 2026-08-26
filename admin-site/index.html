@@ -1629,6 +1629,15 @@
         this.populateBlocks(filteredBlocks);
       }
 
+      // 구역명 비노출(공백 전체명 + block_code 없음) 설정이면 같은 층 구역들이
+      // 전부 "1층"으로만 보여 구분이 안 된다 — 관리자 드롭다운에서만 좌석수/
+      // 시작위치를 덧붙여 구분한다. max_seats가 없는(=baseball) 경우엔 그대로.
+      blockOptionLabel(b) {
+        const trimmedName = (b.full_name || "").trim();
+        const label = trimmedName || (b.block_code ? `${b.block_code}블록` : `구역 #${b.id}`);
+        return b.max_seats !== undefined ? `${label} (${b.max_seats}석, x${b.offset_x || 0})` : label;
+      }
+
       populateBlocks(blocks) {
         const blockSelect = document.getElementById("block-select");
         if (blocks.length === 0) {
@@ -1641,7 +1650,7 @@
         blocks.forEach(bl => {
           const opt = document.createElement("option");
           opt.value = bl.id;
-          opt.textContent = bl.full_name || `${bl.block_code}블록`;
+          opt.textContent = this.blockOptionLabel(bl);
           opt.dataset.rows = bl.total_rows;
           opt.dataset.cols = bl.max_seats;
           blockSelect.appendChild(opt);
@@ -2898,7 +2907,7 @@
 
       async deleteBlock(blockId) {
         const block = this.bmBlocks.find(b => String(b.id) === String(blockId));
-        const label = block ? (block.full_name || block.block_code) : "이 구역";
+        const label = block ? this.blockOptionLabel(block) : "이 구역";
         if (!confirm(`"${label}"을(를) 삭제하시겠습니까?\n\n이 구역에 속한 좌석/시야 데이터가 있다면 함께 참조가 끊길 수 있습니다.`)) {
           return;
         }
@@ -3420,7 +3429,7 @@
         }
 
         try {
-          const selectCols = isMusical ? "id, block_code, full_name" : "id, block_code, full_name, seat_grade";
+          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x" : "id, block_code, full_name, seat_grade";
           const { data: blocks, error } = await supabaseClient
             .from(blocksTable)
             .select(selectCols)
@@ -3465,7 +3474,7 @@
           return;
         }
         blockSelect.innerHTML = '<option value="">전체 구역</option>' +
-          blocks.map(b => `<option value="${b.id}">${this.escHtml(b.full_name || b.block_code)}</option>`).join("");
+          blocks.map(b => `<option value="${b.id}">${this.escHtml(this.blockOptionLabel(b))}</option>`).join("");
         blockSelect.disabled = false;
       }
 
@@ -3613,7 +3622,7 @@
             const block = seat ? blockMap[seat.block_id] : null;
             const top = block ? topMap[block[blocksFk]] : null;
             const seatLabel = seat
-              ? `${top ? this.escHtml(top.name) : "?"} · ${block ? this.escHtml(block.full_name || block.block_code) : "?"} ${seat.row_num ? this.escHtml(seat.row_num) + "열 " : ""}${seat.seat_num != null ? seat.seat_num + "번" : ""}`
+              ? `${top ? this.escHtml(top.name) : "?"} · ${block ? this.escHtml(block.full_name || block.block_code || "") : "?"} ${seat.row_num ? this.escHtml(seat.row_num) + "열 " : ""}${seat.seat_num != null ? seat.seat_num + "번" : "(장애인석)"}`
               : "(좌석 정보 없음)";
             const thumb = Array.isArray(rev.image_urls) && rev.image_urls[0] ? rev.image_urls[0] : "";
             const uploaderLabel = rev.is_anonymous ? "익명" : this.escHtml(nickMap[rev.user_id] || "회원");
@@ -3836,7 +3845,7 @@
         }
 
         try {
-          const selectCols = isMusical ? "id, block_code, full_name" : "id, block_code, full_name, seat_grade";
+          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x" : "id, block_code, full_name, seat_grade";
           const { data: blocks, error } = await supabaseClient
             .from(blocksTable)
             .select(selectCols)
@@ -3879,7 +3888,7 @@
           return;
         }
         blockSelect.innerHTML = '<option value="">전체 구역</option>' +
-          blocks.map(b => `<option value="${b.id}">${this.escHtml(b.full_name || b.block_code)}</option>`).join("");
+          blocks.map(b => `<option value="${b.id}">${this.escHtml(this.blockOptionLabel(b))}</option>`).join("");
         blockSelect.disabled = false;
       }
 
@@ -4041,7 +4050,7 @@
             const s = seatMap[r.musical_seat_id];
             const b = s ? blockMap[s.block_id] : null;
             const v = b ? venueMap[b.venue_id] : null;
-            labels[`musical_${r.id}`] = s ? `${v ? v.name : ""} ${b ? (b.full_name || b.block_code) : ""} ${s.row_num}열 ${s.seat_num}번`.trim() : "(좌석 정보 없음)";
+            labels[`musical_${r.id}`] = s ? `${v ? v.name : ""} ${b ? (b.full_name || b.block_code || "") : ""} ${s.row_num}열 ${s.seat_num != null ? s.seat_num + "번" : "(장애인석)"}`.trim() : "(좌석 정보 없음)";
           });
         }
 
@@ -4059,7 +4068,7 @@
             const s = seatMap[r.baseball_seat_id];
             const b = s ? blockMap[s.block_id] : null;
             const st = b ? stadiumMap[b.stadium_id] : null;
-            labels[`baseball_${r.id}`] = s ? `${st ? st.name : ""} ${b ? (b.full_name || b.block_code) : ""} ${s.row_num}열 ${s.seat_num}번`.trim() : "(좌석 정보 없음)";
+            labels[`baseball_${r.id}`] = s ? `${st ? st.name : ""} ${b ? (b.full_name || b.block_code || "") : ""} ${s.row_num}열 ${s.seat_num != null ? s.seat_num + "번" : "(장애인석)"}`.trim() : "(좌석 정보 없음)";
           });
         }
 

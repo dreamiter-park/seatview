@@ -9,6 +9,10 @@
   })(window,document,'script','dataLayer','GTM-KMVXJD2Q');</script>
   <!-- End Google Tag Manager -->
 
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8677610464696005"
+     crossorigin="anonymous"></script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>잘보여유 - 좌석별 시야 공유 서비스</title>
@@ -70,7 +74,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.15">
+  <link rel="stylesheet" href="style_v6.css?v=5.16">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -266,6 +270,14 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Kakao AdFit Banner (venue detail, below the seat map) -->
+            <div style="display: flex; justify-content: center; margin-top: 16px;">
+              <ins id="ad-venue-detail" class="kakao_ad_area" style="display:none;"
+              data-ad-unit = "DAN-k3EmMkFGoCwuNZzq"
+              data-ad-width = "320"
+              data-ad-height = "50"></ins>
             </div>
           </div>
 
@@ -559,6 +571,7 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <img id="modal-seat-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--accent-purple);" alt="Avatar" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
                   <span id="modal-seat-uploader" style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary);">@야구러버</span>
+                  <a id="modal-seat-external-link" href="#" target="_blank" rel="noopener noreferrer" class="ext-link-badge" style="display: none;"></a>
                 </div>
                 <span id="modal-seat-date" style="font-size: 0.72rem; color: var(--text-muted);">2026-08-01</span>
               </div>
@@ -701,6 +714,16 @@
                   <input type="checkbox" id="form-show-nickname-toggle" checked>
                   <span class="ios-toggle-track"></span>
                 </label>
+              </div>
+
+              <!-- 6.5 블로그/SNS 링크 (선택) — 네이버 블로그/인스타그램만 허용 -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="form-external-link" style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="link" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  블로그/SNS 링크 <span style="font-size: 0.66rem; font-weight: 600; color: #94a3b8; background: rgba(148, 163, 184, 0.14); border-radius: 6px; padding: 2px 6px;">선택</span>
+                </label>
+                <input type="text" id="form-external-link" placeholder="네이버 블로그 또는 인스타그램 주소" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 0.78rem;">
+                <p style="font-size: 0.68rem; color: var(--text-muted); margin: 6px 0 0;">네이버 블로그(blog.naver.com) 또는 인스타그램(instagram.com) 링크만 등록할 수 있어요.</p>
               </div>
 
               <!-- 7. 안내문구 영역 (짧게, 상세 내용은 더보기 팝업으로) -->
@@ -937,7 +960,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.65"></script>
+  <script src="app_v6.js?v=8.71"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

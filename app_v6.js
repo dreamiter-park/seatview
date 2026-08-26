@@ -1340,7 +1340,7 @@ class SeatViewApp {
                 stadiumId: stadiumRow ? stadiumRow.id : null,
                 stadiumName: stadiumRow ? stadiumRow.name : "기타 구장",
                 blockName: blockRow ? (blockRow.full_name || blockRow.block_code + "구역") : "구역 정보 없음",
-                seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
+                seatName: this.formatSeatName(seatRow, !!(seatRow && seatRow.is_disabled_seat)),
                 comment: r.content,
                 image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
                 images: r.image_urls || [],
@@ -3095,7 +3095,7 @@ class SeatViewApp {
                       SEAT_VIEWS_DB[dbKey] = {
                         stadiumName: state.selectedStadium.name,
                         blockName: state.selectedBlock.name,
-                        seatName: `${seat.row_num || r}열 ${seat.seat_num}번`,
+                        seatName: this.formatSeatName({ row_num: seat.row_num || r, seat_num: seat.seat_num }, !!seat.is_disabled_seat),
                         image: "assets/seat_view_clean.png",
                         uploader: "@anonymous",
                         uploaderBadge: "일반 등록자",
@@ -3401,9 +3401,19 @@ class SeatViewApp {
             .eq('floor', blockRow.floor);
           showRowNum = !!(floorBlocks || []).some(b => (b.label_position || "").trim());
         }
-        seatName = seatRow
-          ? (showRowNum ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : `${seatRow.seat_num}\uBC88`)
-          : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+        // Wheelchair spaces are often a marked area rather than a numbered
+        // seat, so seat_num can be null \u2014 showing that raw would render as
+        // the literal string "null\uBC88".
+        if (seatRow && (seatRow.seat_num === null || seatRow.seat_num === undefined || seatRow.seat_num === "")) {
+          seatName = isWheelchairSeat
+            ? (showRowNum ? `${seatRow.row_num}\uC5F4 \uC7A5\uC560\uC778\uC11D` : "\uC7A5\uC560\uC778\uC11D")
+            : (showRowNum ? `${seatRow.row_num}\uC5F4` : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C");
+        } else if (seatRow) {
+          seatName = showRowNum ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : `${seatRow.seat_num}\uBC88`;
+          if (isWheelchairSeat) seatName += " (\uC7A5\uC560\uC778\uC11D)";
+        } else {
+          seatName = "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+        }
       } catch (e) {
         console.warn("Failed to resolve real musical seat info:", e);
         stadiumName = state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5";
@@ -3425,7 +3435,14 @@ class SeatViewApp {
         }
         stadiumName = stadiumRow ? stadiumRow.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
         blockName = blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedBlock ? state.selectedBlock.name : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
-        seatName = seatRow ? `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88` : "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+        if (seatRow && (seatRow.seat_num === null || seatRow.seat_num === undefined || seatRow.seat_num === "")) {
+          seatName = isWheelchairSeat ? `${seatRow.row_num}\uC5F4 \uC7A5\uC560\uC778\uC11D` : `${seatRow.row_num}\uC5F4`;
+        } else if (seatRow) {
+          seatName = `${seatRow.row_num}\uC5F4 ${seatRow.seat_num}\uBC88`;
+          if (isWheelchairSeat) seatName += " (\uC7A5\uC560\uC778\uC11D)";
+        } else {
+          seatName = "\uC88C\uC11D \uC815\uBCF4 \uC5C6\uC74C";
+        }
       } catch (e) {
         console.warn("Failed to resolve real seat info:", e);
         stadiumName = state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5";
@@ -3560,6 +3577,11 @@ class SeatViewApp {
                 // show here. For the viewer's own review, though, we already
                 // have their own (toggle-aware) avatar client-side.
                 avatar: (!rev.is_anonymous && rev.user_id === state.userId) ? state.userAvatarUrl : null,
+                // Kept ungated here (unlike avatar) so the owner's own edit
+                // form can read it back via current.externalLink regardless
+                // of anonymity — the badge itself is hidden for anonymous
+                // posts at render time instead (see updateModalImage()).
+                externalLink: rev.external_link || null,
                 watchedDate: rev.watched_date || null,
                 // \uAD00\uB78C\uC77C\uC774 \uC788\uC73C\uBA74 \uADF8\uAC78 \uBCF4\uC5EC\uC8FC\uACE0, \uC5C6\uC73C\uBA74 \uB4F1\uB85D\uC77C(ins_dtm)\uB85C \uB300\uCCB4.
                 date: rev.watched_date || uploaderDate.split('T')[0]
@@ -3742,6 +3764,8 @@ class SeatViewApp {
     }
     const nickToggleEl = document.getElementById("form-show-nickname-toggle");
     if (nickToggleEl) nickToggleEl.checked = !current.isAnonymous;
+    const extLinkEl = document.getElementById("form-external-link");
+    if (extLinkEl) extLinkEl.value = current.externalLink || "";
     this.setTicketDateFieldDefaults();
     const dateEl = document.getElementById("form-match-date");
     if (dateEl) dateEl.value = current.watchedDate || "";
@@ -3823,6 +3847,27 @@ class SeatViewApp {
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
+    const extLinkBadgeEl = document.getElementById("modal-seat-external-link");
+    if (extLinkBadgeEl) {
+      // Anonymous posts hide the link too \u2014 a personal blog/SNS is at least
+      // as identifying as a nickname, so showing it would defeat the point
+      // of choosing anonymous. The raw value survives on curImg regardless
+      // (see the dbImages.push comment above) so the owner's own edit form
+      // still gets it back.
+      const platform = !curImg.isAnonymous ? this.detectExternalLinkPlatform(curImg.externalLink) : null;
+      if (platform) {
+        extLinkBadgeEl.href = curImg.externalLink;
+        extLinkBadgeEl.className = `ext-link-badge ${platform}`;
+        const label = platform === "naver" ? "\uBE14\uB85C\uADF8" : "\uC778\uC2A4\uD0C0\uADF8\uB7A8";
+        // A colored text pill alone doesn't read as clickable \u2014 the icon is
+        // what actually signals "this leads somewhere else".
+        extLinkBadgeEl.innerHTML = `${label} <i data-lucide="external-link" style="width: 9px; height: 9px;"></i>`;
+        extLinkBadgeEl.style.display = "inline-flex";
+        lucide.createIcons();
+      } else {
+        extLinkBadgeEl.style.display = "none";
+      }
+    }
     const verifiedBadgeEl = document.getElementById("modal-seat-verified-badge");
     if (verifiedBadgeEl) verifiedBadgeEl.style.display = curImg.isTicketVerified ? "block" : "none";
     if (dateEl) {
@@ -4286,7 +4331,7 @@ class SeatViewApp {
           ins_dtm: r.ins_dtm,
           stadiumName: venueRow ? venueRow.name : "기타 공연장",
           blockName: blockRow ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "구역" : "")) : "구역 정보 없음",
-          seatName: seatRow ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : "좌석 정보 없음",
+          seatName: this.formatSeatName(seatRow, !!(seatRow && seatRow.is_disabled_seat)),
           comment: r.content,
           image: r.image_urls && r.image_urls.length > 0 ? r.image_urls[0] : "",
           images: r.image_urls || [],
@@ -4876,6 +4921,48 @@ class SeatViewApp {
     }
   }
 
+  // Only these two platforms are allowed — driving traffic to the poster's
+  // own blog/SNS is the whole point, but an open-ended URL field would let
+  // anyone link anywhere, so it's restricted to domains we can label with
+  // confidence in the UI (see ext-link-badge below).
+  normalizeExternalLink(raw) {
+    const v = (raw || "").trim();
+    if (!v) return "";
+    return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  }
+
+  // Wheelchair spaces are often a marked area rather than a numbered seat,
+  // so seat_num can be null — showing that raw renders as the literal
+  // string "null번" (see openSeatDetail's own inline version of this same
+  // logic, kept separate there since it also folds in the per-floor
+  // showRowNum check).
+  formatSeatName(seatRow, isWheelchairSeat, showRowNum = true) {
+    if (!seatRow) return "좌석 정보 없음";
+    const hasSeatNum = seatRow.seat_num !== null && seatRow.seat_num !== undefined && seatRow.seat_num !== "";
+    if (!hasSeatNum) {
+      return isWheelchairSeat
+        ? (showRowNum ? `${seatRow.row_num}열 장애인석` : "장애인석")
+        : (showRowNum ? `${seatRow.row_num}열` : "좌석 정보 없음");
+    }
+    let name = showRowNum ? `${seatRow.row_num}열 ${seatRow.seat_num}번` : `${seatRow.seat_num}번`;
+    if (isWheelchairSeat) name += " (장애인석)";
+    return name;
+  }
+
+  detectExternalLinkPlatform(url) {
+    if (!url) return null;
+    try {
+      // Naver's mobile blog links come from m.blog.naver.com, not just the
+      // bare domain — strip a leading www./m. the same way so both work.
+      const host = new URL(url).hostname.replace(/^(www\.|m\.)/i, "").toLowerCase();
+      if (host === "blog.naver.com") return "naver";
+      if (host === "instagram.com") return "instagram";
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async saveNewTicket(e) {
     e.preventDefault();
     const isMusical = state.activeModalCategory === "musical";
@@ -4948,6 +5035,21 @@ class SeatViewApp {
     const nickToggleEl = document.getElementById("form-show-nickname-toggle");
     const isAnonymous = nickToggleEl ? !nickToggleEl.checked : false;
 
+    const externalLinkRaw = document.getElementById("form-external-link").value.trim();
+    let externalLinkVal = null;
+    if (externalLinkRaw) {
+      const normalizedLink = this.normalizeExternalLink(externalLinkRaw);
+      if (!this.detectExternalLinkPlatform(normalizedLink)) {
+        await this.showAlertDialog("링크 오류", "네이버 블로그(blog.naver.com) 또는 인스타그램(instagram.com) 링크만 등록할 수 있어요.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+        return;
+      }
+      externalLinkVal = normalizedLink;
+    }
+
     // Upload any not-yet-uploaded photos to Storage now that the user has
     // actually confirmed the submission (existing/already-hosted photos in
     // an edit pass straight through unchanged).
@@ -4998,6 +5100,7 @@ class SeatViewApp {
           image_urls: finalImagesList,
           content: commentVal,
           is_anonymous: isAnonymous,
+          external_link: externalLinkVal,
           watched_date: dateVal || null,
           is_ticket_verified: !!state.ticketVerified,
           mod_dtm: new Date().toISOString()
@@ -5119,8 +5222,8 @@ class SeatViewApp {
         // still-true flag.
         const isTicketVerified = !!state.ticketVerified;
         const insertPayload = isMusical
-          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null }
-          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, watched_date: dateVal || null };
+          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null }
+          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null };
 
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
@@ -5815,7 +5918,7 @@ class SeatViewApp {
         category,
         realSeatId: seatMatch.id,
         blockName: blockMatch.full_name || blockMatch.block_code,
-        seatName: `${seatMatch.row_num}열 ${seatMatch.seat_num}번`,
+        seatName: this.formatSeatName(seatMatch, !!seatMatch.is_disabled_seat),
         watchedDate: data.date || null
       };
     } catch (e) {
@@ -5866,7 +5969,7 @@ class SeatViewApp {
       category,
       realSeatId: seatMatch.id,
       blockName: (blockMatch && (blockMatch.full_name || blockMatch.block_code)) || "",
-      seatName: `${seatMatch.row_num}열 ${seatMatch.seat_num}번`,
+      seatName: this.formatSeatName(seatMatch, !!seatMatch.is_disabled_seat),
       watchedDate: data.date || null
     };
   }
@@ -6548,7 +6651,7 @@ class SeatViewApp {
     const descEl = document.getElementById("coming-soon-desc");
     if (titleEl) titleEl.textContent = "시야 정보 준비 중입니다";
     if (descEl) {
-      descEl.innerHTML = `${itemName}은(는) 아직 좌석 시야 데이터를<br>준비하고 있어요. 조금만 기다려 주세요!`;
+      descEl.innerHTML = `${itemName}은(는)<br>아직 좌석 시야 데이터를 준비하고 있어요.<br>조금만 기다려 주세요!`;
     }
     this.openModal("modal-coming-soon");
   }
