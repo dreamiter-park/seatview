@@ -18,6 +18,12 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
   }
 }
 
+// --- Kakao SDK Config (카카오톡 공유용, 로그인과는 별개) ---
+const KAKAO_JS_KEY = '5b5835750aff0f479c11ff8a1c15b7e5';
+if (window.Kakao && !Kakao.isInitialized()) {
+  Kakao.init(KAKAO_JS_KEY);
+}
+
 // --- 1. Seed & Mock Database ---
 let STADIUMS_DB = [];
 let VENUES_DB = [];
@@ -487,6 +493,9 @@ const state = {
   // history.back() can land somewhere unexpected instead of the screen the
   // user actually came from within the app.
   viewHistory: [],
+  // Per-venue back stack of floor tabs visited, for handleHeaderBack() —
+  // reset each time a venue is opened (see loadVenueDetail).
+  venueFloorHistory: [],
   selectedStadium: null,
   selectedBlock: null,
   selectedGradeFilter: "all", // Seat grade filter state (all, premium, table, etc.)
@@ -536,7 +545,13 @@ class SeatViewApp {
       this.renderStadiumList();
       this.checkUserSession();
     });
-    this.loadVenues().then(() => this.renderVenueList());
+    this.loadVenues().then(() => {
+      this.renderVenueList();
+      // Deep-link support for shareVenue()'s links (?venue=<id>) — jump
+      // straight into that venue once the list it needs is loaded.
+      const sharedVenueId = new URLSearchParams(window.location.search).get("venue");
+      if (sharedVenueId) this.loadVenueDetail(sharedVenueId);
+    });
     this.loadShoppingAds().then(() => {
       this.renderStadiumList();
       this.renderVenueList();
@@ -558,6 +573,10 @@ class SeatViewApp {
 
     // Setup Event Listeners
     this.setupListeners();
+
+    // Show the event popup after setupListeners() has established the base
+    // history.state (so this modal's pushState lands on top of it, not before).
+    this.maybeShowEventPopup();
 
     // Initialize profile values from localStorage
     const savedStadium = localStorage.getItem("seatview_favorite_stadium") || null;
@@ -886,11 +905,19 @@ class SeatViewApp {
       if (activeModals.length > 0) {
         const lastModal = activeModals[activeModals.length - 1];
         this.closeModal(lastModal.id, true);
-        return;
+        // A modal opened with pushHistory=false (see openModal) never had
+        // its own back-stop, so this popstate is really about whatever's
+        // underneath it — fall through instead of eating the back-press.
+        // Modals that DO own an entry still stop here as before.
+        if (lastModal.dataset.ownsHistory !== "false") return;
       }
 
-      // 2. Otherwise, navigate views
+      // 2. Otherwise, navigate views (or restore a venue floor tab)
       const stateObj = e.state;
+      if (stateObj && typeof stateObj.venueFloor !== "undefined") {
+        this.selectVenueFloor(stateObj.venueFloor, { pushHistory: false });
+        return;
+      }
       if (stateObj && stateObj.view) {
         this.navigateTo(stateObj.view, false);
       }
@@ -1193,6 +1220,17 @@ class SeatViewApp {
     if (activeModals.length > 0) {
       const lastModal = activeModals[activeModals.length - 1];
       this.closeModal(lastModal.id);
+      // A modal opened with pushHistory=false doesn't own a back-stop (see
+      // openModal/selectVenueFloor): fall through so this same tap can also
+      // step back a floor tab. Modals that DO own an entry stop here as before.
+      if (lastModal.dataset.ownsHistory !== "false") return;
+    }
+
+    // If we're on venue-detail and have switched floor tabs, step back one
+    // floor tab before leaving the venue entirely.
+    if (state.currentView === "venue-detail" && (state.venueFloorHistory || []).length > 0) {
+      const previousFloor = state.venueFloorHistory.pop();
+      this.selectVenueFloor(previousFloor, { pushHistory: false });
       return;
     }
 
@@ -1582,6 +1620,7 @@ class SeatViewApp {
       const { data, error } = await supabaseClient
         .from('venues')
         .select('*')
+        .eq('is_visible', true)
         .order('display_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true });
       if (!error && data) {
@@ -1652,7 +1691,7 @@ class SeatViewApp {
 
     const trimmed = filterText.trim();
     const venues = trimmed.length >= 2
-      ? VENUES_DB.filter(v => v.name.includes(trimmed))
+      ? VENUES_DB.filter(v => v.name.includes(trimmed) || (v.currentShows || []).some(s => s.includes(trimmed)))
       : VENUES_DB;
 
     if (venues.length === 0) {
@@ -1721,6 +1760,9 @@ class SeatViewApp {
     state.selectedVenue = venue;
     state.selectedVenueFloor = null;
     state.selectedVenueBlock = null;
+    // Fresh per-venue back stack for handleHeaderBack()'s floor-tab
+    // navigation (see selectVenueFloor()).
+    state.venueFloorHistory = [];
 
     const nameEl = document.getElementById("venue-detail-name");
     const locEl = document.getElementById("venue-detail-location");
@@ -1800,6 +1842,84 @@ class SeatViewApp {
     }
   }
 
+  maybeShowEventPopup() {
+    const hideUntil = Number(localStorage.getItem("seatview_event_popup_hide_until") || 0);
+    if (Date.now() < hideUntil) return;
+    // pushHistory=false — this shows on every fresh load regardless of what
+    // view/deep-link is underneath, so it must not insert its own back-stop
+    // (same reasoning as modal-seat-detail in openSeatDetail): a real user
+    // closing it and later pressing back would otherwise hit one extra
+    // "nothing visibly happens" back-press before the real navigation.
+    this.openModal("modal-event-popup", false);
+  }
+
+  closeEventPopup() {
+    // The "3일간 다시 보지 않기" checkbox is actually read inside closeModal()
+    // itself, so it's honored no matter which path closes this modal (this
+    // button, the backdrop, the header "<" button, or a real back-press).
+    this.closeModal("modal-event-popup");
+  }
+
+  // Opens the share picker for the current venue (?venue=<id>, picked up
+  // by init()'s deep-link check).
+  shareVenue() {
+    const venue = state.selectedVenue;
+    if (!venue) return;
+    const url = `${window.location.origin}${window.location.pathname}?venue=${venue.id}`;
+    const urlInput = document.getElementById("share-modal-url");
+    if (urlInput) urlInput.value = url;
+    this.openModal("modal-venue-share");
+  }
+
+  shareToChannel(channel) {
+    const venue = state.selectedVenue;
+    if (!venue) return;
+    const url = `${window.location.origin}${window.location.pathname}?venue=${venue.id}`;
+    const text = `${venue.name} 좌석 시야 확인하러 가기`;
+
+    if (channel === "facebook") {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
+    } else if (channel === "x") {
+      window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, "_blank");
+    } else if (channel === "band") {
+      window.open(`https://band.us/plugin/share?body=${encodeURIComponent(text + " " + url)}&route=${encodeURIComponent(url)}`, "_blank");
+    } else if (channel === "kakao") {
+      if (!window.Kakao || !Kakao.isInitialized()) {
+        this.copyShareLink();
+        return;
+      }
+      // venue.bg is already the venue's bg_image_url (falls back to a local
+      // asset path, which Kakao's servers can't fetch — needs to be absolute).
+      const imageUrl = (venue.bg && /^https?:\/\//i.test(venue.bg))
+        ? venue.bg
+        : `${window.location.origin}/assets/musical_stage.jpg`;
+      Kakao.Share.sendDefault({
+        objectType: "feed",
+        content: {
+          title: venue.name,
+          description: text,
+          imageUrl,
+          link: { mobileWebUrl: url, webUrl: url },
+        },
+        buttons: [
+          {
+            title: "좌석 시야 보러 가기",
+            link: { mobileWebUrl: url, webUrl: url },
+          },
+        ],
+      });
+    }
+  }
+
+  copyShareLink() {
+    const urlInput = document.getElementById("share-modal-url");
+    const url = urlInput ? urlInput.value : "";
+    if (!url || !navigator.clipboard) return;
+    navigator.clipboard.writeText(url)
+      .then(() => this.showToast("🔗", "링크가 복사되었습니다"))
+      .catch(() => this.showToast("⚠️", "링크 복사에 실패했습니다"));
+  }
+
   // STEP 1: floor pills, derived from whatever floors this venue's blocks
   // actually span (no hardcoded floor count).
   renderVenueFloorFilterBar(blocks) {
@@ -1820,16 +1940,35 @@ class SeatViewApp {
     // floor before seeing anything — falls back to whichever floor sorts
     // first if this venue doesn't have a 1층 at all.
     const defaultFloor = floors.includes(1) ? 1 : floors[0];
-    this.selectVenueFloor(defaultFloor);
+    this.selectVenueFloor(defaultFloor, { isInitial: true });
   }
 
-  selectVenueFloor(floor) {
+  // pushHistory=false is used when restoring a floor from a back-navigation
+  // (browser popstate or the header "<" button) so restoring doesn't itself
+  // push a new entry. isInitial=true is used only for the very first
+  // auto-selected floor on entering a venue — it replaces the venue-detail
+  // history entry (adding venueFloor to it) instead of pushing a new one,
+  // so the FIRST back-press out of a floor tab lands on that base entry
+  // rather than leaving the venue outright.
+  selectVenueFloor(floor, { pushHistory = true, isInitial = false } = {}) {
+    const previousFloor = state.selectedVenueFloor;
     state.selectedVenueFloor = floor;
     document.querySelectorAll("#venue-floor-filter-bar .grade-pill").forEach(btn => {
       btn.classList.toggle("active", Number(btn.dataset.floor) === Number(floor));
     });
     this.updateVenueStepVisibility();
     this.renderVenueFloorGrid(floor);
+
+    if (!pushHistory) return;
+
+    if (isInitial) {
+      history.replaceState({ view: "venue-detail", venueFloor: floor }, "", "#venue-detail");
+    } else {
+      if (previousFloor !== null && previousFloor !== undefined && previousFloor !== floor) {
+        (state.venueFloorHistory = state.venueFloorHistory || []).push(previousFloor);
+      }
+      history.pushState({ view: "venue-detail", venueFloor: floor }, "", "#venue-detail");
+    }
   }
 
   // Replaces the old STEP2(구역 선택)/STEP3(좌석 선택) pair — picking a
@@ -3684,7 +3823,10 @@ class SeatViewApp {
     if (deleteBtn) deleteBtn.style.display = withinWindow ? "flex" : "none";
     if (expiredNoteEl) expiredNoteEl.style.display = (ownMode && !withinWindow) ? "block" : "none";
 
-    this.openModal("modal-seat-detail");
+    // pushHistory=false — this modal doesn't get its own back-stop (see
+    // selectVenueFloor()'s comment): opening it shouldn't eat a back-press
+    // that's really about which floor tab you were on.
+    this.openModal("modal-seat-detail", false);
   }
 
   // Both 3-day windows share the same rule, so this checks whichever
@@ -6238,20 +6380,28 @@ class SeatViewApp {
     this.showAlertDialog(
       "시야 등록 정책 및 유의사항",
       "• 등록 후 3일이 지난 시야 사진 및 관람평은 서비스 특성상 직접 삭제할 수 없으며, 회원 탈퇴 시에도 다른 이용자들을 위해 삭제되지 않고 유지될 수 있습니다.\n\n" +
+      "• 사진은 반드시 카메라 1배 줌(확대하지 않은 상태)으로 촬영해 주세요. 확대 촬영 시 실제 좌석에서 보이는 시야와 다르게 표시되어, 1배 줌이 아닌 사진은 삭제될 수 있습니다.\n\n" +
       "• 좌석 시야와 무관하거나 부적절한 사진이 등록된 경우, 운영자가 임의로 삭제하거나 노출을 제한할 수 있습니다.\n\n" +
       "• 사진에 타인의 얼굴이 포함된 경우, 초상권 보호를 위해 모자이크 처리 등 식별이 어렵게 조치해 주세요."
     );
   }
 
   // --- Modal Helpers ---
-  openModal(modalId) {
+  openModal(modalId, pushHistory = true) {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.classList.add("active");
       document.body.classList.add("modal-open");
-      
+
+      // Tag whether this open owns a history entry, so popstate/back-button
+      // handling (below, and in handleHeaderBack) can tell apart "closing
+      // this modal IS the back-navigation" from "this modal never had its
+      // own back-stop, so the back-press is really about whatever's
+      // underneath" — without hardcoding which modal ids behave which way.
+      modal.dataset.ownsHistory = pushHistory ? "true" : "false";
+
       // Push history state so back button closes it (Requirement 15)
-      if (!history.state || history.state.modalId !== modalId) {
+      if (pushHistory && (!history.state || history.state.modalId !== modalId)) {
         history.pushState({ modalId: modalId, view: state.currentView }, "", "#" + modalId);
       }
     }
@@ -6260,8 +6410,32 @@ class SeatViewApp {
   closeModal(modalId, triggeredByPopState = false) {
     const modal = document.getElementById(modalId);
     if (modal) {
+      // A "!" field tooltip is a fixed-position bubble appended to <body>,
+      // outside the modal's own DOM — closing the modal doesn't remove it,
+      // so it was left floating on screen over whatever's underneath.
+      const tooltipBubble = document.getElementById("field-tooltip-bubble");
+      if (tooltipBubble) {
+        tooltipBubble.remove();
+        if (this._fieldTooltipDismissHandler) {
+          document.removeEventListener("click", this._fieldTooltipDismissHandler, true);
+          this._fieldTooltipDismissHandler = null;
+        }
+      }
+
+      // The event popup's "3일간 다시 보지 않기" checkbox has to be read
+      // HERE, not only in closeEventPopup() — this modal doesn't own a
+      // history entry (see openModal), so a real back-press or the header
+      // "<" button closes it by calling closeModal() directly, skipping
+      // closeEventPopup() entirely. Checking here covers every close path.
+      if (modalId === "modal-event-popup") {
+        const checkbox = document.getElementById("event-popup-dontshow-checkbox");
+        if (checkbox && checkbox.checked) {
+          const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+          localStorage.setItem("seatview_event_popup_hide_until", String(Date.now() + THREE_DAYS_MS));
+        }
+      }
       modal.classList.remove("active");
-      
+
       // Check if any other modals are still active
       const activeModals = document.querySelectorAll(".modal.active");
       if (activeModals.length === 0) {
@@ -6741,13 +6915,21 @@ class SeatViewApp {
   // anywhere else to dismiss; only one shows at a time.
   showFieldTooltip(triggerEl, message) {
     const existing = document.getElementById("field-tooltip-bubble");
+    // Clicking the SAME "!" that's already showing its bubble should close
+    // it (a real toggle) rather than tear it down and immediately rebuild
+    // an identical-looking one, which read as "the second click does
+    // nothing." Clicking a DIFFERENT "!" while one is open still just
+    // swaps to the new bubble, same as before.
+    const reopeningSameTrigger = existing && existing._triggerEl === triggerEl;
     if (existing) existing.remove();
     if (this._fieldTooltipDismissHandler) {
       document.removeEventListener("click", this._fieldTooltipDismissHandler, true);
       this._fieldTooltipDismissHandler = null;
     }
+    if (reopeningSameTrigger) return;
 
     const bubble = document.createElement("div");
+    bubble._triggerEl = triggerEl;
     bubble.id = "field-tooltip-bubble";
     bubble.textContent = message;
     bubble.style.cssText = "position:fixed; z-index:4000; max-width:270px; white-space:pre-line; word-break:keep-all; background:#1f2430; color:#f3f4f6; font-size:0.72rem; font-weight:600; line-height:1.5; padding:9px 12px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.08);";

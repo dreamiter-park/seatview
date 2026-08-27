@@ -13,6 +13,9 @@
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8677610464696005"
      crossorigin="anonymous"></script>
 
+  <!-- Kakao JavaScript SDK (카카오톡 공유용) -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.8.2/kakao.min.js"></script>
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>잘보여유 - 좌석별 시야 공유 서비스</title>
@@ -74,7 +77,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.16">
+  <link rel="stylesheet" href="style_v6.css?v=5.23">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -193,7 +196,7 @@
         <section id="view-venues" class="view">
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="venue-search-input">
+            <input type="text" placeholder="공연장 또는 공연명 검색 (예: 세종, 라이프 오브 파이)" id="venue-search-input">
           </div>
 
           <div class="stadium-grid" id="venue-grid-container">
@@ -213,6 +216,9 @@
         <section id="view-venue-detail" class="view">
           <div class="stadium-detail-profile" id="detail-venue-banner">
             <div class="profile-overlay"></div>
+            <button class="venue-share-btn" onclick="app.shareVenue()" aria-label="공유하기">
+              <i data-lucide="share-2"></i>
+            </button>
             <div class="profile-info">
               <span class="stadium-badge" id="venue-detail-shows" style="display: none;">작품명</span>
               <h3 id="venue-detail-name">공연장 이름</h3>
@@ -760,6 +766,111 @@
         </div>
       </div>
 
+      <!-- 공유하기 팝업 (shareVenue()에서 열림) -->
+      <div class="modal" id="modal-venue-share">
+        <div class="modal-backdrop" onclick="app.closeModal('modal-venue-share')"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">공유하기</h3>
+            <button class="close-btn" onclick="app.closeModal('modal-venue-share')" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="share-icon-row">
+              <button class="share-channel-btn" onclick="app.shareToChannel('kakao')">
+                <span class="share-channel-icon kakao"><i data-lucide="message-circle"></i></span>
+                <span>카카오톡</span>
+              </button>
+              <button class="share-channel-btn" onclick="app.shareToChannel('facebook')">
+                <span class="share-channel-icon facebook">f</span>
+                <span>페이스북</span>
+              </button>
+              <button class="share-channel-btn" onclick="app.shareToChannel('x')">
+                <span class="share-channel-icon x">X</span>
+                <span>엑스</span>
+              </button>
+              <button class="share-channel-btn" onclick="app.shareToChannel('band')">
+                <span class="share-channel-icon band">B</span>
+                <span>밴드</span>
+              </button>
+            </div>
+            <div class="share-link-row">
+              <input type="text" id="share-modal-url" readonly>
+              <button class="btn btn-secondary" onclick="app.copyShareLink()">복사</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이벤트 팝업 (메인 진입 시 자동으로 뜸, init()의 maybeShowEventPopup()) -->
+      <div class="modal modal-center" id="modal-event-popup">
+        <div class="modal-backdrop" onclick="app.closeEventPopup()"></div>
+        <div class="modal-content event-popup-content">
+          <button class="close-btn event-popup-close-btn" onclick="app.closeEventPopup()" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+          <div class="event-popup-body">
+            <div style="text-align: center;">
+              <span class="event-popup-badge">EVENT</span>
+              <h3 class="event-popup-title">내가 앉은 좌석 시야 공유하고<br><span>뮤지컬 VIP석</span> 보러 가자!</h3>
+              <p class="event-popup-subtitle">시야 사진 등록하면 추첨으로 선물을 드려요</p>
+            </div>
+
+            <div class="event-popup-prizes">
+              <div class="event-popup-prize-item event-popup-prize-1">
+                <span class="event-popup-rank">🥇 1등 (1명)</span>
+                <span class="event-popup-gift">뮤지컬 VIP석 티켓 (2매)</span>
+              </div>
+              <div class="event-popup-prize-item">
+                <span class="event-popup-rank">🥈 2등 (3명)</span>
+                <span class="event-popup-gift">대학로 연극 티켓 (2매)</span>
+              </div>
+              <div class="event-popup-prize-item">
+                <span class="event-popup-rank">🥉 3등 (5명)</span>
+                <span class="event-popup-gift">CGV 영화 티켓 (2매)</span>
+              </div>
+              <div class="event-popup-prize-item">
+                <span class="event-popup-rank">☕ 4등 (20명)</span>
+                <span class="event-popup-gift">스타벅스 아메리카노</span>
+              </div>
+            </div>
+            <p class="event-popup-fineprint">* 구체적인 공연명·관람일은 당첨자 발표 후 개별 안내되며, 실제 가액은 선정 공연에 따라 달라질 수 있습니다.</p>
+
+            <div class="event-popup-info">
+              <div><strong>📅 참여 기간 :</strong> 2026.08.25(화) ~ 09.30(수)</div>
+              <div><strong>👤 참여 대상 :</strong> 회원 누구나 (1인 최대 5회 응모)</div>
+              <div><strong>🎲 당첨자 선정 :</strong> 무작위 추첨 (부적절한 사진은 제외)</div>
+              <div><strong>📢 당첨 발표 :</strong> 2026.10.02(금) 홈페이지 공지</div>
+              <div><strong>📩 경품 지급 :</strong> 가입 이메일로 모바일 교환권 발송</div>
+            </div>
+
+            <div class="event-popup-info event-popup-privacy">
+              <span class="event-popup-privacy-title">🔒 경품 발송 안내</span>
+              <div>경품은 이벤트를 위해 별도로 수집하는 개인정보 없이, 가입 시 등록하신 계정 이메일로 발송됩니다.</div>
+              <div style="margin-top: 6px;">자세한 내용은 <a href="event-terms.html" target="_blank">이벤트 참여규정</a>을 확인해주세요.</div>
+            </div>
+
+            <div class="event-popup-notice">
+              • 동일 사진 중복 등록 불가 / 도용 사진 적발 시 당첨 취소<br>
+              • 빈 무대 또는 커튼콜 등 촬영 허용 시간 사진만 인정<br>
+              • 카메라 1배 줌(확대하지 않은 상태)으로 촬영한 사진만 인정되며, 확대 촬영 시 응모에서 제외될 수 있습니다.<br>
+              • 등록된 사진은 서비스 좌석 정보 및 홍보용으로 활용됩니다.<br>
+              • 제세공과금(기타소득세 등)은 당첨자 부담을 원칙으로 합니다.<br>
+              • 본 이벤트는 회사 사정에 따라 사전 고지 없이 변경되거나 조기 종료될 수 있습니다.<br>
+              • 문의: j2mi.help@gmail.com
+            </div>
+
+            <button class="btn btn-secondary event-popup-cta" onclick="app.closeEventPopup()">닫기</button>
+
+            <label class="event-popup-dontshow">
+              <input type="checkbox" id="event-popup-dontshow-checkbox">
+              <span>3일간 다시 보지 않기</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- F0. OCR Ticket Scan — Category/Venue Picker (헤더 카메라 버튼용).
            보류 중 (정확도 문제로 관리자 승인 방식으로 전환) — 통째로 주석처리,
            나중에 다시 켤 수 있게 그대로 남겨둠.
@@ -960,7 +1071,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.71"></script>
+  <script src="app_v6.js?v=8.82"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
