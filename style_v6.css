@@ -1366,6 +1366,13 @@ img {
   display: block;
 }
 
+.event-popup-notice-title {
+  font-weight: 700;
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
 .event-popup-notice {
   font-size: 0.65rem;
   color: var(--text-muted);
@@ -1373,29 +1380,35 @@ img {
   margin-bottom: 18px;
 }
 
-.event-popup-cta {
-  width: 100%;
-  justify-content: center;
-  font-size: 0.9rem;
-  padding: 13px 0;
-  margin-bottom: 12px;
+.event-popup-notice a {
+  color: #a5b4fc;
 }
 
-.event-popup-dontshow {
+.event-popup-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  gap: 10px;
+}
+
+.event-popup-hide3d-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
+  padding: 13px 4px;
   -webkit-tap-highlight-color: transparent;
 }
 
-.event-popup-dontshow input {
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
+.event-popup-cta {
+  flex: 1;
+  justify-content: center;
+  font-size: 0.9rem;
+  padding: 13px 0;
+  margin-bottom: 0;
 }
 
 .stadium-badge {
@@ -3580,6 +3593,13 @@ img {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 4px;
+}
+
+/* Venue floor-filter bar only (not baseball's grade-filter, which also uses
+   .grade-filter-bar) — widen to 4 columns so exactly 4 floors sit on one
+   row instead of wrapping a lonely 4th pill onto its own line. */
+#venue-floor-filter-bar.floor-count-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 /* Step Cards style */

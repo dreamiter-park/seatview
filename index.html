@@ -77,7 +77,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="style_v6.css?v=5.23">
+  <link rel="stylesheet" href="style_v6.css?v=5.27">
   <link rel="stylesheet" href="map_style.css?v=2.2">
 </head>
 <body>
@@ -183,13 +183,10 @@
             <!-- Dynamically populated -->
           </div>
 
-          <!-- Kakao AdFit Banner (stadium list bottom) -->
-          <div style="display: flex; justify-content: center; margin-top: 16px;">
-            <ins id="ad-stadiums-list" class="kakao_ad_area" style="display:none;"
-            data-ad-unit = "DAN-j8zQm1KA9FEGWPIx"
-            data-ad-width = "320"
-            data-ad-height = "50"></ins>
-          </div>
+          <!-- Kakao AdFit Banner (stadium list bottom) — the actual <ins> is
+               injected by app.js the first time this view becomes visible;
+               see injectKakaoAd()'s comment for why. -->
+          <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadiums-list"></div>
         </section>
 
         <!-- 2b. VENUE (공연장) LIST VIEW -->
@@ -203,13 +200,8 @@
             <!-- Dynamically populated -->
           </div>
 
-          <!-- Kakao AdFit Banner (venue list bottom) -->
-          <div style="display: flex; justify-content: center; margin-top: 16px;">
-            <ins id="ad-venues-list" class="kakao_ad_area" style="display:none;"
-            data-ad-unit = "DAN-K9xdpROiUJHnjpww"
-            data-ad-width = "320"
-            data-ad-height = "50"></ins>
-          </div>
+          <!-- Kakao AdFit Banner (venue list bottom) — see injectKakaoAd() -->
+          <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-venues-list"></div>
         </section>
 
         <!-- 2c. VENUE DETAIL VIEW -->
@@ -278,13 +270,8 @@
               </div>
             </div>
 
-            <!-- Kakao AdFit Banner (venue detail, below the seat map) -->
-            <div style="display: flex; justify-content: center; margin-top: 16px;">
-              <ins id="ad-venue-detail" class="kakao_ad_area" style="display:none;"
-              data-ad-unit = "DAN-k3EmMkFGoCwuNZzq"
-              data-ad-width = "320"
-              data-ad-height = "50"></ins>
-            </div>
+            <!-- Kakao AdFit Banner (venue detail, below the seat map) — see injectKakaoAd() -->
+            <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-venue-detail"></div>
           </div>
 
           <!-- Tab Content: Venue Info -->
@@ -749,23 +736,6 @@
         </div>
       </div>
 
-      <!-- D. Profile / Login Simulator Modal -->
-      <div class="modal" id="modal-profile">
-        <div class="modal-backdrop" onclick="app.closeModal('modal-profile')"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3 class="modal-title">잘보여유 회원 서비스</h3>
-            <button class="close-btn" onclick="app.closeModal('modal-profile')" aria-label="Close">
-              <i data-lucide="x"></i>
-            </button>
-          </div>
-          
-          <div class="modal-body" id="profile-modal-body">
-            <!-- Populated dynamically by app.js based on login state -->
-          </div>
-        </div>
-      </div>
-
       <!-- 공유하기 팝업 (shareVenue()에서 열림) -->
       <div class="modal" id="modal-venue-share">
         <div class="modal-backdrop" onclick="app.closeModal('modal-venue-share')"></div>
@@ -810,7 +780,7 @@
           <button class="close-btn event-popup-close-btn" onclick="app.closeEventPopup()" aria-label="Close">
             <i data-lucide="x"></i>
           </button>
-          <div class="event-popup-body">
+          <div class="event-popup-body" data-nosnippet>
             <div style="text-align: center;">
               <span class="event-popup-badge">EVENT</span>
               <h3 class="event-popup-title">내가 앉은 좌석 시야 공유하고<br><span>뮤지컬 VIP석</span> 보러 가자!</h3>
@@ -845,28 +815,22 @@
               <div><strong>📩 경품 지급 :</strong> 가입 이메일로 모바일 교환권 발송</div>
             </div>
 
-            <div class="event-popup-info event-popup-privacy">
-              <span class="event-popup-privacy-title">🔒 경품 발송 안내</span>
-              <div>경품은 이벤트를 위해 별도로 수집하는 개인정보 없이, 가입 시 등록하신 계정 이메일로 발송됩니다.</div>
-              <div style="margin-top: 6px;">자세한 내용은 <a href="event-terms.html" target="_blank">이벤트 참여규정</a>을 확인해주세요.</div>
-            </div>
-
+            <p class="event-popup-notice-title">📋 참고사항</p>
             <div class="event-popup-notice">
-              • 동일 사진 중복 등록 불가 / 도용 사진 적발 시 당첨 취소<br>
-              • 빈 무대 또는 커튼콜 등 촬영 허용 시간 사진만 인정<br>
-              • 카메라 1배 줌(확대하지 않은 상태)으로 촬영한 사진만 인정되며, 확대 촬영 시 응모에서 제외될 수 있습니다.<br>
-              • 등록된 사진은 서비스 좌석 정보 및 홍보용으로 활용됩니다.<br>
+              • 동일 사진의 중복 등록은 불가하며, 도용 사진 적발 시 당첨이 취소됩니다.<br>
+              • 빈 무대 또는 커튼콜 등 촬영이 허용된 시간의 사진만 인정됩니다.<br>
+              • 등록된 사진은 서비스 좌석 정보 및 홍보 목적으로 활용됩니다.<br>
               • 제세공과금(기타소득세 등)은 당첨자 부담을 원칙으로 합니다.<br>
               • 본 이벤트는 회사 사정에 따라 사전 고지 없이 변경되거나 조기 종료될 수 있습니다.<br>
-              • 문의: j2mi.help@gmail.com
+              • 문의: j2mi.help@gmail.com<br>
+              • 자세한 내용은 <a href="event-terms.html" target="_blank">이벤트 참여규정</a>을 확인해주세요.
             </div>
 
-            <button class="btn btn-secondary event-popup-cta" onclick="app.closeEventPopup()">닫기</button>
-
-            <label class="event-popup-dontshow">
-              <input type="checkbox" id="event-popup-dontshow-checkbox">
-              <span>3일간 다시 보지 않기</span>
-            </label>
+            <div class="event-popup-actions">
+              <button type="button" class="event-popup-hide3d-btn" onclick="app.hideEventPopupFor3Days()">3일간 다시 보지 않기</button>
+              <button class="btn btn-secondary event-popup-cta" onclick="app.closeEventPopup()">닫기</button>
+            </div>
+            <input type="checkbox" id="event-popup-dontshow-checkbox" style="display: none;">
           </div>
         </div>
       </div>
@@ -1071,7 +1035,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.82"></script>
+  <script src="app_v6.js?v=8.95"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

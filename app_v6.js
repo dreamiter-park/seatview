@@ -512,10 +512,6 @@ const state = {
   activeModalSeatKey: null,
   isLoggedIn: false, // Login simulation state
   userNickname: "@직관러_홍길동",
-  userStats: {
-    points: 1500,
-    uploads: 3
-  }
 };
 
 // --- 3. App Controller ---
@@ -576,7 +572,11 @@ class SeatViewApp {
 
     // Show the event popup after setupListeners() has established the base
     // history.state (so this modal's pushState lands on top of it, not before).
-    this.maybeShowEventPopup();
+    // Delayed slightly (rather than showing instantly on init) so a search
+    // crawler's rendered-page snapshot is more likely to land on the real
+    // homepage content underneath, not this promo overlay — it was showing
+    // up as the page's search-result description otherwise.
+    setTimeout(() => this.maybeShowEventPopup(), 1500);
 
     // Initialize profile values from localStorage
     const savedStadium = localStorage.getItem("seatview_favorite_stadium") || null;
@@ -1119,6 +1119,22 @@ class SeatViewApp {
 
   // --- Router ---
   navigateTo(viewId, pushHistory = true) {
+    const previousView = state.currentView;
+
+    // A list screen's search box only makes sense to keep filled when the
+    // user is returning to it from the detail screen they drilled into
+    // (e.g. back-button from venue-detail to venues) — landing on it fresh
+    // from anywhere else (home category card, mypage's empty-state link)
+    // should start clean, or a leftover filter from an earlier visit just
+    // looks like the list is missing items with no obvious explanation.
+    if (viewId === "venues" && previousView !== "venue-detail") {
+      const input = document.getElementById("venue-search-input");
+      if (input) input.value = "";
+    } else if (viewId === "stadiums" && previousView !== "stadium-detail") {
+      const input = document.getElementById("stadium-search-input");
+      if (input) input.value = "";
+    }
+
     // Track the app-internal back stack for handleHeaderBack() — only for
     // genuine forward navigations (pushHistory=true means "the app decided
     // to go here", as opposed to popstate replaying a browser history entry).
@@ -1143,6 +1159,15 @@ class SeatViewApp {
       targetView.classList.add("active");
       state.currentView = viewId;
     }
+
+    // Kakao AdFit's script only scans .kakao_ad_area elements that are
+    // already in the DOM (and visible) when it first loads. A slot sitting
+    // inside a view that starts hidden (everything except "main") never
+    // gets picked up, so it silently never shows an ad. Injecting the <ins>
+    // fresh the first time each view actually becomes visible fixes that.
+    if (viewId === "stadiums") this.injectKakaoAd("ad-slot-stadiums-list", "DAN-j8zQm1KA9FEGWPIx");
+    if (viewId === "venues") this.injectKakaoAd("ad-slot-venues-list", "DAN-K9xdpROiUJHnjpww");
+    if (viewId === "venue-detail") this.injectKakaoAd("ad-slot-venue-detail", "DAN-k3EmMkFGoCwuNZzq");
 
     // Update Bottom Navigation state (stadium-detail counts as part of the
     // "시야등록" tab since it's reached by drilling into stadiums)
@@ -1187,7 +1212,12 @@ class SeatViewApp {
       this.renderStadiumList();
       this.reloadKakaoAd("ad-stadiums-list");
     } else if (viewId === "venues") {
-      this.renderVenueList();
+      // Render with whatever the search input currently shows (already
+      // reset or preserved above) instead of always defaulting to
+      // unfiltered — otherwise the grid could show all venues while the
+      // input still displays a leftover search term, or vice versa.
+      const venueSearchInputEl = document.getElementById("venue-search-input");
+      this.renderVenueList(venueSearchInputEl ? venueSearchInputEl.value : "");
       this.reloadKakaoAd("ad-venues-list");
     } else if (viewId === "stadium-detail" && state.selectedBlock) {
       // Re-fetch the seat grid when the back-stack lands us back on a
@@ -1829,7 +1859,9 @@ class SeatViewApp {
     try {
       const { data: blocks, error } = await supabaseClient
         .from('musical_blocks')
-        .select('*')
+        // admin_memo는 어드민 전용 메모라 일반 사용자 화면으로는 절대
+        // 내려가면 안 되므로, select('*') 대신 실제 쓰는 컬럼만 명시한다.
+        .select('id, venue_id, floor, block_code, full_name, total_rows, max_seats, offset_x, offset_y, label_position, show_row_label')
         .eq('venue_id', venue.id)
         .eq('is_visible', true)
         .order('floor', { ascending: true })
@@ -1858,6 +1890,15 @@ class SeatViewApp {
     // itself, so it's honored no matter which path closes this modal (this
     // button, the backdrop, the header "<" button, or a real back-press).
     this.closeModal("modal-event-popup");
+  }
+
+  // The visible "3일간 다시 보지 않기" button just checks the (hidden) checkbox
+  // and closes — reuses the exact same checkbox-read-in-closeModal() logic
+  // as every other close path, instead of duplicating the localStorage write.
+  hideEventPopupFor3Days() {
+    const checkbox = document.getElementById("event-popup-dontshow-checkbox");
+    if (checkbox) checkbox.checked = true;
+    this.closeEventPopup();
   }
 
   // Opens the share picker for the current venue (?venue=<id>, picked up
@@ -1935,6 +1976,13 @@ class SeatViewApp {
     container.innerHTML = floors.map(floor => `
       <button class="grade-pill" onclick="app.selectVenueFloor(${floor})" data-floor="${floor}">${floor}층</button>
     `).join("");
+
+    // The bar's default grid is fixed at 3 columns (matches the common case
+    // and is shared with the baseball grade-filter's own use of this class),
+    // so a 4th floor pill wraps onto a lonely second row. Widen to 4 columns
+    // only for the specific case of exactly 4 floors — 1–3 already fit fine
+    // as-is, and 5+ isn't a real venue shape we need to design for yet.
+    container.classList.toggle("floor-count-4", floors.length === 4);
 
     // Default to 1층 whenever it exists, instead of making the user tap a
     // floor before seeing anything — falls back to whichever floor sorts
@@ -3510,7 +3558,7 @@ class SeatViewApp {
         isWheelchairSeat = !!(seatRow && seatRow.is_disabled_seat);
         let blockRow = null, venueRow = null;
         if (seatRow) {
-          const { data: bRow } = await supabaseClient.from('musical_blocks').select('*').eq('id', seatRow.block_id).single();
+          const { data: bRow } = await supabaseClient.from('musical_blocks').select('id, venue_id, floor, block_code, full_name, total_rows, max_seats, offset_x, offset_y, label_position, show_row_label').eq('id', seatRow.block_id).single();
           blockRow = bRow;
           if (blockRow) {
             const { data: vRow } = await supabaseClient.from('venues').select('*').eq('id', blockRow.venue_id).single();
@@ -3728,14 +3776,23 @@ class SeatViewApp {
             });
           });
 
-          // \uC6B0\uC120\uC21C\uC704: \uC778\uC99D\uB428 > \uCD5C\uADFC\uAD00\uB78C\uC77C > \uCD5C\uADFC\uB4F1\uB85D\uC77C > \uB2C9\uB124\uC784 \uC788\uC74C > \uB2C9\uB124\uC784 \uBE44\uACF5\uAC1C.
+          // \uC6B0\uC120\uC21C\uC704: \uC778\uC99D\uB428 > (\uAD00\uB78C\uC77C\uC774 \uC62C\uD574~\uC791\uB144\uC778 \uAC83 \uBA3C\uC800, \uADF8 \uC548\uC5D0\uC11C\uB294 \uAD00\uB78C\uC77C
+          // \uCD5C\uC2E0\uC21C) > \uCD5C\uADFC\uB4F1\uB85D\uC77C > \uB2C9\uB124\uC784 \uC788\uC74C > \uB2C9\uB124\uC784 \uBE44\uACF5\uAC1C.
+          // \uAD00\uB78C\uC77C\uC774 \uB108\uBB34 \uC608\uC804\uC774\uAC70\uB098 \uC544\uC608 \uC5C6\uC73C\uBA74 \uAD00\uB78C\uC77C \uB300\uC2E0 \uB4F1\uB85D\uC77C\uB85C \uC904\uC744 \uC138\uC6CC\uC11C,
+          // \uC624\uB798\uB41C \uAD00\uB78C\uC77C \uD558\uB098\uAC00 \uCD5C\uADFC\uC5D0 \uC62C\uB77C\uC628 \uAE00\uB4E4\uBCF4\uB2E4 \uD56D\uC0C1 \uC55E\uC11C\uB294 \uAC78 \uB9C9\uB294\uB2E4.
+          // \uC778\uC99D \uC5EC\uBD80\uC640 \uBB34\uAD00\uD558\uAC8C \uB450 \uADF8\uB8F9 \uBAA8\uB450 \uAC19\uC740 \uADDC\uCE59\uC744 \uC801\uC6A9\uD574 \uC77C\uAD00\uC131\uC744 \uC720\uC9C0.
+          const recentWatchedCutoff = `${new Date().getFullYear() - 1}-01-01`;
+          const isRecentWatched = (d) => !!d && d >= recentWatchedCutoff;
           // A review's multiple photos share the same sort keys, so a
           // stable sort keeps them adjacent in their original order.
           dbImages.sort((a, b) => {
             if (a.isTicketVerified !== b.isTicketVerified) return a.isTicketVerified ? -1 : 1;
-            const aWatched = a.watchedDate || "";
-            const bWatched = b.watchedDate || "";
-            if (aWatched !== bWatched) return aWatched > bWatched ? -1 : 1;
+            const aRecent = isRecentWatched(a.watchedDate);
+            const bRecent = isRecentWatched(b.watchedDate);
+            if (aRecent !== bRecent) return aRecent ? -1 : 1;
+            if (aRecent) {
+              if (a.watchedDate !== b.watchedDate) return a.watchedDate > b.watchedDate ? -1 : 1;
+            }
             const aIns = a.insDtm || "";
             const bIns = b.insDtm || "";
             if (aIns !== bIns) return aIns > bIns ? -1 : 1;
@@ -3823,10 +3880,12 @@ class SeatViewApp {
     if (deleteBtn) deleteBtn.style.display = withinWindow ? "flex" : "none";
     if (expiredNoteEl) expiredNoteEl.style.display = (ownMode && !withinWindow) ? "block" : "none";
 
-    // pushHistory=false — this modal doesn't get its own back-stop (see
-    // selectVenueFloor()'s comment): opening it shouldn't eat a back-press
-    // that's really about which floor tab you were on.
-    this.openModal("modal-seat-detail", false);
+    // Owns its own back-stop like any normal modal: from the bottom sheet,
+    // back closes it and reveals venue-detail underneath; from venue-detail
+    // itself (sheet already closed), back leaves the venue. Floor-tab
+    // history (selectVenueFloor) is tracked independently and still works
+    // underneath this — the two aren't mutually exclusive.
+    this.openModal("modal-seat-detail");
   }
 
   // Both 3-day windows share the same rule, so this checks whichever
@@ -4451,7 +4510,7 @@ class SeatViewApp {
 
         const blockIds = [...new Set((seatRows || []).map(s => s.block_id).filter(id => id != null))];
         if (blockIds.length > 0) {
-          const { data: blockRows } = await supabaseClient.from('musical_blocks').select('*').in('id', blockIds);
+          const { data: blockRows } = await supabaseClient.from('musical_blocks').select('id, venue_id, floor, block_code, full_name, total_rows, max_seats, offset_x, offset_y, label_position, show_row_label').in('id', blockIds);
           (blockRows || []).forEach(b => { blocksById[b.id] = b; });
 
           const venueIds = [...new Set((blockRows || []).map(b => b.venue_id).filter(id => id != null))];
@@ -5005,7 +5064,24 @@ class SeatViewApp {
   // every reader (this client's own preview, admin's review queue) has to
   // turn the path into a short-lived signed URL on demand instead.
   async uploadTicketPhoto(blob) {
-    const prefix = state.userId ? String(state.userId) : "guest";
+    // The "ticket-photos" bucket's INSERT policy requires the path's first
+    // folder segment to exactly equal auth.uid() (unlike seat-photos, which
+    // just requires being logged in, path notwithstanding). state.userId is
+    // normally that same id, but right after a fresh Kakao login it can
+    // still be stale for a moment (checkUserSession() racing the OAuth
+    // redirect's async session write — see its comment in init()); a ticket
+    // photo saved in that window got its path built from the stale value
+    // and was rejected by the policy. Re-reading the session right here
+    // guarantees the folder name always matches the id RLS actually checks.
+    let prefix = state.userId ? String(state.userId) : "guest";
+    if (supabaseClient) {
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) prefix = session.user.id;
+      } catch (e) {
+        // fall back to state.userId (or "guest") above
+      }
+    }
     const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
     const { error } = await supabaseClient.storage
       .from("ticket-photos")
@@ -5577,7 +5653,6 @@ class SeatViewApp {
     state.ticketPhotoRemovedExisting = null;
     state.ticketPendingReview = true;
     this.updateTicketVerifyFormUI();
-    this.showToast("📎", "티켓 사진이 첨부됐어요. 관리자 확인 후 인증돼요.");
   }
 
   // "x" button on the attached ticket photo thumbnail. A freshly-picked
@@ -6456,90 +6531,6 @@ class SeatViewApp {
     }
   }
 
-  openProfileModal() {
-    this.renderProfileModalContent();
-    this.openModal("modal-profile");
-  }
-
-  renderProfileModalContent() {
-    const body = document.getElementById("profile-modal-body");
-    if (!body) return;
-
-    if (state.isLoggedIn) {
-      body.innerHTML = `
-        <div class="profile-card-large">
-          <img class="profile-avatar-large" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="프로필">
-          <div class="profile-username">${state.userNickname} <span class="uploader-badge">VIP 등록자</span></div>
-          
-          <div class="profile-stats-grid">
-            <div class="profile-stat-box">
-              <span class="profile-stat-lbl">적립 포인트</span>
-              <span class="profile-stat-val" style="color: var(--accent-purple);">${state.userStats.points.toLocaleString()} P</span>
-            </div>
-            <div class="profile-stat-box">
-              <span class="profile-stat-lbl">등록한 시야 사진</span>
-              <span class="profile-stat-val">${state.userStats.uploads}개</span>
-            </div>
-          </div>
-
-          <div style="width: 100%; margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
-            <button class="btn btn-primary btn-full-width" onclick="app.showToast('🎁', '포인트 환전소 점검 중입니다. 네이버페이 교환은 다음 날부터 정상 적용됩니다.')">
-              포인트 기프티콘 교환
-            </button>
-            <button class="btn btn-secondary btn-full-width" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" onclick="app.simulateLogout()">
-              로그아웃
-            </button>
-          </div>
-        </div>
-      `;
-    } else {
-      body.innerHTML = `
-        <div class="login-promo-box">
-          <div class="login-promo-icon">
-            <i data-lucide="lock" style="width: 22px; height: 22px;"></i>
-          </div>
-          <h4>1초 소셜 로그인</h4>
-          <p>로그인 시 나만의 시야 기록 관리, 시야 투표(추천/비추천) 참여, 비교함 정보 영구 동기화와 포인트 혜택을 받으실 수 있습니다.</p>
-          
-          <button class="login-btn-social kakao" onclick="app.simulateSocialLogin('Kakao')">
-            <i data-lucide="message-circle" style="width: 16px; height: 16px; fill: currentColor;"></i> 카카오로 1초 로그인
-          </button>
-          <button class="login-btn-social naver" style="margin-top: 8px;" onclick="app.simulateSocialLogin('Naver')">
-            <i data-lucide="chrome" style="width: 16px; height: 16px;"></i> 네이버로 1초 로그인
-          </button>
-        </div>
-      `;
-    }
-    lucide.createIcons();
-  }
-
-  simulateSocialLogin(provider) {
-    state.isLoggedIn = true;
-    state.userNickname = "@직관러_홍길동";
-    state.userStats.points = 1500;
-    state.userStats.uploads = state.tickets.length;
-
-    const profileBtn = document.querySelector(".profile-btn");
-    if (profileBtn) {
-      profileBtn.style.borderColor = "var(--success)";
-    }
-
-    this.closeModal("modal-profile");
-    this.showToast("🔓", `${provider} 계정으로 로그인되어 전체 기능이 활성화되었습니다!`);
-  }
-
-  simulateLogout() {
-    state.isLoggedIn = false;
-    
-    const profileBtn = document.querySelector(".profile-btn");
-    if (profileBtn) {
-      profileBtn.style.borderColor = "var(--accent-blue)";
-    }
-
-    this.closeModal("modal-profile");
-    this.showToast("🔒", "로그아웃 되었습니다.");
-  }
-
   openEditProfileModal() {
     const nickInput = document.getElementById("profile-nickname-input");
     const stadiumSelect = document.getElementById("profile-stadium-select");
@@ -6757,65 +6748,6 @@ class SeatViewApp {
   }
 
 
-  voteCurrentSeat(type) {
-    if (!state.isLoggedIn) {
-      this.showToast("🔒", "로그인이 필요한 기능입니다. 우측 상단 프로필을 눌러 1초 로그인을 진행해 주세요!");
-      return;
-    }
-
-    const dbKey = state.activeModalSeatKey;
-    if (!dbKey) return;
-
-    const seatInfo = SEAT_VIEWS_DB[dbKey];
-    if (!seatInfo) return;
-
-    if (seatInfo.userVoted === type) {
-      // Toggle off
-      seatInfo.userVoted = null;
-      if (type === "up") {
-        seatInfo.upvotes = Math.max(0, (seatInfo.upvotes || 0) - 1);
-        this.showToast("👍", "추천을 취소했습니다.");
-      } else {
-        seatInfo.downvotes = Math.max(0, (seatInfo.downvotes || 0) - 1);
-        this.showToast("👎", "비추천을 취소했습니다.");
-      }
-    } else {
-      // Toggle on or switch
-      if (seatInfo.userVoted) {
-        if (seatInfo.userVoted === "up") {
-          seatInfo.upvotes = Math.max(0, (seatInfo.upvotes || 0) - 1);
-        } else {
-          seatInfo.downvotes = Math.max(0, (seatInfo.downvotes || 0) - 1);
-        }
-      }
-      
-      seatInfo.userVoted = type;
-      if (type === "up") {
-        seatInfo.upvotes = (seatInfo.upvotes || 0) + 1;
-        this.showToast("👍", "이 시야 사진을 추천했습니다!");
-      } else {
-        seatInfo.downvotes = (seatInfo.downvotes || 0) + 1;
-        this.showToast("👎", "이 시야 사진을 비추천했습니다.");
-      }
-    }
-
-    // Refresh UI
-    document.getElementById("modal-seat-upvotes").textContent = seatInfo.upvotes;
-    document.getElementById("modal-seat-downvotes").textContent = seatInfo.downvotes;
-    
-    const upvoteBtn = document.querySelector(".vote-btn.upvote");
-    const downvoteBtn = document.querySelector(".vote-btn.downvote");
-    if (upvoteBtn && downvoteBtn) {
-      upvoteBtn.classList.remove("active");
-      downvoteBtn.classList.remove("active");
-      if (seatInfo.userVoted === "up") {
-        upvoteBtn.classList.add("active");
-      } else if (seatInfo.userVoted === "down") {
-        downvoteBtn.classList.add("active");
-      }
-    }
-  }
-
   // Individual stadium/venue not ready yet (status='preparing'), as opposed
   // to showCategoryComingSoon() which is for an entire category. Reuses the
   // same modal with wording that doesn't tell the user to go look at baseball
@@ -6984,31 +6916,6 @@ class SeatViewApp {
     }, 3000);
   }
 
-  toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
-    const newTheme = currentTheme === "dark" ? "light" : "dark";
-    
-    document.documentElement.setAttribute("data-theme", newTheme);
-    localStorage.setItem("seatview_theme", newTheme);
-
-    // Update menu icons and texts
-    const themeIcon = document.getElementById("theme-icon");
-    const themeText = document.getElementById("theme-text");
-    if (themeIcon && themeText) {
-      if (newTheme === "light") {
-        themeIcon.setAttribute("data-lucide", "moon");
-        themeText.textContent = "다크 모드로 전환";
-      } else {
-        themeIcon.setAttribute("data-lucide", "sun");
-        themeText.textContent = "라이트 모드로 전환";
-      }
-      // Re-render Lucide icons
-      lucide.createIcons();
-    }
-    
-    this.showToast(newTheme === "light" ? "☀️" : "🌙", `${newTheme === "light" ? "라이트" : "다크"} 모드로 전환되었습니다.`);
-  }
-
   // Safety net for the fixed-height comment boxes: new comments are capped
   // at input time (120자), but this guards against any older/legacy data
   // that predates that limit.
@@ -7054,6 +6961,25 @@ class SeatViewApp {
       });
     if (items.length === 0) return "";
     return `<ul class="info-bullet-list">${items.join("")}</ul>`;
+  }
+
+  // Kakao AdFit's script scans for .kakao_ad_area elements once, when it
+  // loads — a slot markup'd directly into a view that starts hidden (see
+  // .view's display:none) never gets picked up, so it silently never fills.
+  // Building the <ins> fresh into an empty container the first time that
+  // view is actually shown sidesteps this (guarded so a second visit to the
+  // same view doesn't inject a duplicate ad into the same slot).
+  injectKakaoAd(containerId, adUnit, width = 320, height = 50) {
+    const container = document.getElementById(containerId);
+    if (!container || container.dataset.injected === "true") return;
+    container.dataset.injected = "true";
+    const ins = document.createElement("ins");
+    ins.className = "kakao_ad_area";
+    ins.style.display = "none";
+    ins.setAttribute("data-ad-unit", adUnit);
+    ins.setAttribute("data-ad-width", String(width));
+    ins.setAttribute("data-ad-height", String(height));
+    container.appendChild(ins);
   }
 
   autoResizeTextarea(textarea) {

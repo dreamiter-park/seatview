@@ -1572,7 +1572,7 @@
         try {
           const isMusical = this.category === 'musical';
           const selectCols = isMusical
-            ? 'id, floor, block_code, full_name, total_rows, max_seats'
+            ? 'id, floor, block_code, full_name, total_rows, max_seats, admin_memo'
             : 'id, block_code, full_name, seat_grade, total_rows, max_seats';
 
           let blocksQuery = supabaseClient
@@ -1635,7 +1635,11 @@
       blockOptionLabel(b) {
         const trimmedName = (b.full_name || "").trim();
         const label = trimmedName || (b.block_code ? `${b.block_code}블록` : `구역 #${b.id}`);
-        return b.max_seats !== undefined ? `${label} (${b.max_seats}석, x${b.offset_x || 0})` : label;
+        const withSeats = b.max_seats !== undefined ? `${label} (${b.max_seats}석, x${b.offset_x || 0})` : label;
+        // admin_memo는 musical_blocks에만 있는, 어드민 전용 식별용 메모 —
+        // full_name/block_code가 공백이거나 너무 일반적(A구역 등)이라 실제
+        // 어느 구역인지 구분이 안 될 때 참고하라고 붙여둔다.
+        return b.admin_memo ? `${withSeats} · ${b.admin_memo}` : withSeats;
       }
 
       populateBlocks(blocks) {
@@ -1688,6 +1692,7 @@
         this.gridStatus = {};
         this.gridSeatNums = {};
         this.gridOffsetType = {};
+        this.gridDisabledSeat = {};
 
         try {
           const { data: seats, error } = await supabaseClient
@@ -3429,7 +3434,7 @@
         }
 
         try {
-          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x" : "id, block_code, full_name, seat_grade";
+          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x, admin_memo" : "id, block_code, full_name, seat_grade";
           const { data: blocks, error } = await supabaseClient
             .from(blocksTable)
             .select(selectCols)
@@ -3845,7 +3850,7 @@
         }
 
         try {
-          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x" : "id, block_code, full_name, seat_grade";
+          const selectCols = isMusical ? "id, block_code, full_name, max_seats, offset_x, admin_memo" : "id, block_code, full_name, seat_grade";
           const { data: blocks, error } = await supabaseClient
             .from(blocksTable)
             .select(selectCols)
@@ -3949,17 +3954,19 @@
 
           const seatLabels = await this.resolveSeatLabelsForApprovalQueue(all);
           const ticketPhotoUrls = await this.resolveTicketPhotoUrls(all);
+          const nickMap = await this.fetchNicknames(all.filter(r => !r.is_anonymous).map(r => r.user_id));
 
           container.innerHTML = all.map(rev => {
             const images = Array.isArray(rev.image_urls) ? rev.image_urls : [];
             const label = seatLabels[`${rev._category}_${rev.id}`] || "";
             const ticketPhotoDisplayUrl = ticketPhotoUrls[`${rev._category}_${rev.id}`] || "";
+            const uploaderLabel = rev.is_anonymous ? "익명" : this.escHtml(nickMap[rev.user_id] || "회원");
             return `
               <div class="card" style="padding: 16px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap: wrap;">
                   <div>
                     <div style="font-weight:700;">${this.escHtml(label)}</div>
-                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${rev._category === "musical" ? "🎭 공연장" : "⚾ 야구장"} · ${this.escHtml((rev.ins_dtm || "").split("T")[0])} 등록</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${rev._category === "musical" ? "🎭 공연장" : "⚾ 야구장"} · ${uploaderLabel} · ${this.escHtml((rev.ins_dtm || "").split("T")[0])} 등록</div>
                   </div>
                   <div style="display:flex; gap:8px;">
                     <button class="btn btn-sm" style="background:#16a34a; color:#fff;" onclick="app.approveTicket('${rev._category}', ${rev.id})">
