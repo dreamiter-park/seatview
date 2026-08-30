@@ -1,0 +1,26 @@
+[build]
+  functions = "netlify/functions"
+
+# Per-venue SEO pages: /venue/29 stays as the URL shown in the browser
+# (force = true so this wins over the pre-existing static sitemap.xml file
+# for that one path specifically), while Netlify internally serves it from
+# the venue-page function.
+[[redirects]]
+  from = "/venue/:id"
+  to = "/.netlify/functions/venue-page?id=:id"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/seat/:id"
+  to = "/.netlify/functions/seat-page?id=:id"
+  status = 200
+  force = true
+
+# Sitemap is generated fresh on every request from live venue data instead
+# of a static file that goes stale the moment a new venue is added.
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+  force = true

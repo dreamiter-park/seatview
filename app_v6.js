@@ -543,10 +543,47 @@ class SeatViewApp {
     });
     this.loadVenues().then(() => {
       this.renderVenueList();
-      // Deep-link support for shareVenue()'s links (?venue=<id>) — jump
+      // Deep-link support for shareVenue()'s links (?venue=<id>), and for
+      // the /venue/:id URLs the venue-page Netlify function serves for
+      // search engines (see netlify/functions/venue-page.js) — jump
       // straight into that venue once the list it needs is loaded.
-      const sharedVenueId = new URLSearchParams(window.location.search).get("venue");
-      if (sharedVenueId) this.loadVenueDetail(sharedVenueId);
+      const pathVenueId = (window.location.pathname.match(/^\/venue\/(\d+)/) || [])[1];
+      const sharedVenueId = new URLSearchParams(window.location.search).get("venue") || pathVenueId;
+      if (sharedVenueId) {
+        this.loadVenueDetail(sharedVenueId);
+        // The /venue/:id page pre-renders a plain-text summary for
+        // crawlers (id="ssr-seo-content") — once the real interactive
+        // view is up, drop it so a real visitor doesn't see the same
+        // venue info twice.
+        const ssrContent = document.getElementById("ssr-seo-content");
+        if (ssrContent) ssrContent.remove();
+      }
+
+      // Deep-link for the seat-page Netlify function's /seat/:id URLs (see
+      // netlify/functions/seat-page.js) — walk seat -> block -> venue so we
+      // know which venue/floor to land on, then pop the seat's own detail
+      // sheet on top exactly like a real user tapping that seat would.
+      // openSeatDetail() resolves its own display info from dbKey alone, so
+      // it doesn't need to wait for the floor grid to actually finish
+      // rendering first.
+      const pathSeatId = (window.location.pathname.match(/^\/seat\/(\d+)/) || [])[1];
+      if (pathSeatId && supabaseClient) {
+        (async () => {
+          try {
+            const { data: seatRow } = await supabaseClient.from("musical_seats").select("block_id").eq("id", pathSeatId).single();
+            if (!seatRow) return;
+            const { data: blockRow } = await supabaseClient.from("musical_blocks").select("venue_id, floor").eq("id", seatRow.block_id).single();
+            if (!blockRow) return;
+            await this.loadVenueDetail(blockRow.venue_id);
+            this.selectVenueFloor(blockRow.floor);
+            await this.openSeatDetail(pathSeatId, { category: "musical" });
+            const ssrContent = document.getElementById("ssr-seo-content");
+            if (ssrContent) ssrContent.remove();
+          } catch (e) {
+            console.warn("Seat deep-link failed:", e);
+          }
+        })();
+      }
     });
     this.loadShoppingAds().then(() => {
       this.renderStadiumList();
@@ -1158,6 +1195,12 @@ class SeatViewApp {
     if (targetView) {
       targetView.classList.add("active");
       state.currentView = viewId;
+      // One shared <footer> element, physically moved to the bottom of
+      // whichever view is now active (appendChild moves an existing node
+      // rather than cloning it) — cheaper than duplicating the same
+      // links/business info markup into every view section.
+      const footerEl = document.getElementById("site-footer");
+      if (footerEl) targetView.appendChild(footerEl);
     }
 
     // Kakao AdFit's script only scans .kakao_ad_area elements that are
@@ -1210,7 +1253,6 @@ class SeatViewApp {
       this.renderCompareView();
     } else if (viewId === "stadiums") {
       this.renderStadiumList();
-      this.reloadKakaoAd("ad-stadiums-list");
     } else if (viewId === "venues") {
       // Render with whatever the search input currently shows (already
       // reset or preserved above) instead of always defaulting to
@@ -1218,7 +1260,6 @@ class SeatViewApp {
       // input still displays a leftover search term, or vice versa.
       const venueSearchInputEl = document.getElementById("venue-search-input");
       this.renderVenueList(venueSearchInputEl ? venueSearchInputEl.value : "");
-      this.reloadKakaoAd("ad-venues-list");
     } else if (viewId === "stadium-detail" && state.selectedBlock) {
       // Re-fetch the seat grid when the back-stack lands us back on a
       // block that was already open — otherwise a seat just registered
@@ -1561,37 +1602,6 @@ class SeatViewApp {
     lucide.createIcons();
   }
 
-  // Kakao AdFit's script (ba.min.js) only scans the DOM for .kakao_ad_area
-  // elements once, at initial page load — it has no MutationObserver to
-  // notice new/newly-visible slots later. Since this is an SPA, the
-  // stadium-list and venue-list ad slots are still inside a display:none
-  // section at that first scan (only the home screen starts visible), so
-  // they're silently skipped forever — not a "pending approval" issue, the
-  // home slot fills fine. Swapping in a fresh <ins> (a node Kakao's script
-  // has never seen) and re-appending the loader script the first time each
-  // view is actually shown gives it a second, now-visible chance to fill.
-  reloadKakaoAd(insId) {
-    if (!this._kakaoAdReloaded) this._kakaoAdReloaded = {};
-    if (this._kakaoAdReloaded[insId]) return;
-    const old = document.getElementById(insId);
-    if (!old) return;
-    this._kakaoAdReloaded[insId] = true;
-
-    const fresh = document.createElement("ins");
-    fresh.id = insId;
-    fresh.className = "kakao_ad_area";
-    fresh.style.display = "none";
-    fresh.setAttribute("data-ad-unit", old.getAttribute("data-ad-unit"));
-    fresh.setAttribute("data-ad-width", old.getAttribute("data-ad-width"));
-    fresh.setAttribute("data-ad-height", old.getAttribute("data-ad-height"));
-    old.replaceWith(fresh);
-
-    const script = document.createElement("script");
-    script.src = "//t1.kakaocdn.net/kas/static/ba.min.js";
-    script.async = true;
-    document.body.appendChild(script);
-  }
-
   // One row per category ('baseball'/'musical') in shopping_ads, managed
   // from admin's "광고 관리" tab — not a hardcoded asset/link anymore.
   async loadShoppingAds() {
@@ -1751,18 +1761,28 @@ class SeatViewApp {
         if (adCard) { container.appendChild(adCard); adOccurrence++; }
       }
 
-      const card = document.createElement("div");
+      // A real <a href> (instead of a bare div) so search engine crawlers
+      // can actually discover each venue's /venue/:id page by following a
+      // link — a div with only an onclick handler is invisible to a
+      // crawler. Real clicks still go through the SPA's own navigation via
+      // preventDefault, so this never causes an actual page reload.
+      const card = document.createElement("a");
       const isPreparing = venue.status === "preparing";
       card.className = isPreparing ? "stadium-card preparing" : "stadium-card";
+      card.href = isPreparing ? "#" : `/venue/${venue.id}`;
+      card.style.color = "inherit";
+      card.style.textDecoration = "none";
       // Just the photo — .stadium-card::before (in style_v6.css) already
       // lays a bottom-heavy dark gradient over every card for text
       // legibility. This used to ALSO add its own diagonal tint on top of
       // that, which was really two overlays stacked (hence "too dark" no
       // matter how far the numbers here got turned down).
       card.style.backgroundImage = `url('${venue.bg}')`;
-      card.onclick = isPreparing
-        ? () => this.showItemPreparing(venue.name)
-        : () => this.loadVenueDetail(venue.id);
+      card.onclick = (e) => {
+        e.preventDefault();
+        if (isPreparing) this.showItemPreparing(venue.name);
+        else this.loadVenueDetail(venue.id);
+      };
       const showsHtml = (venue.currentShows || [])
         .map(s => `<span class="stadium-card-team">[${s}]</span>`)
         .join("");
@@ -4996,15 +5016,29 @@ class SeatViewApp {
     });
   }
 
+  // compressImageToWebPBlob asks canvas.toBlob for "image/webp", but some
+  // in-app browsers (e.g. Naver Blog's iOS in-app browser) silently fall
+  // back to a different format when they don't support WebP encoding —
+  // the spec requires toBlob to still report the format it actually used
+  // via blob.type, it just doesn't throw or reject when it can't honor the
+  // request. Trusting that real type (instead of hardcoding "image/webp")
+  // keeps the upload's declared Content-Type honest regardless of what the
+  // browser actually produced.
+  extensionForMimeType(mimeType) {
+    const map = { "image/webp": "webp", "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif" };
+    return map[mimeType] || (mimeType || "").split("/")[1] || "jpg";
+  }
+
   // Uploads a compressed seat-view photo to the "seat-photos" Supabase
   // Storage bucket and returns its public URL. Path is namespaced by user id
   // purely to keep files organized in the bucket browser.
   async uploadSeatPhoto(blob) {
     const prefix = state.userId ? String(state.userId) : "guest";
-    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+    const contentType = blob.type || "image/webp";
+    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${this.extensionForMimeType(contentType)}`;
     const { error } = await supabaseClient.storage
       .from("seat-photos")
-      .upload(fileName, blob, { contentType: "image/webp", upsert: false });
+      .upload(fileName, blob, { contentType, upsert: false });
     if (error) throw error;
     const { data } = supabaseClient.storage.from("seat-photos").getPublicUrl(fileName);
     return data.publicUrl;
@@ -5082,10 +5116,11 @@ class SeatViewApp {
         // fall back to state.userId (or "guest") above
       }
     }
-    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+    const contentType = blob.type || "image/webp";
+    const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${this.extensionForMimeType(contentType)}`;
     const { error } = await supabaseClient.storage
       .from("ticket-photos")
-      .upload(fileName, blob, { contentType: "image/webp", upsert: false });
+      .upload(fileName, blob, { contentType, upsert: false });
     if (error) throw error;
     return fileName;
   }
@@ -6969,6 +7004,13 @@ class SeatViewApp {
   // Building the <ins> fresh into an empty container the first time that
   // view is actually shown sidesteps this (guarded so a second visit to the
   // same view doesn't inject a duplicate ad into the same slot).
+  // Kakao AdFit's script (ba.min.js) only scans the DOM for .kakao_ad_area
+  // elements once, when it first executes — it has no MutationObserver to
+  // notice slots created later. Since this <ins> is created here (well
+  // after that first scan, whenever the user first navigates into this
+  // view), Kakao's script has never seen it and it would stay hidden
+  // forever unless something re-runs that scan. Re-appending a fresh
+  // <script src="ba.min.js"> tag does exactly that.
   injectKakaoAd(containerId, adUnit, width = 320, height = 50) {
     const container = document.getElementById(containerId);
     if (!container || container.dataset.injected === "true") return;
@@ -6980,6 +7022,11 @@ class SeatViewApp {
     ins.setAttribute("data-ad-width", String(width));
     ins.setAttribute("data-ad-height", String(height));
     container.appendChild(ins);
+
+    const script = document.createElement("script");
+    script.src = "//t1.kakaocdn.net/kas/static/ba.min.js";
+    script.async = true;
+    document.body.appendChild(script);
   }
 
   autoResizeTextarea(textarea) {

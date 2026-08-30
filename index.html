@@ -18,8 +18,8 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>잘보여유 - 좌석별 시야 공유 서비스</title>
-  <meta name="description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
+  <title>잘보여유 - 뮤지컬·연극 공연장 좌석 시야 공유 서비스</title>
+  <meta name="description" content="뮤지컬, 연극 공연장의 구역별 실제 좌석 시야 사진과 후기를 확인해보세요. 유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
 
   <!-- Favicon / App Icons -->
   <link rel="icon" type="image/png" href="assets/favicon.png">
@@ -29,8 +29,8 @@
 
   <!-- Open Graph / KakaoTalk Link Preview -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="잘보여유 - 좌석별 시야 공유 서비스">
-  <meta property="og:description" content="유저들이 직접 등록한 생생한 좌석 시야와 꿀팁을 지금 바로 확인해 보세요.">
+  <meta property="og:title" content="잘보여유 - 뮤지컬·연극 공연장 좌석 시야 공유 서비스">
+  <meta property="og:description" content="뮤지컬, 연극 공연장의 구역별 실제 좌석 시야 사진과 후기를 확인해보세요.">
   <!-- Punycode (xn--) form, not the raw Hangul domain — crawlers (KakaoTalk's
        link-preview bot included) expect an ASCII URL and won't resolve a
        literal Unicode hostname here, which was silently breaking the
@@ -153,9 +153,12 @@
             data-ad-height = "50"></ins>
           </div>
 
-          <!-- Site Footer (home screen only — the one view every visitor,
-               logged in or not, always lands on) -->
-          <footer class="site-footer">
+          <!-- Site Footer — a single shared element moved to the bottom of
+               whichever view is active (see navigateTo() in app_v6.js),
+               since SEO deep links (/venue/:id, /seat/:id) can land a
+               visitor straight on a detail screen without ever passing
+               through 메인 first. -->
+          <footer class="site-footer" id="site-footer">
             <div class="site-footer-links">
               <a href="terms.html">이용약관</a>
               <span class="site-footer-divider">·</span>
@@ -1035,7 +1038,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="stadiums/jamsil.js?v=4.5"></script>
-  <script src="app_v6.js?v=8.95"></script>
+  <script src="app_v6.js?v=9.00"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
