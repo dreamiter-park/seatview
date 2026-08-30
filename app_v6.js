@@ -42,7 +42,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "서울종합운동장 야구장",
     team: "LG 트윈스 / 두산 베어스",
     location: "서울 송파구 올림픽로 25",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(127, 29, 29, 0.75))",
     blocks: [
       { id: "b101", name: "1루 레드석 101블록", category: "내야", grade: "red" },
@@ -94,7 +94,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "고척 스카이돔",
     team: "키움 히어로즈",
     location: "서울 구로구 경인로 430",
-    bg: "assets/jamsil_stadium.jpg", // reusing for demo
+    bg: "/assets/jamsil_stadium.jpg", // reusing for demo
     gradient: "linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(30, 27, 75, 0.75))",
     blocks: [
       { id: "b101", name: "버건디석 111블록", category: "내야" },
@@ -123,7 +123,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "수원 KT 위즈파크",
     team: "KT 위즈",
     location: "경기 수원시 장안구 경수대로 893",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(24, 24, 27, 0.95), rgba(120, 53, 15, 0.75))",
     blocks: [
       { id: "b101", name: "응원지정석 109블록", category: "응원" },
@@ -142,7 +142,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "인천 SSG 랜더스필드",
     team: "SSG 랜더스",
     location: "인천 미추홀구 예술로 6",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(153, 27, 27, 0.95), rgba(9, 9, 11, 0.75))",
     blocks: [
       { id: "b101", name: "의자지정석 1루 1블록", category: "내야" },
@@ -161,7 +161,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "대구 삼성 라이온즈 파크",
     team: "삼성 라이온즈",
     location: "대구 수성구 야구전설로 1",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(15, 23, 42, 0.75))",
     blocks: [
       { id: "b101", name: "VIP석 1블록", category: "프리미엄" },
@@ -180,7 +180,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "광주 기아 챔피언스 필드",
     team: "KIA 타이거즈",
     location: "광주 북구 서림로 10",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(185, 28, 28, 0.95), rgba(9, 9, 11, 0.75))",
     blocks: [
       { id: "b101", name: "챔피언석 (백넷 뒤)", category: "프리미엄" },
@@ -199,7 +199,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "대전 한화생명 이글스파크",
     team: "한화 이글스",
     location: "대전 중구 대종로 373",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(24, 24, 27, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야탁자석", category: "테이블" },
@@ -218,7 +218,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "부산 사직 야구장",
     team: "롯데 자이언츠",
     location: "부산 동래구 사직로 45",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(234, 88, 12, 0.95), rgba(3, 105, 161, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야필드석 11블록", category: "내야" },
@@ -237,7 +237,7 @@ const MOCK_STADIUMS_DB = [
     fullname: "창원 NC 파크",
     team: "NC 다이노스",
     location: "경남 창원시 마산회원구 삼호로 63",
-    bg: "assets/jamsil_stadium.jpg",
+    bg: "/assets/jamsil_stadium.jpg",
     gradient: "linear-gradient(135deg, rgba(3, 105, 161, 0.95), rgba(180, 83, 9, 0.75))",
     blocks: [
       { id: "b101", name: "1루 내야응원석 103블록", category: "응원" },
@@ -338,7 +338,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 오렌지석 103블록",
     seatName: "1열 1번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@twins_victory",
     uploaderBadge: "골드 등록자",
     upvotes: 34,
@@ -351,7 +351,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 오렌지석 103블록",
     seatName: "1열 7번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@stadium_goer",
     uploaderBadge: "VIP 등록자",
     upvotes: 56,
@@ -364,7 +364,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 오렌지석 103블록",
     seatName: "1열 14번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@lotte_no_lg",
     uploaderBadge: "일반 등록자",
     upvotes: 12,
@@ -377,7 +377,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 오렌지석 103블록",
     seatName: "10열 95번",
-    image: "assets/seat_view_blocked.png",
+    image: "/assets/seat_view_blocked.png",
     uploader: "@silent_fan",
     uploaderBadge: "실버 등록자",
     upvotes: 8,
@@ -391,7 +391,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 레드석 101블록",
     seatName: "3열 4번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@baseball_lover",
     uploaderBadge: "골드 등록자",
     upvotes: 28,
@@ -405,7 +405,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 레드석 102블록",
     seatName: "4열 2번",
-    image: "assets/seat_view_blocked.png",
+    image: "/assets/seat_view_blocked.png",
     uploader: "@twins_victory",
     uploaderBadge: "일반 등록자",
     upvotes: 3,
@@ -419,7 +419,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "잠실 야구장",
     blockName: "1루 오렌지석 103블록",
     seatName: "2열 5번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@cheer_king",
     uploaderBadge: "VIP 등록자",
     upvotes: 45,
@@ -433,7 +433,7 @@ const SEAT_VIEWS_DB = {
     stadiumName: "고척 스카이돔",
     blockName: "버건디석 111블록",
     seatName: "2열 6번",
-    image: "assets/seat_view_clean.png",
+    image: "/assets/seat_view_clean.png",
     uploader: "@dome_fan",
     uploaderBadge: "골드 등록자",
     upvotes: 15,
@@ -456,7 +456,7 @@ const DEFAULT_TICKETS = [
     result: "승리",
     score: "LG 8 - 2 Doosan",
     comment: "승요 등극! 내가 가는 날엔 100% 이긴다. 시야도 시원시원하고 좋았음.",
-    image: "assets/seat_view_clean.png"
+    image: "/assets/seat_view_clean.png"
   },
   {
     id: "t2",
@@ -468,7 +468,7 @@ const DEFAULT_TICKETS = [
     result: "패배",
     score: "LG 1 - 4 SSG",
     comment: "난간 때문에 시야가 너무 안 좋았고 경기도 패배해서 아쉬웠던 직관.",
-    image: "assets/seat_view_blocked.png"
+    image: "/assets/seat_view_blocked.png"
   },
   {
     id: "t3",
@@ -480,7 +480,7 @@ const DEFAULT_TICKETS = [
     result: "승리",
     score: "KT 6 - 5 KIA",
     comment: "9회말 역전 끝내기 홈런! 진미통닭도 짱맛있었다.",
-    image: "assets/seat_view_clean.png"
+    image: "/assets/seat_view_clean.png"
   }
 ];
 
@@ -671,9 +671,9 @@ class SeatViewApp {
           data.forEach(cat => {
             const card = document.createElement("div");
             // Determine CSS background image based on category ID
-            let bgImage = "assets/jamsil_stadium.jpg";
-            if (cat.id === "musical") bgImage = "assets/musical_stage.jpg";
-            else if (cat.id === "plane") bgImage = "assets/flight_cinema.jpg";
+            let bgImage = "/assets/jamsil_stadium.jpg";
+            if (cat.id === "musical") bgImage = "/assets/musical_stage.jpg";
+            else if (cat.id === "plane") bgImage = "/assets/flight_cinema.jpg";
 
             // Click behavior is driven purely by badge_text: "TO BE" shows the
             // coming-soon popup, everything else navigates to its real screen.
@@ -720,7 +720,7 @@ class SeatViewApp {
     // Fallback: render hardcoded items if Supabase is not ready or keys are placeholders
     container.innerHTML = `
       <div class="category-card" onclick="app.navigateTo('stadiums')">
-        <div class="card-bg-overlay" style="background-image: url('assets/jamsil_stadium.jpg');"></div>
+        <div class="card-bg-overlay" style="background-image: url('/assets/jamsil_stadium.jpg');"></div>
         <div class="category-tag blue">MAX TRAFFIC</div>
         <div class="category-info">
           <h3 class="category-name">⚾ 프로야구장</h3>
@@ -728,7 +728,7 @@ class SeatViewApp {
         </div>
       </div>
       <div class="category-card" onclick="app.showMusicalComingSoon()">
-        <div class="card-bg-overlay" style="background-image: url('assets/musical_stage.jpg');"></div>
+        <div class="card-bg-overlay" style="background-image: url('/assets/musical_stage.jpg');"></div>
         <div class="category-tag red">HOT</div>
         <div class="category-info">
           <h3 class="category-name">🎭 뮤지컬 / 공연장</h3>
@@ -736,7 +736,7 @@ class SeatViewApp {
         </div>
       </div>
       <div class="category-card" onclick="app.showFlightComingSoon()">
-        <div class="card-bg-overlay" style="background-image: url('assets/flight_cinema.jpg');"></div>
+        <div class="card-bg-overlay" style="background-image: url('/assets/flight_cinema.jpg');"></div>
         <div class="category-tag green">NEW</div>
         <div class="category-info">
           <h3 class="category-name">✈️ 항공 / 영화관</h3>
@@ -843,7 +843,7 @@ class SeatViewApp {
               fullname: dbStadium.name,
               team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
               location: dbStadium.address || dbStadium.location_district,
-              bg: dbStadium.bg_image_url || "assets/jamsil_stadium.jpg",
+              bg: dbStadium.bg_image_url || "/assets/jamsil_stadium.jpg",
               map_image_url: dbStadium.map_image_url,
               gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
               blocks: [],
@@ -1668,7 +1668,7 @@ class SeatViewApp {
           id: v.id,
           name: v.name,
           location: v.address || v.location_district || "",
-          bg: v.bg_image_url || "assets/musical_stage.jpg",
+          bg: v.bg_image_url || "/assets/musical_stage.jpg",
           map_image_url: v.map_image_url,
           food_info: v.food_info,
           parking_info: v.parking_info,
@@ -2415,7 +2415,7 @@ class SeatViewApp {
     const mapWrapper = document.getElementById("stadium-static-map-wrapper");
     const mapCollapseBtn = document.getElementById("map-collapse-btn");
     const mapGuideCard = mapCollapseBtn ? mapCollapseBtn.closest(".map-guide-card") : null;
-    const effectiveMapSrc = stadium.map_image_url || (stadiumId === "jamsil" ? "stadiums/stadium_01.png" : null);
+    const effectiveMapSrc = stadium.map_image_url || (stadiumId === "jamsil" ? "/stadiums/stadium_01.png" : null);
     if (mapGuideCard) mapGuideCard.style.display = effectiveMapSrc ? "" : "none";
     if (mapWrapper && effectiveMapSrc) {
       mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${effectiveMapSrc}" class="stadium-static-map" alt="구장 전체 안내도">`;
@@ -3303,7 +3303,7 @@ class SeatViewApp {
                         stadiumName: state.selectedStadium.name,
                         blockName: state.selectedBlock.name,
                         seatName: this.formatSeatName({ row_num: seat.row_num || r, seat_num: seat.seat_num }, !!seat.is_disabled_seat),
-                        image: "assets/seat_view_clean.png",
+                        image: "/assets/seat_view_clean.png",
                         uploader: "@anonymous",
                         uploaderBadge: "일반 등록자",
                         upvotes: 0,
@@ -3684,12 +3684,12 @@ class SeatViewApp {
     // For real DB seats, skip this legacy placeholder-image block entirely —
     // images/comments come only from the actual baseball_seat_reviews fetch below.
     // Using seatInfo's leftover cache here used to fabricate a fake single
-    // "assets/seat_view_clean.png" photo even for seats with zero reviews.
+    // "/assets/seat_view_clean.png" photo even for seats with zero reviews.
     if (seatInfo && !isRealSeat) {
 
       const imageUrls = Array.isArray(seatInfo.images)
         ? seatInfo.images 
-        : (seatInfo.image ? [seatInfo.image] : ["assets/seat_view_clean.png"]);
+        : (seatInfo.image ? [seatInfo.image] : ["/assets/seat_view_clean.png"]);
       
       const directions = Array.isArray(seatInfo.directions)
         ? seatInfo.directions
@@ -4164,8 +4164,8 @@ class SeatViewApp {
         blockName: state.selectedBlock.name,
         seatName: `${row}열 ${seat}번`,
         images: isGoodSeat 
-          ? ["assets/seat_view_clean.png", "assets/jamsil_stadium.jpg", "assets/seat_view_blocked.png"]
-          : ["assets/seat_view_blocked.png", "assets/seat_view_clean.png"],
+          ? ["/assets/seat_view_clean.png", "/assets/jamsil_stadium.jpg", "/assets/seat_view_blocked.png"]
+          : ["/assets/seat_view_blocked.png", "/assets/seat_view_clean.png"],
         directions: isGoodSeat 
           ? ["home", "center", "outfield"]
           : ["home", "center"],
