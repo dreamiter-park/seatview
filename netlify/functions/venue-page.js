@@ -107,15 +107,26 @@ exports.handler = async (event) => {
     url: canonicalUrl,
   };
 
+  // app_v6.js's <body> is `display:flex; align-items:center; justify-content:center`
+  // to center the phone-frame #app-content div — dropping this as a plain
+  // sibling made it a second flex item fighting #app-content for space
+  // (visible as a broken/squished flash right after landing, before JS
+  // removes this div). position:fixed takes it out of that flex flow
+  // entirely so it just overlays full-screen instead of participating in
+  // body's layout, and the inline bg/text colors (with hard-coded
+  // fallbacks matching the dark theme default) keep it from flashing
+  // unstyled before style_v6.css has painted.
   const seoContentHtml = `
-<div id="ssr-seo-content" style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
-  <h1>${escapeHtml(venue.name)} 좌석 시야 후기</h1>
-  <p>${escapeHtml(venue.address || "")}</p>
-  <h2>구역 정보</h2>
-  <ul>${floorListHtml}</ul>
-  ${venue.food_info ? `<h2>맛집 정보</h2><p>${escapeHtml(venue.food_info)}</p>` : ""}
-  ${venue.parking_info ? `<h2>주차 정보</h2><p>${escapeHtml(venue.parking_info)}</p>` : ""}
-  <p>실제 관람객이 등록한 ${escapeHtml(venue.name)}의 구역별 좌석 시야 사진은 앱에서 바로 확인하실 수 있습니다.</p>
+<div id="ssr-seo-content" style="position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg-app,#080a0f);color:var(--text-primary,#f3f4f6);">
+  <div style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
+    <h1>${escapeHtml(venue.name)} 좌석 시야 후기</h1>
+    <p>${escapeHtml(venue.address || "")}</p>
+    <h2>구역 정보</h2>
+    <ul>${floorListHtml}</ul>
+    ${venue.food_info ? `<h2>맛집 정보</h2><p>${escapeHtml(venue.food_info)}</p>` : ""}
+    ${venue.parking_info ? `<h2>주차 정보</h2><p>${escapeHtml(venue.parking_info)}</p>` : ""}
+    <p>실제 관람객이 등록한 ${escapeHtml(venue.name)}의 구역별 좌석 시야 사진은 앱에서 바로 확인하실 수 있습니다.</p>
+  </div>
 </div>`;
 
   // Replacement strings hold free-text venue data (food_info/parking_info

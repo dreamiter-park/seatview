@@ -68,7 +68,7 @@ exports.handler = async (event) => {
     const seats = await supabaseGet(
       `/musical_seats?id=eq.${id}&select=id,row_num,seat_num,` +
         `musical_blocks(id,venue_id,floor,full_name,block_code,venues(id,name,address)),` +
-        `musical_seat_reviews(image_urls,content,is_ticket_verified,watched_date)` +
+        `musical_seat_reviews(image_urls,content,is_ticket_verified,watched_date,user_id,is_anonymous,ins_dtm)` +
         `&musical_seat_reviews.is_blocked=eq.false&musical_seat_reviews.order=ins_dtm.desc&limit=1`
     );
     seat = seats[0];
@@ -111,15 +111,46 @@ exports.handler = async (event) => {
   const description = `${fullLabel}에서 실제 관람객이 등록한 좌석 시야 사진과 후기입니다. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`;
   const canonicalUrl = `https://xn--on3b27no0awn.com/seat/${id}`;
 
+  // Google's Review rich-result validator flagged two real problems here
+  // (via a Search Console email): "PerformingArtsTheater" isn't one of the
+  // types Google supports as itemReviewed for a Review snippet, and
+  // "author" is required but was missing entirely. Also fixed along the
+  // way: reviewBody was joining every review on the seat into one string
+  // under a single fake Review — schema.org's Review is meant to be one
+  // person's review, so this now only describes the most recent one
+  // (all photos across every review still show up in `image`, and on the
+  // page itself).
+  const primaryReview = reviews[0];
+  let authorName = "잘보여유 이용자";
+  if (primaryReview && !primaryReview.is_anonymous && primaryReview.user_id) {
+    try {
+      const profiles = await supabaseGet(`/profiles_public?id=eq.${primaryReview.user_id}&select=nickname&limit=1`);
+      if (profiles[0] && profiles[0].nickname) authorName = profiles[0].nickname;
+    } catch (e) {
+      console.error("seat-page function: nickname fetch failed", e);
+    }
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Review",
     itemReviewed: {
-      "@type": "PerformingArtsTheater",
+      "@type": "LocalBusiness",
       name: venue.name,
     },
+    author: {
+      "@type": "Person",
+      name: authorName,
+    },
+    // Google's own docs: reviewRating is normally required too, but can be
+    // omitted "if your marked-up content contains both an author and a
+    // review date" — we have no real star-rating data to report (this app
+    // never collects one), so datePublished is what earns that exemption
+    // instead of fabricating a rating. ins_dtm (registration date) is used
+    // over watched_date since the latter can be null.
+    datePublished: (primaryReview && primaryReview.ins_dtm) || undefined,
     name: fullLabel,
-    reviewBody: reviews.map((r) => r.content).filter(Boolean).join(" / ") || undefined,
+    reviewBody: (primaryReview && primaryReview.content) || undefined,
     image: photoUrls,
   };
 
@@ -134,13 +165,19 @@ exports.handler = async (event) => {
     .map((r) => `<p>${escapeHtml(r.content)}</p>`)
     .join("\n");
 
+  // See venue-page.js for why this needs position:fixed — app_v6.js's
+  // <body> centers #app-content via display:flex, and a plain sibling div
+  // becomes a second flex item fighting it for space (the "broken flash"
+  // right after landing, before JS removes this div).
   const seoContentHtml = `
-<div id="ssr-seo-content" style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
-  <h1>${escapeHtml(fullLabel)} 좌석 시야</h1>
-  <p>${escapeHtml(venue.address || "")}</p>
-  ${photosHtml}
-  ${reviewTextHtml}
-  <p>${escapeHtml(fullLabel)}의 실제 관람객이 등록한 좌석 시야 사진과 후기를 앱에서 바로 확인하실 수 있습니다.</p>
+<div id="ssr-seo-content" style="position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg-app,#080a0f);color:var(--text-primary,#f3f4f6);">
+  <div style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
+    <h1>${escapeHtml(fullLabel)} 좌석 시야</h1>
+    <p>${escapeHtml(venue.address || "")}</p>
+    ${photosHtml}
+    ${reviewTextHtml}
+    <p>${escapeHtml(fullLabel)}의 실제 관람객이 등록한 좌석 시야 사진과 후기를 앱에서 바로 확인하실 수 있습니다.</p>
+  </div>
 </div>`;
 
   const titleTag = escapeHtml(title);
