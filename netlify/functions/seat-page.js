@@ -165,13 +165,19 @@ exports.handler = async (event) => {
     .map((r) => `<p>${escapeHtml(r.content)}</p>`)
     .join("\n");
 
-  // See venue-page.js for why this needs position:fixed — app_v6.js's
-  // <body> centers #app-content via display:flex, and a plain sibling div
-  // becomes a second flex item fighting it for space (the "broken flash"
-  // right after landing, before JS removes this div).
+  // See venue-page.js for why this needs position:fixed (flex-layout
+  // squish) and why the first-fold content is a loading spinner rather
+  // than the crawler text itself (a wall of text flashing then vanishing
+  // read as "a broken page" even once the squish was fixed — the text is
+  // still genuinely present just below the fold, so this isn't cloaking).
   const seoContentHtml = `
 <div id="ssr-seo-content" style="position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg-app,#080a0f);color:var(--text-primary,#f3f4f6);">
-  <div style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+    <img src="/assets/header-logo.png" alt="잘보여유" style="height:28px;">
+    <div style="width:26px;height:26px;border:3px solid rgba(255,255,255,0.15);border-top-color:#8b5cf6;border-radius:50%;animation:ssr-spin 0.8s linear infinite;"></div>
+    <style>@keyframes ssr-spin{to{transform:rotate(360deg)}}</style>
+  </div>
+  <div style="max-width:640px;margin:0 auto;padding:0 16px 20px;font-family:sans-serif;line-height:1.6;">
     <h1>${escapeHtml(fullLabel)} 좌석 시야</h1>
     <p>${escapeHtml(venue.address || "")}</p>
     ${photosHtml}

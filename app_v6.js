@@ -1672,11 +1672,48 @@ class SeatViewApp {
           map_image_url: v.map_image_url,
           food_info: v.food_info,
           parking_info: v.parking_info,
-          currentShows: v.current_shows || [],
+          // Filled in below from musical_shows — venues.current_shows is
+          // the old manually-curated array column, kept in the table for
+          // now but no longer read here (see loadVenues()'s comment on
+          // the musical_shows fetch for why).
+          currentShows: [],
+          nextShow: null,
           display_order: v.display_order,
           status: v.status || 'open',
           reviewCount: 0
         }));
+
+        // 공연장의 "현재/다음 공연"을 더 이상 venues.current_shows(수동
+        // 관리 배열)에서 읽지 않고, 공연장/공연명/상영기간을 따로 관리하는
+        // musical_shows 테이블에서 아직 끝나지 않은 것만 조회한다. 종료된
+        // 공연을 일일이 지워줄 필요 없이, 상영종료일이 지나면 자동으로
+        // 목록에서 빠진다 (종료일 미정인 공연은 run_end를 null로 두면
+        // 계속 "현재 공연"으로 표시됨). run_start 오름차순으로 받아서,
+        // 아직 시작 전인 것 중 venue별 첫 항목이 곧 가장 빨리 시작하는
+        // "다음 공연"이 된다.
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: shows, error: showsErr } = await supabaseClient
+          .from('musical_shows')
+          .select('venue_id, show_name, run_start')
+          .or(`run_end.is.null,run_end.gte.${today}`)
+          .order('run_start', { ascending: true });
+        if (!showsErr && shows) {
+          const currentByVenue = {};
+          const nextByVenue = {};
+          shows.forEach(s => {
+            if (s.run_start <= today) {
+              (currentByVenue[s.venue_id] = currentByVenue[s.venue_id] || []).push(s.show_name);
+            } else if (!(s.venue_id in nextByVenue)) {
+              nextByVenue[s.venue_id] = s.show_name;
+            }
+          });
+          VENUES_DB.forEach(v => {
+            v.currentShows = currentByVenue[v.id] || [];
+            v.nextShow = nextByVenue[v.id] || null;
+          });
+        } else if (showsErr) {
+          console.error("공연 상영기간 로딩 에러:", showsErr);
+        }
 
         // 목록 정렬 기준: 등록된 시야 데이터가 많은 공연장 먼저, 같으면
         // 기존 display_order 순 — 관리자가 정해둔 순서는 동률일 때의
@@ -1730,8 +1767,11 @@ class SeatViewApp {
     }
 
     const trimmed = filterText.trim();
+    // Case-insensitive — "nol" typed lowercase should still match venues
+    // named "NOL 유니플렉스" etc.
+    const needle = trimmed.toLowerCase();
     const venues = trimmed.length >= 2
-      ? VENUES_DB.filter(v => v.name.includes(trimmed) || (v.currentShows || []).some(s => s.includes(trimmed)))
+      ? VENUES_DB.filter(v => v.name.toLowerCase().includes(needle) || (v.currentShows || []).some(s => s.toLowerCase().includes(needle)))
       : VENUES_DB;
 
     if (venues.length === 0) {
@@ -1783,9 +1823,15 @@ class SeatViewApp {
         if (isPreparing) this.showItemPreparing(venue.name);
         else this.loadVenueDetail(venue.id);
       };
-      const showsHtml = (venue.currentShows || [])
-        .map(s => `<span class="stadium-card-team">[${s}]</span>`)
-        .join("");
+      // 리스트 카드는 공간이 좁으니 한 줄만: 현재 공연이 있으면 그것만,
+      // 없으면 다음 공연을 "예정" 스타일로 대신 보여준다(둘 다 없으면
+      // 뱃지 자체를 숨김).
+      let showsHtml = "";
+      if (venue.currentShows && venue.currentShows.length > 0) {
+        showsHtml = `<span class="stadium-card-team stadium-card-team-current">[${this.escapeHtml(venue.currentShows[0])}]</span>`;
+      } else if (venue.nextShow) {
+        showsHtml = `<span class="stadium-card-team stadium-card-team-upcoming">공연예정 [${this.escapeHtml(venue.nextShow)}]</span>`;
+      }
       card.innerHTML = isPreparing
         ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${venue.name}</span></div>`
         : `
@@ -1824,9 +1870,18 @@ class SeatViewApp {
     if (nameEl) nameEl.textContent = venue.name;
     if (locEl) locEl.textContent = venue.location;
     if (showsEl) {
+      // 리스트 카드와 동일한 규칙: 현재 공연이 있으면 그것만, 없으면
+      // 다음 공연을 "공연예정 [이름]"으로 대신 보여준다(둘을 같이
+      // 보여주면 뱃지가 겹쳐 보여 오히려 헷갈림).
       const shows = venue.currentShows || [];
+      let badges = "";
       if (shows.length > 0) {
-        showsEl.textContent = shows.join(" / ");
+        badges = shows.map(s => `<span class="stadium-badge">${this.escapeHtml(s)}</span>`).join("");
+      } else if (venue.nextShow) {
+        badges = `<span class="stadium-badge stadium-badge-upcoming">공연예정 [${this.escapeHtml(venue.nextShow)}]</span>`;
+      }
+      if (badges) {
+        showsEl.innerHTML = badges;
         showsEl.style.display = "";
       } else {
         showsEl.style.display = "none";

@@ -1064,6 +1064,30 @@ img {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* 뮤지컬/연극 공연장 카드의 "현재 공연" 뱃지 — 반투명 유리 느낌만으로는
+   아래 "다음 공연"(무채색) 뱃지와 사진 밝기에 따라 거의 구분이 안 될 때가
+   있어서, 상세 화면과 같은 강조 색(accent-gradient)을 꽉 채워 확실히
+   구분되게 한다. (야구장 카드의 기본 .stadium-card-team 스타일은 그대로
+   둔다.) */
+.stadium-card-team.stadium-card-team-current {
+  color: white;
+  background: var(--accent-gradient);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+}
+
+/* 현재 상영작이 없어 "다음 공연"을 대신 보여줄 때 — 지금 하고 있는 게
+   아니라는 걸 색으로 바로 구분되게 무채색 톤으로 뺀다. 배경 사진이 밝을
+   때도 묻히지 않도록 반투명이 아니라 꽉 채운 배경을 쓴다. */
+.stadium-card-team.stadium-card-team-upcoming {
+  color: #f3f4f6;
+  background: rgba(55, 65, 81, 0.92);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 .stadium-card-name {
   font-size: 0.95rem;
   font-weight: 700;
@@ -1420,6 +1444,28 @@ img {
   color: white;
   display: inline-block;
   margin-bottom: 6px;
+}
+
+/* 상세 화면의 현재/다음 공연 뱃지 묶음 — 여러 개가 나올 수 있어 줄바꿈
+   되게 flex로 감싼다. */
+.venue-detail-shows-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.venue-detail-shows-row .stadium-badge {
+  margin-bottom: 0;
+}
+
+/* 아직 시작 전인 "다음 공연" 뱃지 — 지금 하는 공연과 헷갈리지 않게
+   무채색 톤으로 뺀다. 배경 사진이 밝을 때도 묻히지 않도록 반투명이
+   아니라 꽉 채운 배경을 쓴다. */
+.stadium-badge.stadium-badge-upcoming {
+  background: rgba(55, 65, 81, 0.92);
+  color: #f3f4f6;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .stadium-meta {
@@ -2841,6 +2887,11 @@ img {
   flex: 1;
   min-height: 0;
   padding-right: 4px;
+  /* Without this, the \n characters saved in the review's content are
+     real but plain CSS whitespace rules collapse them — the line break
+     the author typed and the one actually stored both existed, only the
+     rendering ignored them. */
+  white-space: pre-wrap;
 }
 
 .modal-desc-box p::-webkit-scrollbar {

@@ -116,9 +116,22 @@ exports.handler = async (event) => {
   // body's layout, and the inline bg/text colors (with hard-coded
   // fallbacks matching the dark theme default) keep it from flashing
   // unstyled before style_v6.css has painted.
+  // First-fold content is a loading spinner, not the crawler text — a real
+  // visitor landing here was flashing a whole wall of text (title, floor
+  // list, food/parking info) for the ~0.5-1s it takes app_v6.js to load
+  // and remove this div, which read as "some other broken page" even
+  // after the flex-layout squish itself was fixed. The rich text is still
+  // genuinely present and visible in the DOM (just below the fold) —
+  // scrolling reveals it — so crawlers see the exact same content as
+  // before; this isn't cloaking, just ordering what a human notices first.
   const seoContentHtml = `
 <div id="ssr-seo-content" style="position:fixed;inset:0;z-index:9999;overflow-y:auto;background:var(--bg-app,#080a0f);color:var(--text-primary,#f3f4f6);">
-  <div style="max-width:640px;margin:0 auto;padding:20px 16px;font-family:sans-serif;line-height:1.6;">
+  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+    <img src="/assets/header-logo.png" alt="잘보여유" style="height:28px;">
+    <div style="width:26px;height:26px;border:3px solid rgba(255,255,255,0.15);border-top-color:#8b5cf6;border-radius:50%;animation:ssr-spin 0.8s linear infinite;"></div>
+    <style>@keyframes ssr-spin{to{transform:rotate(360deg)}}</style>
+  </div>
+  <div style="max-width:640px;margin:0 auto;padding:0 16px 20px;font-family:sans-serif;line-height:1.6;">
     <h1>${escapeHtml(venue.name)} 좌석 시야 후기</h1>
     <p>${escapeHtml(venue.address || "")}</p>
     <h2>구역 정보</h2>
