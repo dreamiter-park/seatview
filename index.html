@@ -35,8 +35,22 @@
        link-preview bot included) expect an ASCII URL and won't resolve a
        literal Unicode hostname here, which was silently breaking the
        preview image/link. -->
-  <meta property="og:image" content="https://xn--on3b27no0awn.com/assets/og-image.png">
+  <meta property="og:image" content="https://xn--on3b27no0awn.com/assets/og-image.jpg">
   <meta property="og:url" content="https://xn--on3b27no0awn.com">
+  <!-- og:site_name and the WebSite JSON-LD's "name" are the two signals
+       Google actually documents for the site-name label it shows before
+       the URL in search results — without either, it falls back to
+       guessing from the domain/title, which is why our result was
+       showing without one while sites that set this weren't. -->
+  <meta property="og:site_name" content="잘보여유">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "잘보여유",
+    "url": "https://xn--on3b27no0awn.com"
+  }
+  </script>
 
   <!-- Global Debug Error Logger -->
   <script>
@@ -77,7 +91,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.28">
+  <link rel="stylesheet" href="/style_v6.css?v=5.30">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -167,7 +181,7 @@
               <a href="/event-terms.html">이벤트 참여규정</a>
             </div>
             <p class="site-footer-contact">배너 광고 문의 · 오류 제보는 언제든 <a href="mailto:j2mi.help@gmail.com">j2mi.help@gmail.com</a>로 남겨주세요!</p>
-            <p class="site-footer-notice">시야 사진 사용을 원하시면 위 메일로 협업 요청 바랍니다.<br>무단 사용 시 민·형사상 책임을 물을 수 있습니다.</p>
+            <p class="site-footer-notice">시야 사진 사용을 원하시면 위 메일로 협업 요청 바랍니다.<br>출처 표기 없는 무단 상업적 이용 시 민·형사상 책임을 물을 수 있습니다.</p>
             <p class="site-footer-business">사업자명: 제이투미(J2MI)</p>
             <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
           </footer>
@@ -199,6 +213,15 @@
             <input type="text" placeholder="공연장 또는 공연명 검색 (예: 세종, 라이프 오브 파이)" id="venue-search-input">
           </div>
 
+          <div class="venue-list-toolbar">
+            <span class="venue-list-count" id="venue-list-count">총 0개</span>
+            <select class="venue-sort-select" id="venue-sort-select" onchange="app.renderVenueList(document.getElementById('venue-search-input').value)">
+              <option value="reviews">시야 많은순</option>
+              <option value="recent">신규 등록순</option>
+              <option value="name">가나다순</option>
+            </select>
+          </div>
+
           <div class="stadium-grid" id="venue-grid-container">
             <!-- Dynamically populated -->
           </div>
@@ -223,7 +246,7 @@
 
           <!-- Section Navigation -->
           <div class="detail-tabs">
-            <button class="tab-btn active" onclick="app.switchVenueDetailTab('map')">공연장 좌석배치도</button>
+            <button class="tab-btn active" onclick="app.switchVenueDetailTab('map')">좌석배치도</button>
             <button class="tab-btn" onclick="app.switchVenueDetailTab('info')">공연장 정보</button>
           </div>
 
@@ -279,6 +302,16 @@
 
           <!-- Tab Content: Venue Info -->
           <div id="venue-tab-content-info" class="tab-pane">
+            <!-- 공연장 제휴 메시지 — venues.partner_message가 있을 때만 노출
+                 (아직 실제 제휴 문구가 들어간 공연장이 없어서 기본은 숨김). -->
+            <div class="info-card" id="venue-info-partner-card" style="display: none;">
+              <h4>💬 공연장에서 드리는 말씀</h4>
+              <div class="info-text" id="venue-info-partner"></div>
+            </div>
+            <div class="info-card">
+              <h4>🎭 공연 일정</h4>
+              <div class="info-text" id="venue-info-schedule">정보를 불러오는 중입니다...</div>
+            </div>
             <div class="info-card">
               <h4>🍔 대표 먹거리</h4>
               <div class="info-text" id="venue-info-food">정보를 불러오는 중입니다...</div>
@@ -1038,7 +1071,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.03"></script>
+  <script src="/app_v6.js?v=9.06"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

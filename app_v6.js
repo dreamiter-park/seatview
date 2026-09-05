@@ -1650,6 +1650,34 @@ class SeatViewApp {
     return card;
   }
 
+  // 목업 전용 — 2열 정사각형 광고 그리드안. 기존 배너 소재(900x250, 3.6:1
+  // 와이드)를 정사각형으로 그대로 cover-fit 하면 실제로 크게 잘리는데,
+  // 그 실물 크롭 결과를 그대로 보여줘서 판단 재료로 쓰려는 것 — 실제
+  // 채택 시엔 광고 소재 자체를 정사각형 비율로 새로 만들어야 한다. AD
+  // 뱃지는 원본 이미지에 이미 박혀있어도 크롭되면 사라질 수 있어 코드로
+  // 한 번 더 얹는다.
+  buildShoppingAdPairCard(category, occurrenceIndex) {
+    const ads = SHOPPING_ADS_DB[category];
+    if (!ads || ads.length === 0) return null;
+
+    const wrap = document.createElement("div");
+    wrap.className = "shopping-ad-pair";
+
+    for (let i = 0; i < 2; i++) {
+      const ad = ads[(occurrenceIndex + i) % ads.length];
+      if (!ad || !ad.image_url) continue;
+      const tile = document.createElement("div");
+      tile.className = "shopping-ad-square";
+      tile.style.backgroundImage = `url('${ad.image_url}')`;
+      tile.innerHTML = `<span class="shopping-ad-square-badge">AD</span>`;
+      if (ad.link_url) {
+        tile.onclick = () => window.open(ad.link_url, "_blank", "noopener,noreferrer");
+      }
+      wrap.appendChild(tile);
+    }
+    return wrap.children.length > 0 ? wrap : null;
+  }
+
   // --- Venue (공연장) List + Detail — lean parallel to the stadium flow
   // above, not sharing code with it since loadStadiums()/loadStadiumDetail()
   // are full of baseball-only assumptions (hardcoded id remaps, amenities
@@ -1672,6 +1700,7 @@ class SeatViewApp {
           map_image_url: v.map_image_url,
           food_info: v.food_info,
           parking_info: v.parking_info,
+          partner_message: v.partner_message || null,
           // Filled in below from musical_shows — venues.current_shows is
           // the old manually-curated array column, kept in the table for
           // now but no longer read here (see loadVenues()'s comment on
@@ -1679,6 +1708,7 @@ class SeatViewApp {
           currentShows: [],
           nextShow: null,
           display_order: v.display_order,
+          ins_dtm: v.ins_dtm,
           status: v.status || 'open',
           reviewCount: 0
         }));
@@ -1770,9 +1800,22 @@ class SeatViewApp {
     // Case-insensitive — "nol" typed lowercase should still match venues
     // named "NOL 유니플렉스" etc.
     const needle = trimmed.toLowerCase();
-    const venues = trimmed.length >= 2
+    let venues = trimmed.length >= 2
       ? VENUES_DB.filter(v => v.name.toLowerCase().includes(needle) || (v.currentShows || []).some(s => s.toLowerCase().includes(needle)))
-      : VENUES_DB;
+      : VENUES_DB.slice();
+
+    // 정렬 기준 — "등록된 시야순"은 VENUES_DB가 loadVenues()에서 이미 그
+    // 순서로 정렬돼 있어 그대로 두면 되고, 나머지 둘만 다시 정렬한다.
+    const sortSelect = document.getElementById("venue-sort-select");
+    const sortMode = sortSelect ? sortSelect.value : "reviews";
+    if (sortMode === "recent") {
+      venues = venues.slice().sort((a, b) => new Date(b.ins_dtm || 0) - new Date(a.ins_dtm || 0));
+    } else if (sortMode === "name") {
+      venues = venues.slice().sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    }
+
+    const countEl = document.getElementById("venue-list-count");
+    if (countEl) countEl.textContent = `총 ${venues.length}개`;
 
     if (venues.length === 0) {
       container.innerHTML = `
@@ -1785,20 +1828,22 @@ class SeatViewApp {
       return;
     }
 
-    // Product ad slot: lands on visual position 4 in this single-column
-    // list, so inserted before the 4th venue (0-indexed: 3). The position-6
-    // slot is removed for now. Skipped while filtering — an ad wedged into
-    // a short, deliberately-narrowed search result looks out of place.
-    // One ad slot every 4 venues (before the 5th, 9th, 13th... card) instead
-    // of a single fixed slot — the list is long enough now that one ad near
-    // the top left everything past it with none.
+    // Product ad slot: 공연장 4개 다음에 첫 광고, 그 뒤로는 8개마다 한 번씩
+    // (4, 12, 20, 28...번째 위치에 삽입). Skipped while filtering — an ad
+    // wedged into a short, deliberately-narrowed search result looks out
+    // of place.
     const showAds = trimmed.length < 2;
     let adOccurrence = 0; // which ad slot this is (1st, 2nd, 3rd...), not a venue index — cycles through registered ads in order
+    let nextAdIndex = 4; // first ad after 4 venues, then every 8 after that
 
     venues.forEach((venue, index) => {
-      if (showAds && index > 0 && index % 4 === 0) {
-        const adCard = this.buildShoppingAdCard('musical', adOccurrence);
-        if (adCard) { container.appendChild(adCard); adOccurrence++; }
+      if (showAds && index === nextAdIndex) {
+        // 목업 테스트용으로 2열 정사각형 그리드(buildShoppingAdPairCard)를
+        // 잠깐 대신 써본다 — 마음에 안 들면 이 한 줄만 buildShoppingAdCard
+        // 호출로 되돌리면 원래대로 복구된다.
+        const adCard = this.buildShoppingAdPairCard('musical', adOccurrence);
+        if (adCard) { container.appendChild(adCard); adOccurrence += 2; }
+        nextAdIndex += 8;
       }
 
       // A real <a href> (instead of a bare div) so search engine crawlers
@@ -1911,6 +1956,58 @@ class SeatViewApp {
 
     if (foodEl) foodEl.innerHTML = this.formatInfoText(venue.food_info) || "등록된 먹거리 정보가 없습니다.";
     if (parkingEl) parkingEl.innerHTML = this.formatInfoText(venue.parking_info) || "등록된 주차 정보가 없습니다.";
+
+    // 공연장 제휴 한마디 — 아직 데이터가 없는 공연장이 대부분이라 값이
+    // 있을 때만 카드 자체를 노출한다(빈 카드가 계속 보이면 "정보 없음"
+    // 카드만 늘어나는 꼴이라 오히려 지저분함).
+    const partnerCardEl = document.getElementById("venue-info-partner-card");
+    const partnerEl = document.getElementById("venue-info-partner");
+    if (partnerCardEl && partnerEl) {
+      const formattedPartnerMsg = this.formatInfoText(venue.partner_message);
+      if (formattedPartnerMsg) {
+        partnerEl.innerHTML = formattedPartnerMsg;
+        partnerCardEl.style.display = "";
+      } else {
+        partnerCardEl.style.display = "none";
+      }
+    }
+
+    // 공연 일정 — 리스트/상단 뱃지는 "현재 아니면 다음 하나만" 규칙이지만,
+    // 여기 정보 탭은 해당 공연장의 전체 일정을 훑어보는 용도라 현재/예정을
+    // 모두, 날짜까지 같이 보여준다.
+    const scheduleEl = document.getElementById("venue-info-schedule");
+    if (scheduleEl) {
+      if (!supabaseClient) {
+        scheduleEl.textContent = "";
+      } else {
+        try {
+          const today = new Date().toISOString().slice(0, 10);
+          const { data: shows, error: showsErr } = await supabaseClient
+            .from('musical_shows')
+            .select('show_name, run_start, run_end')
+            .eq('venue_id', venue.id)
+            .or(`run_end.is.null,run_end.gte.${today}`)
+            .order('run_start', { ascending: true });
+          if (showsErr) throw showsErr;
+          scheduleEl.innerHTML = (shows && shows.length > 0)
+            ? shows.map(s => {
+                const isCurrent = s.run_start <= today;
+                const period = `${this.formatShowDate(s.run_start)} ~ ${s.run_end ? this.formatShowDate(s.run_end) : "오픈런"}`;
+                return `<div class="venue-schedule-item">
+                  <span class="venue-schedule-dot ${isCurrent ? "current" : "upcoming"}"></span>
+                  <div class="venue-schedule-item-body">
+                    <span class="venue-schedule-item-title">${this.escapeHtml(s.show_name)}</span>
+                    <span class="venue-schedule-item-meta">${isCurrent ? "공연중" : "공연예정"} · ${period}</span>
+                  </div>
+                </div>`;
+              }).join("")
+            : "등록된 공연 일정이 없습니다.";
+        } catch (e) {
+          console.error("공연 일정 로딩 에러:", e);
+          scheduleEl.textContent = "공연 일정을 불러오지 못했습니다.";
+        }
+      }
+    }
 
     // Switch default tab — unlike loadStadiumDetail(), this was never being
     // called here, so a stray leftover "active" class from a previous
@@ -7017,6 +7114,11 @@ class SeatViewApp {
   // Escapes user-supplied text (review comments, nicknames, etc.) before it
   // is interpolated into an innerHTML template, so stored content can never
   // be parsed as markup/script by the browser.
+  // "2026-07-01" -> "2026.07.01", for the venue-detail 공연 일정 card.
+  formatShowDate(isoDate) {
+    return isoDate ? isoDate.replace(/-/g, ".") : "";
+  }
+
   escapeHtml(text) {
     if (text === null || text === undefined) return "";
     return String(text)

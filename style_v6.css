@@ -892,6 +892,29 @@ img {
   gap: 12px;
 }
 
+.venue-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.venue-list-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.venue-sort-select {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
 /* Venue list has far fewer entries than the stadium list right now — 2
    columns leaves an awkward empty-looking row. Single column until there
    are enough venues for 2-up to look intentional. */
@@ -969,6 +992,42 @@ img {
      span both columns of the baseball stadium grid instead of sitting
      in one half-width cell like a regular stadium card. */
   grid-column: 1 / -1;
+}
+
+/* 목업: 2열 정사각형 광고 그리드 — 일반 공연장 카드(전체 너비, 사진
+   배경)랑 크기/비율 자체가 달라서 굳이 안 봐도 광고라는 걸 바로 알 수
+   있게 하려는 실험. 카드 프레임은 다크 테마 톤(--bg-card)으로 통일해서
+   갑자기 흰 배경이 튀어나오는 일 없게 한다. */
+.shopping-ad-pair {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.shopping-ad-square {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  background-color: var(--bg-card);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.shopping-ad-square-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: white;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.03em;
 }
 
 .stadium-card:hover {
@@ -2083,6 +2142,61 @@ img {
   font-size: 0.78rem;
   color: var(--text-secondary);
   line-height: 1.45;
+}
+
+/* 공연장 정보 탭 > 공연 일정 카드 — 줄 하나짜리 구분선으로는 표처럼도 안
+   보이고 헤더랑도 너무 붙어 보였다. 각 공연을 배경이 있는 독립된 줄로
+   띄워서(선이 아니라 여백/배경으로 구분) 몇 개가 있든 명확히 나뉘어
+   보이게 한다. 상태는 상단 배너의 보라색 알약 뱃지와 안 겹치게 점 색으로만
+   구분. */
+.venue-schedule-item:first-child {
+  margin-top: 8px;
+}
+
+.venue-schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 8px;
+}
+
+.venue-schedule-item:last-child {
+  margin-bottom: 0;
+}
+
+.venue-schedule-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.venue-schedule-dot.current {
+  background: #a78bfa;
+}
+
+.venue-schedule-dot.upcoming {
+  background: var(--text-secondary);
+}
+
+.venue-schedule-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.venue-schedule-item-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.venue-schedule-item-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 .info-bullet-list {
