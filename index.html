@@ -91,7 +91,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.30">
+  <link rel="stylesheet" href="/style_v6.css?v=5.36">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -192,7 +192,7 @@
 
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="야구장 + 구역/좌석 검색 (예: 고척 111 5열 3번)" id="stadium-search-input">
+            <input type="text" placeholder="야구장 + 구역/좌석 검색 (예: 고척 111 5열 3번)" id="stadium-search-input" autocomplete="off">
           </div>
 
           <!-- Stadium Card Grid -->
@@ -210,7 +210,10 @@
         <section id="view-venues" class="view">
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="공연장 또는 공연명 검색 (예: 세종, 라이프 오브 파이)" id="venue-search-input">
+            <input type="text" placeholder="공연장 또는 공연명 검색 (예: 세종, 라이프 오브 파이)" id="venue-search-input" autocomplete="off">
+            <button type="button" id="venue-search-clear-btn" onclick="app.clearSearchInput('venue-search-input', () => app.renderVenueList(''))" aria-label="검색어 지우기" style="display: none; background: none; border: none; padding: 4px; margin-left: 6px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;">
+              <i data-lucide="x-circle" style="width: 16px; height: 16px; display: block;"></i>
+            </button>
           </div>
 
           <div class="venue-list-toolbar">
@@ -510,7 +513,23 @@
 
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
             <h2 class="view-title" id="ticketbook-heading" style="font-size: 1rem; margin-bottom: 0;">나의 시야 등록 내역</h2>
-            <button id="btn-ticket-view-toggle" onclick="app.toggleTicketViewMode()" aria-label="보기 방식 전환" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 7px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary);"></button>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button id="btn-ticket-search-toggle" onclick="app.toggleTicketSearch()" aria-label="공연장 검색" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 7px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary);">
+                <i data-lucide="search" style="width: 16px; height: 16px;"></i>
+              </button>
+              <button id="btn-ticket-view-toggle" onclick="app.toggleTicketViewMode()" aria-label="보기 방식 전환" style="background: none; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px 7px; display: flex; align-items: center; cursor: pointer; color: var(--text-secondary);"></button>
+            </div>
+          </div>
+
+          <!-- Collapsible venue-name search for the ticket archive, hidden
+               until the search icon above is clicked. Only really needed by
+               people with a lot of registrations, so it stays tucked away
+               rather than always taking up space. -->
+          <div id="ticket-search-box" style="display: none; margin-bottom: 12px; position: relative;">
+            <input type="text" id="ticket-search-input" placeholder="공연장명(홀 이름)으로 검색" autocomplete="off" oninput="app.renderTicketbook()" style="width: 100%; padding: 10px 34px 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 0.8rem;">
+            <button type="button" id="ticket-search-clear-btn" onclick="app.clearSearchInput('ticket-search-input', () => app.renderTicketbook())" aria-label="검색어 지우기" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 4px; color: var(--text-muted); cursor: pointer;">
+              <i data-lucide="x-circle" style="width: 16px; height: 16px; display: block;"></i>
+            </button>
           </div>
 
           <!-- Ticket Archive Grid -->
@@ -525,6 +544,12 @@
         </section>
 
       </main>
+
+      <!-- 맨 위로 스크롤 플로팅 버튼 — 일정 이상 스크롤했을 때만 나타남.
+           app.js의 스크롤 리스너가 .visible 클래스를 토글한다. -->
+      <button type="button" id="btn-scroll-top" onclick="app.scrollToTop()" aria-label="맨 위로 이동">
+        <i data-lucide="chevron-up"></i>
+      </button>
 
       <!-- MODALS -->
 
@@ -736,8 +761,11 @@
                 </div>
               </div>
 
-              <!-- 6. 닉네임 사용 여부 토글 -->
-              <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <!-- 6. 닉네임 사용 여부 토글 — 실사용 2.7%(256건 중 7건)라 폼
+                   길이만 늘리는 느낌이라 숨김. checked 기본값은 그대로 둬서
+                   내부 로직(form-show-nickname-toggle 참조하는 저장 코드)은
+                   안 건드리고, 항상 닉네임 노출로 저장되게만 함. -->
+              <div class="form-group" style="margin-bottom: 20px; display: none; align-items: center; justify-content: space-between; gap: 12px;">
                 <label for="form-show-nickname-toggle" style="margin: 0; font-weight: 500; font-size: 0.74rem; cursor: pointer; user-select: none; color: var(--text-secondary);">닉네임 사용</label>
                 <label class="ios-toggle" style="flex-shrink: 0;">
                   <input type="checkbox" id="form-show-nickname-toggle" checked>
@@ -891,7 +919,7 @@
           <div id="ocr-picker-step-venue" style="display: none; flex-direction: column; gap: 8px; overflow: hidden;">
             <div class="search-bar-container" id="ocr-picker-venue-search-wrap" style="display: none; margin: 0 0 2px 0;">
               <i data-lucide="search" class="search-icon"></i>
-              <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="ocr-picker-venue-search">
+              <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="ocr-picker-venue-search" autocomplete="off">
             </div>
             <div id="ocr-picker-venue-list" style="display: flex; flex-direction: column; gap: 8px; height: 340px; overflow-y: auto;"></div>
           </div>
@@ -1071,7 +1099,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.06"></script>
+  <script src="/app_v6.js?v=9.25"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

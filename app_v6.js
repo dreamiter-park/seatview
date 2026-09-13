@@ -696,16 +696,16 @@ class SeatViewApp {
             // Badge HTML
             let badgeHtml = "";
             if (cat.badge_text) {
-              const badgeColor = cat.badge_color || "blue";
-              badgeHtml = `<div class="category-tag ${badgeColor}">${cat.badge_text}</div>`;
+              const badgeColor = this.escapeHtml(cat.badge_color || "blue");
+              badgeHtml = `<div class="category-tag ${badgeColor}">${this.escapeHtml(cat.badge_text)}</div>`;
             }
 
             card.innerHTML = `
-              <div class="card-bg-overlay" style="background-image: url('${bgImage}');"></div>
+              <div class="card-bg-overlay" style="background-image: url('${this.escapeHtml(bgImage)}');"></div>
               ${badgeHtml}
               <div class="category-info">
-                <h3 class="category-name">${cat.icon || ''} ${cat.name}</h3>
-                <p class="category-sub">${cat.subtitle || ''}</p>
+                <h3 class="category-name">${this.escapeHtml(cat.icon || '')} ${this.escapeHtml(cat.name)}</h3>
+                <p class="category-sub">${this.escapeHtml(cat.subtitle || '')}</p>
               </div>
             `;
             container.appendChild(card);
@@ -879,6 +879,23 @@ class SeatViewApp {
   }
 
   setupListeners() {
+    // "맨 위로" 플로팅 버튼 — 실제 스크롤 컨테이너가 화면 폭에 따라 둘 중
+    // 하나로 갈린다(style_v6.css의 481px 미만 미디어쿼리 참고): 좁은 화면
+    // (실제 모바일)에서는 body/문서 자체가 스크롤되고, 넓은 화면(데스크톱
+    // 미리보기 박스)에서는 .app-content가 내부 스크롤을 담당한다. 둘 다
+    // 리스너를 걸어두면 현재 활성 스크롤러가 뭐든 안전하게 잡힌다.
+    const scrollTopBtn = document.getElementById("btn-scroll-top");
+    if (scrollTopBtn) {
+      const SHOW_AFTER_PX = 400;
+      const updateScrollTopBtn = () => {
+        const scrolled = window.scrollY || document.getElementById("app-content")?.scrollTop || 0;
+        scrollTopBtn.classList.toggle("visible", scrolled > SHOW_AFTER_PX);
+      };
+      window.addEventListener("scroll", updateScrollTopBtn, { passive: true });
+      document.getElementById("app-content")?.addEventListener("scroll", updateScrollTopBtn, { passive: true });
+      updateScrollTopBtn();
+    }
+
     // Deter casual right-click-save / drag-save of seat-view photos (not a
     // real security control — DevTools/view-source always gets around this —
     // just raises the bar above a single right-click for most users.
@@ -1576,18 +1593,18 @@ class SeatViewApp {
         : () => this.loadStadiumDetail(st.id);
 
       const teamsHtml = st.team
-        ? st.team.split(" / ").map(t => `<span class="stadium-card-team">[${t.replace(/\s+/g, "")}]</span>`).join("")
+        ? st.team.split(" / ").map(t => `<span class="stadium-card-team">[${this.escapeHtml(t.replace(/\s+/g, ""))}]</span>`).join("")
         : "";
 
       card.innerHTML = isPreparing
-        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${st.name}</span></div>`
+        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${this.escapeHtml(st.name)}</span></div>`
         : `
         <div class="stadium-card-main">
           <div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">
             ${teamsHtml}
           </div>
-          <h3 class="stadium-card-name">${st.name}</h3>
-          <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${st.location.split(" ").slice(0, 2).join(" ")}</span>
+          <h3 class="stadium-card-name">${this.escapeHtml(st.name)}</h3>
+          <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${this.escapeHtml(st.location.split(" ").slice(0, 2).join(" "))}</span>
         </div>
       `;
       container.appendChild(card);
@@ -1797,11 +1814,24 @@ class SeatViewApp {
     }
 
     const trimmed = filterText.trim();
+    const searchClearBtn = document.getElementById("venue-search-clear-btn");
+    if (searchClearBtn) searchClearBtn.style.display = filterText.length > 0 ? "flex" : "none";
     // Case-insensitive — "nol" typed lowercase should still match venues
     // named "NOL 유니플렉스" etc.
     const needle = trimmed.toLowerCase();
-    let venues = trimmed.length >= 2
-      ? VENUES_DB.filter(v => v.name.toLowerCase().includes(needle) || (v.currentShows || []).some(s => s.toLowerCase().includes(needle)))
+    // Search only ever matches what a card actually displays: the venue
+    // name, current shows if any exist, or — only when there's no current
+    // show to show instead — the next upcoming one. Matching nextShow
+    // unconditionally would surface venues whose card shows a current show
+    // with no visible trace of the searched-for (future) title anywhere.
+    let venues = trimmed.length >= 1
+      ? VENUES_DB.filter(v => {
+          if (v.name.toLowerCase().includes(needle)) return true;
+          if (v.currentShows && v.currentShows.length > 0) {
+            return v.currentShows.some(s => s.toLowerCase().includes(needle));
+          }
+          return !!(v.nextShow && v.nextShow.toLowerCase().includes(needle));
+        })
       : VENUES_DB.slice();
 
     // 정렬 기준 — "등록된 시야순"은 VENUES_DB가 loadVenues()에서 이미 그
@@ -1828,13 +1858,13 @@ class SeatViewApp {
       return;
     }
 
-    // Product ad slot: 공연장 4개 다음에 첫 광고, 그 뒤로는 8개마다 한 번씩
-    // (4, 12, 20, 28...번째 위치에 삽입). Skipped while filtering — an ad
+    // Product ad slot: 공연장 5개 다음에 첫 광고, 그 뒤로는 8개마다 한 번씩
+    // (5, 13, 21, 29...번째 위치에 삽입). Skipped while filtering — an ad
     // wedged into a short, deliberately-narrowed search result looks out
     // of place.
-    const showAds = trimmed.length < 2;
+    const showAds = trimmed.length < 1;
     let adOccurrence = 0; // which ad slot this is (1st, 2nd, 3rd...), not a venue index — cycles through registered ads in order
-    let nextAdIndex = 4; // first ad after 4 venues, then every 8 after that
+    let nextAdIndex = 5; // first ad after 5 venues, then every 8 after that
 
     venues.forEach((venue, index) => {
       if (showAds && index === nextAdIndex) {
@@ -1878,12 +1908,12 @@ class SeatViewApp {
         showsHtml = `<span class="stadium-card-team stadium-card-team-upcoming">공연예정 [${this.escapeHtml(venue.nextShow)}]</span>`;
       }
       card.innerHTML = isPreparing
-        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${venue.name}</span></div>`
+        ? `<div class="stadium-card-preparing-overlay"><i data-lucide="lock"></i><span class="preparing-label">준비중</span><span class="preparing-name">${this.escapeHtml(venue.name)}</span></div>`
         : `
         <div class="stadium-card-main">
           ${showsHtml ? `<div class="stadium-card-team-container" style="display: flex; flex-wrap: wrap; gap: 4px;">${showsHtml}</div>` : ""}
-          <h3 class="stadium-card-name">${venue.name}</h3>
-          <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${venue.location}</span>
+          <h3 class="stadium-card-name">${this.escapeHtml(venue.name)}</h3>
+          <span class="stadium-card-location"><i data-lucide="map-pin"></i> ${this.escapeHtml(venue.location)}</span>
         </div>
       `;
       container.appendChild(card);
@@ -1989,8 +2019,20 @@ class SeatViewApp {
             .or(`run_end.is.null,run_end.gte.${today}`)
             .order('run_start', { ascending: true });
           if (showsErr) throw showsErr;
-          scheduleEl.innerHTML = (shows && shows.length > 0)
-            ? shows.map(s => {
+          // 현재 공연은 전부, 공연예정은 최대 3개까지만 — 예정 리스트가
+          // 너무 길어지면 정보 탭이 일정표처럼 늘어져 오히려 안 읽힘.
+          const capped = [];
+          let upcomingCount = 0;
+          (shows || []).forEach(s => {
+            if (s.run_start <= today) {
+              capped.push(s);
+            } else if (upcomingCount < 3) {
+              capped.push(s);
+              upcomingCount++;
+            }
+          });
+          scheduleEl.innerHTML = (capped.length > 0)
+            ? capped.map(s => {
                 const isCurrent = s.run_start <= today;
                 const period = `${this.formatShowDate(s.run_start)} ~ ${s.run_end ? this.formatShowDate(s.run_end) : "오픈런"}`;
                 return `<div class="venue-schedule-item">
@@ -2161,6 +2203,31 @@ class SeatViewApp {
     // first if this venue doesn't have a 1층 at all.
     const defaultFloor = floors.includes(1) ? 1 : floors[0];
     this.selectVenueFloor(defaultFloor, { isInitial: true });
+
+    // 층별로 시야 사진이 등록된 좌석 수를 탭에 표시. 개수가 0인 층은
+    // 괄호 자체를 생략해 눈에 띄지 않게 한다.
+    this.loadVenueFloorPhotoCounts();
+  }
+
+  // 대형 공연장은 한 층에 좌석이 1000개 넘게 있어서, 좌석 id를 전부
+  // .in()에 나열하던 예전 방식은 URL 길이 초과 위험과 불필요한 트래픽
+  // 낭비가 있었다. get_venue_floor_photo_counts RPC(DB 안에서 JOIN+COUNT)
+  // 한 번 호출로 모든 층의 카운트를 가볍게 받아온다. 차단된(is_blocked)
+  // 리뷰는 DB 함수 쪽에서 이미 제외된다.
+  async loadVenueFloorPhotoCounts() {
+    if (!supabaseClient || !state.selectedVenue) return;
+    try {
+      const { data: counts, error } = await supabaseClient
+        .rpc('get_venue_floor_photo_counts', { p_venue_id: state.selectedVenue.id });
+      if (error) throw error;
+      (counts || []).forEach(row => {
+        if (!row.seat_count) return;
+        const btn = document.querySelector(`#venue-floor-filter-bar .grade-pill[data-floor="${row.floor}"]`);
+        if (btn) btn.textContent = `${row.floor}층 (${row.seat_count})`;
+      });
+    } catch (e) {
+      console.warn("층별 시야사진 개수 로딩 실패:", e);
+    }
   }
 
   // pushHistory=false is used when restoring a floor from a back-navigation
@@ -2276,6 +2343,7 @@ class SeatViewApp {
         const { data: reviews } = await supabaseClient
           .from('musical_seat_reviews')
           .select('musical_seat_id, image_urls')
+          .eq('is_blocked', false)
           .in('musical_seat_id', seatIds);
         if (isStale()) return;
         (reviews || []).forEach(rev => {
@@ -3723,12 +3791,17 @@ class SeatViewApp {
     let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
     let stadiumName, blockName, seatName;
     let isWheelchairSeat = false;
+    // Hoisted out of the try block below so the "\uAD00\uB78C \uACF5\uC5F0" dropdown
+    // (populated further down, past this whole if-block) can still read the
+    // venue this seat belongs to \u2014 the same lookup the "N\uC5F4" show/hide fix
+    // already does for showRowNum.
+    let venueRow = null;
 
     if (isRealSeat && supabaseClient && isMusical) {
       try {
         const { data: seatRow } = await supabaseClient.from('musical_seats').select('*').eq('id', dbKey).single();
         isWheelchairSeat = !!(seatRow && seatRow.is_disabled_seat);
-        let blockRow = null, venueRow = null;
+        let blockRow = null;
         if (seatRow) {
           const { data: bRow } = await supabaseClient.from('musical_blocks').select('id, venue_id, floor, block_code, full_name, total_rows, max_seats, offset_x, offset_y, label_position, show_row_label').eq('id', seatRow.block_id).single();
           blockRow = bRow;
@@ -3747,18 +3820,17 @@ class SeatViewApp {
           ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "\uAD6C\uC5ED" : ""))
           : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || (state.selectedVenueBlock.block_code ? state.selectedVenueBlock.block_code + "\uAD6C\uC5ED" : "")) : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
 
-        // Row numbers only ever reach the user through the aisle
-        // label_position feature \u2014 if no block on this floor drives one,
-        // row_num was never actually shown anywhere on the seat map, so
-        // showing "N\uC5F4" here would surface info the map itself never did.
+        // Row numbers only ever reach the user through this block's own
+        // aisle label_position feature \u2014 if THIS block doesn't drive one,
+        // row_num was never actually shown anywhere on the seat map for it,
+        // so showing "N\uC5F4" here would surface info the map itself never did.
+        // (Was checking "does any block on this floor show labels" instead,
+        // which wrongly turned row numbers on for every block on a floor \u2014
+        // e.g. BOX1/BOX2 with label_position null \u2014 just because some other
+        // block on the same floor, like OP or B, happens to show them.)
         let showRowNum = true;
         if (blockRow) {
-          const { data: floorBlocks } = await supabaseClient
-            .from('musical_blocks')
-            .select('label_position')
-            .eq('venue_id', blockRow.venue_id)
-            .eq('floor', blockRow.floor);
-          showRowNum = !!(floorBlocks || []).some(b => (b.label_position || "").trim());
+          showRowNum = !!(blockRow.label_position || "").trim();
         }
         // Wheelchair spaces are often a marked area rather than a numbered
         // seat, so seat_num can be null \u2014 showing that raw would render as
@@ -3942,6 +4014,7 @@ class SeatViewApp {
                 // posts at render time instead (see updateModalImage()).
                 externalLink: rev.external_link || null,
                 watchedDate: rev.watched_date || null,
+                venueId: venueRow ? venueRow.id : null,
                 // \uAD00\uB78C\uC77C\uC774 \uC788\uC73C\uBA74 \uADF8\uAC78 \uBCF4\uC5EC\uC8FC\uACE0, \uC5C6\uC73C\uBA74 \uB4F1\uB85D\uC77C(ins_dtm)\uB85C \uB300\uCCB4.
                 date: rev.watched_date || uploaderDate.split('T')[0]
               });
@@ -4764,8 +4837,20 @@ class SeatViewApp {
     }
 
     const sourceTickets = activeCategory === "musical" ? (state.musicalTickets || []) : state.tickets;
-    const sortedTickets = [...sourceTickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
+    let sortedTickets = [...sourceTickets].sort((a, b) => new Date(b.ins_dtm) - new Date(a.ins_dtm));
     const total = sortedTickets.length;
+
+    // Venue-name filter for the collapsible search box (see
+    // toggleTicketSearch) — most people only register a handful of seats
+    // and never need this, but a few register far more and lose track of
+    // which ones they've already done.
+    const searchInput = document.getElementById("ticket-search-input");
+    const searchClearBtn = document.getElementById("ticket-search-clear-btn");
+    if (searchClearBtn) searchClearBtn.style.display = (searchInput && searchInput.value.length > 0) ? "flex" : "none";
+    const searchNeedle = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    if (searchNeedle) {
+      sortedTickets = sortedTickets.filter(t => (t.stadiumName || "").toLowerCase().includes(searchNeedle));
+    }
 
     // Update Stats Display
     // Top badge shows the combined report count across both baseball and
@@ -4812,6 +4897,21 @@ class SeatViewApp {
       // user's saved view-mode preference — that preference only matters
       // once there's an actual grid of cards to lay out.
       archiveContainer.classList.add("view-list");
+
+      // A search with zero matches is a different situation from having no
+      // registrations at all \u2014 showing "no registrations" plus a CTA to go
+      // register would be misleading when the real list isn't empty.
+      if (searchNeedle) {
+        archiveContainer.innerHTML = `
+          <div class="compare-empty" style="border-style: solid;">
+            <div class="compare-empty-icon"><i data-lucide="search-x"></i></div>
+            <h3>'${this.escapeHtml(searchInput.value.trim())}'\uC640(\uACFC) \uC77C\uCE58\uD558\uB294 \uACF5\uC5F0\uC7A5\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</h3>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
       // \uD504\uB85C\uC57C\uAD6C\uC7A5\uC740 \uC544\uC9C1 \uC624\uD508 \uC804\uC774\uB77C \uD648 \uD654\uBA74 \uCE74\uD14C\uACE0\uB9AC \uCE74\uB4DC\uC640 \uB3D9\uC77C\uD558\uAC8C
       // "\uC900\uBE44 \uC911" \uC548\uB0B4\uB85C \uB9C9\uB294\uB2E4 \u2014 \uC2E4\uC81C \uC57C\uAD6C\uC7A5 \uBAA9\uB85D\uC73C\uB85C \uB4E4\uC5B4\uAC00\uC9C0\uC9C0 \uC54A\uAC8C.
       const emptyNavAction = activeCategory === "musical"
@@ -4862,6 +4962,44 @@ class SeatViewApp {
       archiveContainer.appendChild(card);
     });
     lucide.createIcons();
+  }
+
+  // "맨 위로" 플로팅 버튼 클릭 핸들러 — 실제 스크롤러가 window든
+  // .app-content든 상관없이 둘 다 부드럽게 최상단으로 스크롤한다(활성이
+  // 아닌 쪽은 어차피 scrollTop이 이미 0이라 호출해도 아무 일도 안 일어남).
+  scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.getElementById("app-content")?.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Shared "×" clear-button handler for search inputs — empties the field,
+  // puts focus back so typing a new query doesn't need an extra click, and
+  // re-runs whatever render function that search box drives.
+  clearSearchInput(inputId, rerender) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = "";
+    input.focus();
+    if (typeof rerender === "function") rerender();
+  }
+
+  // Collapsible venue-name search for the ticket archive — tucked behind an
+  // icon so it doesn't take up space for the majority of people who only
+  // ever register a handful of seats and have nothing to search for.
+  toggleTicketSearch() {
+    const box = document.getElementById("ticket-search-box");
+    const input = document.getElementById("ticket-search-input");
+    if (!box) return;
+    const opening = box.style.display === "none" || !box.style.display;
+    box.style.display = opening ? "block" : "none";
+    if (opening) {
+      if (input) input.focus();
+    } else if (input) {
+      // Closing the box clears the search so the archive isn't left
+      // silently filtered with no visible input to explain why.
+      input.value = "";
+      this.renderTicketbook();
+    }
   }
 
   // Shopping-mall-style 1열/2열 toggle for the ticketbook grid. Defaults to
@@ -5188,9 +5326,14 @@ class SeatViewApp {
     const prefix = state.userId ? String(state.userId) : "guest";
     const contentType = blob.type || "image/webp";
     const fileName = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${this.extensionForMimeType(contentType)}`;
+    // Filenames are timestamp+random and never reused (upsert: false), so
+    // the content behind a given URL never changes — safe to cache for as
+    // long as browsers/CDN will let us (1 year) instead of the "no-cache"
+    // default, which was forcing a revalidation round-trip on every single
+    // view of a photo that was never going to change.
     const { error } = await supabaseClient.storage
       .from("seat-photos")
-      .upload(fileName, blob, { contentType, upsert: false });
+      .upload(fileName, blob, { contentType, upsert: false, cacheControl: "31536000" });
     if (error) throw error;
     const { data } = supabaseClient.storage.from("seat-photos").getPublicUrl(fileName);
     return data.publicUrl;
@@ -6414,7 +6557,7 @@ class SeatViewApp {
 
   // Same form the seat-grid click path opens, just pre-filled from the
   // OCR match instead of from whichever seat the user tapped.
-  openTicketFormFromOcrMatch(match) {
+  async openTicketFormFromOcrMatch(match) {
     state.activeModalCategory = match.category;
     state.activeModalSeatKey = String(match.realSeatId);
 
@@ -6558,10 +6701,9 @@ class SeatViewApp {
       commentEl.style.height = "auto";
       this.updateCommentCounter(commentEl);
     }
-
     const stadiumSelect = document.getElementById("form-stadium");
     if (stadiumSelect) {
-      stadiumSelect.innerHTML = STADIUMS_DB.map(st => `<option value="${st.id}">${st.name}</option>`).join("");
+      stadiumSelect.innerHTML = STADIUMS_DB.map(st => `<option value="${st.id}">${this.escapeHtml(st.name)}</option>`).join("");
     }
 
     document.getElementById("form-stadium").value = stadiumId;

@@ -741,6 +741,17 @@
     <span style="font-size: 0.75rem; color: var(--text-muted);">* 입력된 키는 로컬 브라우저에만 암호화 저장됩니다.</span>
   </div>
 
+  <!-- 임시 도구 — 확인 끝나면 이 블록 통째로 지워도 됨 -->
+  <div id="cache-migration-tool" style="background: rgba(59, 130, 246, 0.08); border-bottom: 1px solid var(--border-color); padding: 10px 16px; font-family: sans-serif; font-size: 0.8rem;">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <strong style="color: #60a5fa;">🧪 캐시 헤더 마이그레이션 (테스트)</strong>
+      <span style="color: var(--text-muted);">기존 파일의 Cache-Control을 1년으로 재설정 (경로/URL은 안 바뀜, 재실행해도 이미 고친 건 건너뜀)</span>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem;" onclick="app.runCacheHeaderMigrationTest()">테스트 실행 (공연장 이미지 2개 + 시야사진 3개)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #2d3748;" onclick="app.runCacheHeaderMigrationEditorBatch()">1차 확대: 잘보여유 에디터 계정 · 9/11~9/13 등록분</button>
+    </div>
+    <pre id="cache-migration-log" style="margin-top: 8px; max-height: 260px; overflow-y: auto; background: #0b0b12; color: #d1d5db; padding: 8px 10px; border-radius: 6px; display: none; white-space: pre-wrap; font-size: 0.72rem;"></pre>
+  </div>
+
   <header style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
     <div>
       <h1><i data-lucide="settings"></i> 잘보여유 - 관리자 좌석 설정</h1>
@@ -3052,6 +3063,195 @@
           : `<span class="image-preview-empty">이미지 없음</span>`;
       }
 
+      // 임시 마이그레이션 도구: 이미 올라간 파일들은 no-cache 헤더를 그대로
+      // 가지고 있어서, 같은 경로(path)에 그대로 update()로 다시 저장해
+      // Cache-Control만 1년으로 바꾼다. 경로/URL이 절대 안 바뀌므로 DB의
+      // image_urls / bg_image_url 등은 전혀 건드릴 필요가 없다. 재실행해도
+      // 이미 고쳐진 파일은 건너뛰도록(idempotent) 만들어서, 테스트 후 전체
+      // 실행으로 안전하게 넘어갈 수 있게 했다.
+      //
+      // 안전장치: update()로 원본을 덮어쓰기 전에, 같은 버킷 안
+      // "_cache_migration_backup/" 아래로 원본을 서버 내부에서 그대로
+      // 복사(copy)해 둔다 — 다운로드/업로드가 아니라 Storage 내부 복사라
+      // 추가 대역폭 비용이 거의 없고, 혹시 update 단계에서 문제가 생겨도
+      // 원본이 그대로 남아있어 복구할 수 있다. 확인 끝나면 이 함수들과
+      // 아래 #cache-migration-tool UI, 그리고 백업 폴더 자체를 지워도 된다.
+      // 파일 사이에 짧은 텀을 둬서 Supabase rate limit(429)과 브라우저
+      // 부하를 피한다 — for...of 순차 처리와 함께 쓰는 용도.
+      sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      parseStorageUrl(url) {
+        const m = String(url || "").match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+        if (!m) return null;
+        return { bucket: m[1], path: decodeURIComponent(m[2]) };
+      }
+
+      async migrateOneCacheHeader(url, label, log) {
+        const parsed = this.parseStorageUrl(url);
+        if (!parsed) { log(`[건너뜀] ${label}: URL 형식을 못 읽음 (${url})`); return; }
+        const { bucket, path } = parsed;
+
+        let beforeHeader = "(확인 실패)";
+        try {
+          const headRes = await fetch(url, { method: "HEAD", cache: "no-store" });
+          beforeHeader = headRes.headers.get("cache-control") || "(없음)";
+        } catch (e) {}
+
+        if (beforeHeader.includes("31536000")) {
+          log(`[스킵] ${label}: 이미 적용됨 (${beforeHeader})`);
+          return;
+        }
+
+        log(`[처리중] ${label} — ${bucket}/${path} (기존: ${beforeHeader})`);
+
+        // 1) 백업: 원본을 건드리기 전에 같은 버킷 내 백업 경로로 서버측
+        // 복사부터 해둔다. 이미 백업이 있으면(재실행 케이스) 에러가 나도
+        // 무시하고 계속 진행 — 최초 실행 때의 원본이 이미 안전하게 있다는
+        // 뜻이라 문제 없다.
+        const backupPath = `_cache_migration_backup/${path}`;
+        const { error: backupErr } = await supabaseClient.storage.from(bucket).copy(path, backupPath);
+        if (backupErr && !/exists/i.test(backupErr.message || "")) {
+          log(`  ⚠️ 백업 실패, 안전을 위해 이 파일은 건너뜁니다: ${backupErr.message}`);
+          return;
+        }
+
+        // 2) 원본을 내려받아 크기가 정상인지 확인 (헤더의 Content-Length와
+        // 실제로 받은 바이트 수가 다르면 다운로드가 중간에 끊긴 것 —
+        // 손상된 내용으로 원본을 덮어쓰지 않도록 여기서 중단한다.
+        const { data: blob, error: dlErr } = await supabaseClient.storage.from(bucket).download(path);
+        if (dlErr || !blob) { log(`  ❌ 다운로드 실패 (백업은 완료됨): ${dlErr ? dlErr.message : "알 수 없음"}`); return; }
+        let expectedSize = null;
+        try {
+          const headRes0 = await fetch(url, { method: "HEAD", cache: "no-store" });
+          const cl = headRes0.headers.get("content-length");
+          expectedSize = cl ? parseInt(cl, 10) : null;
+        } catch (e) {}
+        if (expectedSize && blob.size !== expectedSize) {
+          log(`  ❌ 다운로드 크기 불일치(${blob.size} vs ${expectedSize}), 손상 위험으로 중단 (백업은 완료됨)`);
+          return;
+        }
+
+        // 3) 확인된 원본 바이트를 같은 경로에 그대로 재저장하되 캐시
+        // 설정만 새로 지정한다. blob.type이 비어있거나 신뢰할 수 없는
+        // 값(application/octet-stream)으로 내려오는 경우를 대비해 확장자
+        // 기반 MIME 매핑으로 폴백 — 잘못된 Content-Type으로 재저장되면
+        // 브라우저가 이미지를 인라인 표시 대신 다운로드하려 들 수 있다.
+        const extMimeMap = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif" };
+        const ext = (path.split(".").pop() || "").toLowerCase();
+        const safeContentType = (blob.type && blob.type !== "application/octet-stream")
+          ? blob.type
+          : (extMimeMap[ext] || "application/octet-stream");
+        // update()로 시도했을 때 cacheControl이 실제로 반영되지 않는 현상이
+        // 실측(HEAD 재확인)으로 확인되어, upload({upsert:true})로 방식을
+        // 바꿔 같은 경로에 다시 저장한다.
+        const { error: upErr } = await supabaseClient.storage.from(bucket).upload(path, blob, {
+          contentType: safeContentType,
+          cacheControl: "31536000",
+          upsert: true
+        });
+        if (upErr) { log(`  ❌ 재업로드 실패 (백업은 완료됨, 원본 훼손 없음): ${upErr.message}`); return; }
+
+        let afterHeader = "(확인 실패)";
+        try {
+          const headRes2 = await fetch(`${url}${url.includes("?") ? "&" : "?"}cb=${Date.now()}`, { method: "HEAD", cache: "no-store" });
+          afterHeader = headRes2.headers.get("cache-control") || "(없음)";
+        } catch (e) {}
+        log(`  ✅ 완료 — 새 캐시: ${afterHeader}`);
+      }
+
+      async runCacheHeaderMigrationTest() {
+        const logEl = document.getElementById("cache-migration-log");
+        logEl.style.display = "block";
+        logEl.textContent = "";
+        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+
+        log("테스트 시작 (공연장 이미지 2개 + 시야사진 3개)...\n");
+
+        try {
+          const { data: venues, error: vErr } = await supabaseClient
+            .from("venues")
+            .select("id, name, bg_image_url")
+            .not("bg_image_url", "is", null)
+            .limit(2);
+          if (vErr) throw vErr;
+          for (const v of (venues || [])) {
+            await this.migrateOneCacheHeader(v.bg_image_url, `공연장 배경사진 (${v.name})`, log);
+            await this.sleep(150);
+          }
+
+          const { data: reviews, error: rErr } = await supabaseClient
+            .from("musical_seat_reviews")
+            .select("id, image_urls")
+            .not("image_urls", "is", null)
+            .limit(5);
+          if (rErr) throw rErr;
+          let seatPhotoCount = 0;
+          for (const rev of (reviews || [])) {
+            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+            for (const u of urls) {
+              if (seatPhotoCount >= 3) break;
+              await this.migrateOneCacheHeader(u, `시야 사진 (review id ${rev.id})`, log);
+              seatPhotoCount++;
+              await this.sleep(150);
+            }
+            if (seatPhotoCount >= 3) break;
+          }
+
+          log("\n테스트 완료. 위 결과에서 '✅ 완료 — 새 캐시: max-age=31536000'으로 나왔는지, 그리고 사진들이 정상적으로 실제 사이트에서 보이는지 확인해주세요.");
+        } catch (e) {
+          log(`\n❌ 오류 발생: ${e.message || e}`);
+        }
+      }
+
+      // 1차 확대 실행: 전체가 아니라 "잘보여유 에디터" 계정(운영자 본인
+      // 계정으로 등록한 시야 사진)이 2026-09-11~09-13 사이에 등록한 것만
+      // 우선 실행 — 실제 이용자 데이터를 건드리기 전에 운영자 소유 데이터로
+      // 한 번 더 검증하려는 단계적 롤아웃.
+      async runCacheHeaderMigrationEditorBatch() {
+        const EDITOR_USER_ID = "0326ac0c-fe0b-4be6-9b6e-8dcc9928e9a5"; // 잘보여유 에디터📸
+        const RANGE_START = "2026-09-11";
+        const RANGE_END_EXCLUSIVE = "2026-09-14"; // 9/13 23:59:59까지 포함
+
+        const logEl = document.getElementById("cache-migration-log");
+        logEl.style.display = "block";
+        logEl.textContent = "";
+        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+
+        log(`잘보여유 에디터 계정, ${RANGE_START} ~ ${RANGE_END_EXCLUSIVE} 등록분 실행...\n`);
+
+        try {
+          const { data: reviews, error } = await supabaseClient
+            .from("musical_seat_reviews")
+            .select("id, ins_dtm, image_urls")
+            .eq("user_id", EDITOR_USER_ID)
+            .gte("ins_dtm", RANGE_START)
+            .lt("ins_dtm", RANGE_END_EXCLUSIVE)
+            .not("image_urls", "is", null);
+          if (error) throw error;
+
+          if (!reviews || reviews.length === 0) {
+            log("해당 조건에 맞는 리뷰가 없습니다.");
+            return;
+          }
+
+          let fileCount = 0;
+          for (const rev of reviews) {
+            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
+            for (const u of urls) {
+              await this.migrateOneCacheHeader(u, `시야 사진 (review id ${rev.id}, ${rev.ins_dtm})`, log);
+              fileCount++;
+              await this.sleep(150);
+            }
+          }
+
+          log(`\n완료 — 리뷰 ${reviews.length}건 / 파일 ${fileCount}개 처리. 위 결과와 실제 사이트를 확인해주세요.`);
+        } catch (e) {
+          log(`\n❌ 오류 발생: ${e.message || e}`);
+        }
+      }
+
       async uploadEntityImage(field) {
         if (!this.imSelectedEntity) return;
         const fileInputId = field === "bg_image_url" ? "im-bg-file" : "im-map-file";
@@ -3073,9 +3273,12 @@
           const maxWidth = field === "map_image_url" ? 1600 : 1200;
           const blob = await this.compressImageToWebPBlob(file, maxWidth, 0.82);
           const path = `${this.imGetTable()}/${this.imSelectedEntity.id}/${field}_${Date.now()}.webp`;
+          // Timestamped filename never gets reused (upsert: false), so this
+          // URL's content is permanently immutable — safe to cache for 1
+          // year instead of revalidating on every view.
           const { error: uploadErr } = await supabaseClient.storage
             .from("venue-images")
-            .upload(path, blob, { contentType: "image/webp", upsert: false });
+            .upload(path, blob, { contentType: "image/webp", upsert: false, cacheControl: "31536000" });
           if (uploadErr) throw uploadErr;
 
           const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
@@ -3240,7 +3443,7 @@
           const path = `ads/${category}/banner_${Date.now()}.webp`;
           const { error: uploadErr } = await supabaseClient.storage
             .from("venue-images")
-            .upload(path, blob, { contentType: "image/webp", upsert: false });
+            .upload(path, blob, { contentType: "image/webp", upsert: false, cacheControl: "31536000" });
           if (uploadErr) throw uploadErr;
 
           const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
@@ -3317,7 +3520,7 @@
             const path = `ads/${ad.category}/banner_${Date.now()}.webp`;
             const { error: uploadErr } = await supabaseClient.storage
               .from("venue-images")
-              .upload(path, blob, { contentType: "image/webp", upsert: false });
+              .upload(path, blob, { contentType: "image/webp", upsert: false, cacheControl: "31536000" });
             if (uploadErr) throw uploadErr;
             const { data: pub } = supabaseClient.storage.from("venue-images").getPublicUrl(path);
             updatePayload.image_url = pub.publicUrl;

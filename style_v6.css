@@ -645,6 +645,19 @@ img {
   outline: none;
 }
 
+/* Mobile browsers (Safari especially) paint their own light-mode autofill/
+   suggestion background over a text input regardless of the page's own dark
+   CSS. autocomplete="off" on the inputs discourages this, but Safari can
+   still apply it — this override forces the fill color back to the app's
+   dark input background so it doesn't flash white while typing. */
+.search-bar-container input:-webkit-autofill,
+.search-bar-container input:-webkit-autofill:hover,
+.search-bar-container input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset;
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+}
+
 .search-bar-container input::placeholder {
   font-size: 0.78rem;
   line-height: 1;
@@ -4347,6 +4360,62 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 #form-comment::placeholder {
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+/* 맨 위로 스크롤 플로팅 버튼 — 우측 하단 고정, 평소엔 숨겨져 있다가
+   app.js의 스크롤 리스너가 일정 스크롤 이상에서 .visible을 붙여준다.
+   opacity+visibility로 트랜지션해서 숨김 상태에서도 클릭이 새지 않게 함.
+   쇼핑몰(네이버쇼핑·쿠팡·SSG 등)에서 흔히 보이는 둥근 사각형 "TOP" 버튼
+   스타일. 이 앱엔 하단 고정 탭바가 없어서 iPhone 홈 인디케이터 영역만
+   safe-area-inset-bottom으로 피해주면 된다. */
+#btn-scroll-top {
+  position: fixed;
+  right: 16px;
+  /* env() falls back to 0 on non-notched devices/desktop, so this stays a
+     plain 16px there and only grows to clear the iPhone home-indicator area
+     on notched phones. */
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(120, 128, 145, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+#btn-scroll-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+#btn-scroll-top:active {
+  background: rgba(120, 128, 145, 0.5);
+}
+
+#btn-scroll-top i {
+  width: 18px;
+  height: 18px;
+}
+
+/* 데스크톱 미리보기 폭(430px 박스)에서는 버튼이 뷰포트 기준으로 뜨면
+   박스 밖 화면 구석에 떨어져 보이므로, 그 폭 안쪽에 맞춰 살짝 당겨준다. */
+@media (min-width: 481px) {
+  #btn-scroll-top {
+    right: calc(50% - 215px + 16px);
+  }
 }
 
 
