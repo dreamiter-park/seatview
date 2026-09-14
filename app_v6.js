@@ -4346,17 +4346,9 @@ class SeatViewApp {
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
-    // \uBCC4\uC810\uC740 \uC774 \uAE30\uB2A5 \uC774\uD6C4 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uB9CC \uAC00\uC9C0\uACE0 \uC788\uC744 \uC218 \uC788\uC5B4(\uC57C\uAD6C\uC7A5\uC740 \uC544\uC608 \uC5C6\uC74C) \uAC12\uC774
-    // \uC788\uC744 \uB54C\uB9CC \uB178\uCD9C\uD55C\uB2E4.
-    const ratingBadgeEl = document.getElementById("modal-seat-rating");
-    if (ratingBadgeEl) {
-      if (typeof curImg.rating === "number" && curImg.rating >= 1) {
-        ratingBadgeEl.textContent = "\u2605".repeat(curImg.rating) + "\u2606".repeat(5 - curImg.rating);
-        ratingBadgeEl.style.display = "inline";
-      } else {
-        ratingBadgeEl.style.display = "none";
-      }
-    }
+    // \uBCC4\uC810\uC740 \uB4F1\uB85D/\uC218\uC815 \uD3FC\uC5D0\uC11C\uB9CC \uC785\uB825\uBC1B\uB294 \uAC12\uC774\uACE0, \uAC1C\uBCC4 \uB9AC\uBDF0 \uC0C1\uC138(\uC5EC\uAE30)\uC5D0\uB294
+    // \uB178\uCD9C\uD558\uC9C0 \uC54A\uB294\uB2E4 \u2014 curImg.rating\uC740 \uADF8\uB300\uB85C \uAC16\uACE0 \uC788\uC9C0\uB9CC \uC774 \uD654\uBA74\uC5D0\uC11C\uB294
+    // \uC548 \uC4F4\uB2E4.
     const extLinkBadgeEl = document.getElementById("modal-seat-external-link");
     if (extLinkBadgeEl) {
       // Anonymous posts hide the link too \u2014 a personal blog/SNS is at least
@@ -4377,14 +4369,6 @@ class SeatViewApp {
       } else {
         extLinkBadgeEl.style.display = "none";
       }
-    }
-    // 별점/외부링크 둘 다 없는 리뷰(대다수)는 이 줄 자체를 접어서 빈 여백만
-    // 남는 걸 막는다 — 닉네임 줄과 분리해둔 두 배지가 있을 때만 펼쳐짐.
-    const metaRowEl = document.getElementById("modal-seat-meta-row");
-    if (metaRowEl) {
-      const hasRating = !!(ratingBadgeEl && ratingBadgeEl.style.display !== "none");
-      const hasExtLink = !!(extLinkBadgeEl && extLinkBadgeEl.style.display !== "none");
-      metaRowEl.style.display = (hasRating || hasExtLink) ? "flex" : "none";
     }
     const verifiedBadgeEl = document.getElementById("modal-seat-verified-badge");
     if (verifiedBadgeEl) verifiedBadgeEl.style.display = curImg.isTicketVerified ? "block" : "none";
