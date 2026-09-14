@@ -4378,6 +4378,14 @@ class SeatViewApp {
         extLinkBadgeEl.style.display = "none";
       }
     }
+    // 별점/외부링크 둘 다 없는 리뷰(대다수)는 이 줄 자체를 접어서 빈 여백만
+    // 남는 걸 막는다 — 닉네임 줄과 분리해둔 두 배지가 있을 때만 펼쳐짐.
+    const metaRowEl = document.getElementById("modal-seat-meta-row");
+    if (metaRowEl) {
+      const hasRating = !!(ratingBadgeEl && ratingBadgeEl.style.display !== "none");
+      const hasExtLink = !!(extLinkBadgeEl && extLinkBadgeEl.style.display !== "none");
+      metaRowEl.style.display = (hasRating || hasExtLink) ? "flex" : "none";
+    }
     const verifiedBadgeEl = document.getElementById("modal-seat-verified-badge");
     if (verifiedBadgeEl) verifiedBadgeEl.style.display = curImg.isTicketVerified ? "block" : "none";
     if (dateEl) {
@@ -5638,7 +5646,8 @@ class SeatViewApp {
       ticketPhotoRemovedExisting: state.ticketPhotoRemovedExisting,
       editingOriginalPhotos: state.editingOriginalPhotos,
       pendingTicketPhotoBlob: state.pendingTicketPhotoBlob,
-      userId: state.userId
+      userId: state.userId,
+      userEmail: state.userEmail
     };
 
     // Disable submit button immediately to prevent duplicate submissions
@@ -5663,10 +5672,15 @@ class SeatViewApp {
     }
 
     // 시야 별점도 사진과 마찬가지로 필수 — 공연장(뮤지컬) 카테고리에만
-    // 해당하고, 야구장은 필드 자체가 없어서 검사하지 않는다.
+    // 해당하고, 야구장은 필드 자체가 없어서 검사하지 않는다. 단, 공연장이
+    // 공식 제공한 시야 사진을 그대로 캡처해서 올리는 "잘보여유 에디터"
+    // 운영 계정(dreamiter@naver.com)은 본인이 직접 관람한 게 아니라서
+    // 별점을 매기는 게 오히려 왜곡이라 이 계정만 필수 검증에서 제외한다.
+    const RATING_EXEMPT_EMAILS = ["dreamiter@naver.com"];
+    const isRatingExemptAccount = RATING_EXEMPT_EMAILS.includes(formSnapshot.userEmail);
     const ratingContainer = document.getElementById("form-rating-stars");
     const ratingVal = isMusical && ratingContainer ? parseInt(ratingContainer.dataset.value, 10) || 0 : 0;
-    if (isMusical && ratingVal < 1) {
+    if (isMusical && !isRatingExemptAccount && ratingVal < 1) {
       this.showToast("⚠️", "시야 별점을 선택해 주세요!");
       await this.showAlertDialog("별점 선택 필요", "이 자리에서 시야가 얼마나 좋았는지 별점을 선택해 주세요.");
       if (submitBtn) {
@@ -5793,7 +5807,10 @@ class SeatViewApp {
           is_ticket_verified: !!formSnapshot.ticketVerified,
           mod_dtm: new Date().toISOString()
         };
-        if (isMusical) updatePayload.rating = ratingVal;
+        // ratingVal은 미선택 시 0인데, DB 체크 제약은 null이거나 1~5만
+        // 허용한다 — 별점 예외 계정이 0으로 저장 시도하면 제약 위반으로
+        // 저장 자체가 실패하므로 0을 null로 변환해서 보낸다.
+        if (isMusical) updatePayload.rating = ratingVal || null;
         if (newTicketPhotoUrl) {
           updatePayload.ticket_photo_url = newTicketPhotoUrl;
         } else if (formSnapshot.ticketPhotoRemovedExisting) {
@@ -5926,7 +5943,7 @@ class SeatViewApp {
         // still-true flag.
         const isTicketVerified = !!formSnapshot.ticketVerified;
         const insertPayload = isMusical
-          ? { musical_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null, rating: ratingVal }
+          ? { musical_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null, rating: ratingVal || null }
           : { baseball_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null };
 
         const { error } = await supabaseClient
