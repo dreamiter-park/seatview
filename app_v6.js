@@ -1257,6 +1257,31 @@ class SeatViewApp {
       if (backBtn) backBtn.style.display = "flex";
     }
 
+    // Browser tab title — separate from the in-app header above (which
+    // stays on the logo). A venue/seat deep-link (see netlify/functions/
+    // venue-page.js, seat-page.js) sets document.title server-side before
+    // the SPA boots, but nothing here ever updated it again afterward, so
+    // whatever title the page first loaded with (that venue's name, or the
+    // generic default) stuck around in the browser tab no matter where the
+    // user navigated to next. Keep the format for venue-detail identical to
+    // venue-page.js's so there's no visible flicker when the SPA takes over.
+    const DEFAULT_TITLE = "잘보여유 - 뮤지컬·연극 공연장 좌석 시야 공유 서비스";
+    if (viewId === "venue-detail" && state.selectedVenue) {
+      document.title = `${state.selectedVenue.name} 좌석 시야 후기 | 뮤지컬·연극 공연장 - 잘보여유`;
+    } else if (viewId === "stadium-detail" && state.selectedStadium) {
+      document.title = `${state.selectedStadium.name} 좌석 시야 후기 | 잘보여유`;
+    } else if (viewId === "venues") {
+      document.title = "공연장 목록 | 잘보여유";
+    } else if (viewId === "stadiums") {
+      document.title = "프로야구장 목록 | 잘보여유";
+    } else if (viewId === "compare") {
+      document.title = "1:1 시야 비교 | 잘보여유";
+    } else if (viewId === "ticketbook") {
+      document.title = "마이페이지 | 잘보여유";
+    } else {
+      document.title = DEFAULT_TITLE;
+    }
+
     // Specific Screen Initialization
     if (viewId === "ticketbook") {
       // Default to 공연장 the first time mypage is visited this
@@ -2338,6 +2363,12 @@ class SeatViewApp {
       }
 
       const seatIds = seats.map(s => s.id);
+      // 별점 평균에 따른 색상 구분은 아직 데이터가 거의 없어서(예전 리뷰는
+      // 전부 rating=null) 잠정적으로 꺼둔다 — 지금 켜면 사진이 있는 좌석도
+      // 죄다 무색으로 보여서 오히려 "사진 없음"과 구분이 안 되는 역효과가
+      // 난다. ratingColorClass()와 CSS의 rating-* 클래스는 그대로 남겨뒀으니
+      // 별점 데이터가 충분히 쌓이면 이 블록만 되돌리면 된다(과거 버전:
+      // git 이력 참고). 지금은 예전처럼 "사진 유무"만 표시.
       const seatsWithPhotos = new Set();
       if (seatIds.length > 0) {
         const { data: reviews } = await supabaseClient
@@ -3820,17 +3851,33 @@ class SeatViewApp {
           ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "\uAD6C\uC5ED" : ""))
           : (state.selectedVenueBlock ? (state.selectedVenueBlock.full_name || (state.selectedVenueBlock.block_code ? state.selectedVenueBlock.block_code + "\uAD6C\uC5ED" : "")) : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
 
-        // Row numbers only ever reach the user through this block's own
-        // aisle label_position feature \u2014 if THIS block doesn't drive one,
-        // row_num was never actually shown anywhere on the seat map for it,
-        // so showing "N\uC5F4" here would surface info the map itself never did.
-        // (Was checking "does any block on this floor show labels" instead,
-        // which wrongly turned row numbers on for every block on a floor \u2014
-        // e.g. BOX1/BOX2 with label_position null \u2014 just because some other
-        // block on the same floor, like OP or B, happens to show them.)
+        // Row numbers only reach the user through some block's aisle
+        // label_position feature. A single physical row is often split
+        // across 2-3 separate block records side by side (e.g. a wide
+        // center block plus narrow wing blocks flanking an aisle gap) \u2014
+        // admins tend to only set label_position on the center one, since
+        // that's where the aisle label visually renders, leaving the wings'
+        // own seats showing no row number even though they're the exact
+        // same row (e.g. LG\uC544\uD2B8\uC13C\uD130 1\uCE35 OP5\uC5F4: center block 43 has
+        // label_position="both" and shows "OP5\uC5F4", but wing blocks 42/44
+        // don't and show a bare seat number). Blocks that share this
+        // block's floor AND offset_y are the same row-band by construction
+        // (offset_y is the row-band's vertical start), so borrow the label
+        // setting from any of them. This is narrower than the old "any
+        // block on this floor" check (which wrongly roped in unrelated
+        // blocks like BOX1/BOX2 sitting on a totally different offset_y).
         let showRowNum = true;
         if (blockRow) {
           showRowNum = !!(blockRow.label_position || "").trim();
+          if (!showRowNum) {
+            const { data: rowBandBlocks } = await supabaseClient
+              .from('musical_blocks')
+              .select('label_position')
+              .eq('venue_id', blockRow.venue_id)
+              .eq('floor', blockRow.floor)
+              .eq('offset_y', blockRow.offset_y);
+            showRowNum = !!(rowBandBlocks || []).some(b => (b.label_position || "").trim());
+          }
         }
         // Wheelchair spaces are often a marked area rather than a numbered
         // seat, so seat_num can be null \u2014 showing that raw would render as
@@ -4000,6 +4047,7 @@ class SeatViewApp {
                 isTicketVerified: !!rev.is_ticket_verified,
                 ticketPhotoUrl: rev.ticket_photo_url || null,
                 direction: dir,
+                rating: typeof rev.rating === "number" ? rev.rating : null,
                 comment: rev.content || "",
                 uploader: uploaderName,
                 uploaderBadge: uploaderBadge,
@@ -4212,6 +4260,11 @@ class SeatViewApp {
     if (nickToggleEl) nickToggleEl.checked = !current.isAnonymous;
     const extLinkEl = document.getElementById("form-external-link");
     if (extLinkEl) extLinkEl.value = current.externalLink || "";
+    const ratingGroupEl = document.getElementById("form-rating-group");
+    if (ratingGroupEl) ratingGroupEl.style.display = state.activeModalCategory === "musical" ? "" : "none";
+    // 예전에 등록된 리뷰는 별점이 없을 수 있음(0으로 표시, 저장 시 다시
+    // 골라야 함) — 이미 별점이 있으면 그 값을 그대로 보여준다.
+    this.resetFormRating(current.rating || 0);
     this.setTicketDateFieldDefaults();
     const dateEl = document.getElementById("form-match-date");
     if (dateEl) dateEl.value = current.watchedDate || "";
@@ -4293,6 +4346,17 @@ class SeatViewApp {
     if (avatarEl) avatarEl.src = curImg.avatar || defaultAvatar;
     if (uploaderEl) uploaderEl.textContent = curImg.uploader || "@\uC81C\uBCF4\uC790";
     if (badgeEl) badgeEl.textContent = curImg.uploaderBadge || "\uC2E4\uBC84 \uC81C\uBCF4\uC790";
+    // \uBCC4\uC810\uC740 \uC774 \uAE30\uB2A5 \uC774\uD6C4 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uB9CC \uAC00\uC9C0\uACE0 \uC788\uC744 \uC218 \uC788\uC5B4(\uC57C\uAD6C\uC7A5\uC740 \uC544\uC608 \uC5C6\uC74C) \uAC12\uC774
+    // \uC788\uC744 \uB54C\uB9CC \uB178\uCD9C\uD55C\uB2E4.
+    const ratingBadgeEl = document.getElementById("modal-seat-rating");
+    if (ratingBadgeEl) {
+      if (typeof curImg.rating === "number" && curImg.rating >= 1) {
+        ratingBadgeEl.textContent = "\u2605".repeat(curImg.rating) + "\u2606".repeat(5 - curImg.rating);
+        ratingBadgeEl.style.display = "inline";
+      } else {
+        ratingBadgeEl.style.display = "none";
+      }
+    }
     const extLinkBadgeEl = document.getElementById("modal-seat-external-link");
     if (extLinkBadgeEl) {
       // Anonymous posts hide the link too \u2014 a personal blog/SNS is at least
@@ -4798,6 +4862,7 @@ class SeatViewApp {
     const footer = document.getElementById("my-page-footer");
     const categoryTabs = document.getElementById("ticketbook-category-tabs");
     const viewToggleBtn = document.getElementById("btn-ticket-view-toggle");
+    const searchToggleBtn = document.getElementById("btn-ticket-search-toggle");
 
     if (!state.isLoggedIn) {
       if (loginPrompt) loginPrompt.style.display = "flex";
@@ -4807,6 +4872,11 @@ class SeatViewApp {
       if (footer) footer.style.display = "none";
       if (categoryTabs) categoryTabs.style.display = "none";
       if (viewToggleBtn) viewToggleBtn.style.display = "none";
+      if (searchToggleBtn) searchToggleBtn.style.display = "none";
+      // 검색창을 켜둔 채로 로그아웃했을 수 있으니, 다시 로그인했을 때
+      // 열려있는 채로 남아있지 않도록 같이 닫아준다.
+      const searchBox = document.getElementById("ticket-search-box");
+      if (searchBox) searchBox.style.display = "none";
       lucide.createIcons();
       return;
     }
@@ -4817,6 +4887,7 @@ class SeatViewApp {
     if (footer) footer.style.display = "block";
     if (categoryTabs) categoryTabs.style.display = "flex";
     if (viewToggleBtn) viewToggleBtn.style.display = "flex";
+    if (searchToggleBtn) searchToggleBtn.style.display = "flex";
 
     if (!archiveContainer) return;
 
@@ -4981,6 +5052,35 @@ class SeatViewApp {
     input.value = "";
     input.focus();
     if (typeof rerender === "function") rerender();
+  }
+
+  // 등록 폼의 별점 위젯 — 클릭한 별까지 채워서 표시하고 값은
+  // #form-rating-stars의 data-value에 보관한다(네이티브 input이 아니라서
+  // form.reset()이 못 건드리므로, 폼 리셋 지점마다 resetFormRating()을
+  // 같이 불러줘야 함).
+  setFormRating(value) {
+    const container = document.getElementById("form-rating-stars");
+    if (!container) return;
+    container.dataset.value = String(value);
+    container.querySelectorAll(".star-btn").forEach(btn => {
+      btn.classList.toggle("filled", Number(btn.dataset.star) <= value);
+    });
+  }
+
+  resetFormRating(value = 0) {
+    this.setFormRating(value);
+  }
+
+  // 좌석 색상 5단계 — 실제 경계값은 관리자와 합의한 기준(4.5/3.5/2.5/1.5)
+  // 그대로. avg가 유효하지 않으면(평점 있는 리뷰가 하나도 없으면) null을
+  // 돌려줘서 호출부가 "사진 없음"과 동일하게 무색 처리하게 한다.
+  ratingColorClass(avg) {
+    if (typeof avg !== "number" || Number.isNaN(avg)) return null;
+    if (avg >= 4.5) return "rating-green";
+    if (avg >= 3.5) return "rating-lightgreen";
+    if (avg >= 2.5) return "rating-yellow";
+    if (avg >= 1.5) return "rating-orange";
+    return "rating-red";
   }
 
   // Collapsible venue-name search for the ticket archive — tucked behind an
@@ -5515,6 +5615,32 @@ class SeatViewApp {
     e.preventDefault();
     const isMusical = state.activeModalCategory === "musical";
 
+    // Snapshot every mutable state.* field this function reads AFTER an
+    // await, taken before the first await runs. Photo uploads (and the
+    // duplicate/OCR checks before them) can take a few seconds — if the
+    // user closes this modal mid-submission and opens a DIFFERENT seat's
+    // form (or a fresh registration) before this call resolves, those
+    // global state fields get overwritten out from under it. Without this
+    // snapshot, the submission that finally reaches the actual insert/
+    // update below would silently use the *other* seat's key, photos, or
+    // (worst case) find state.activeModalSeatKey no longer parses as a
+    // valid seat id — which skips the insert entirely while the code still
+    // falls through to the success toast, producing exactly the "toast
+    // says done but nothing saved" symptom. Arrays are captured by
+    // reference, which is safe here because every reset elsewhere
+    // reassigns a fresh array (`state.x = []`) rather than mutating this
+    // one in place.
+    const formSnapshot = {
+      editingReviewId: state.editingReviewId,
+      activeModalSeatKey: state.activeModalSeatKey,
+      tempUploadedPhotos: state.tempUploadedPhotos,
+      ticketVerified: state.ticketVerified,
+      ticketPhotoRemovedExisting: state.ticketPhotoRemovedExisting,
+      editingOriginalPhotos: state.editingOriginalPhotos,
+      pendingTicketPhotoBlob: state.pendingTicketPhotoBlob,
+      userId: state.userId
+    };
+
     // Disable submit button immediately to prevent duplicate submissions
     const submitBtn = e.target.querySelector("button[type='submit']");
     let originalBtnHtml = "";
@@ -5525,7 +5651,7 @@ class SeatViewApp {
     }
 
     // Photo upload is mandatory (supports both tempUploadedPhotos and currentUploadedPhotoBase64)
-    const hasPhotos = state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0;
+    const hasPhotos = formSnapshot.tempUploadedPhotos && formSnapshot.tempUploadedPhotos.length > 0;
     if (!hasPhotos && !state.currentUploadedPhotoBase64) {
       this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
       await this.showAlertDialog("사진 업로드 필요", "시야 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
@@ -5536,11 +5662,25 @@ class SeatViewApp {
       return;
     }
 
+    // 시야 별점도 사진과 마찬가지로 필수 — 공연장(뮤지컬) 카테고리에만
+    // 해당하고, 야구장은 필드 자체가 없어서 검사하지 않는다.
+    const ratingContainer = document.getElementById("form-rating-stars");
+    const ratingVal = isMusical && ratingContainer ? parseInt(ratingContainer.dataset.value, 10) || 0 : 0;
+    if (isMusical && ratingVal < 1) {
+      this.showToast("⚠️", "시야 별점을 선택해 주세요!");
+      await this.showAlertDialog("별점 선택 필요", "이 자리에서 시야가 얼마나 좋았는지 별점을 선택해 주세요.");
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+      return;
+    }
+
     // One seat-view report per seat per user. This is mainly a race-condition
     // backstop now — the real check happens at click-time in
     // addCurrentSeatToTicketbook(), before the user fills out the form.
-    if (!state.editingReviewId) {
-      const dbKeyForCheck = state.activeModalSeatKey;
+    if (!formSnapshot.editingReviewId) {
+      const dbKeyForCheck = formSnapshot.activeModalSeatKey;
       const realSeatIdForCheck = /^\d+$/.test(String(dbKeyForCheck)) ? parseInt(dbKeyForCheck, 10) : null;
       if (await this.hasExistingSeatReview(realSeatIdForCheck, isMusical)) {
         await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요. 기존 등록 내역은 마이페이지에서 수정하거나 삭제할 수 있습니다.");
@@ -5555,7 +5695,7 @@ class SeatViewApp {
       // reuse (own or someone else's photo) rather than a genuine new-seat
       // submission. Only checked for brand-new reviews; edits to an
       // existing review's own photos are left alone.
-      const newHashes = (state.tempUploadedPhotos || [])
+      const newHashes = (formSnapshot.tempUploadedPhotos || [])
         .filter(p => p.type === "new" && p.hash)
         .map(p => p.hash);
       const dupe = await this.checkDuplicatePhotoHashes(newHashes, isMusical, realSeatIdForCheck);
@@ -5603,8 +5743,8 @@ class SeatViewApp {
     // an edit pass straight through unchanged).
     let finalImagesList;
     try {
-      finalImagesList = (state.tempUploadedPhotos && state.tempUploadedPhotos.length > 0)
-        ? await this.resolveFinalImageUrls(state.tempUploadedPhotos)
+      finalImagesList = (formSnapshot.tempUploadedPhotos && formSnapshot.tempUploadedPhotos.length > 0)
+        ? await this.resolveFinalImageUrls(formSnapshot.tempUploadedPhotos)
         : [state.currentUploadedPhotoBase64];
     } catch (err) {
       console.error("Photo upload error:", err);
@@ -5626,9 +5766,9 @@ class SeatViewApp {
     // already-cleared) value isn't accidentally overwritten. Despite the
     // name, this now holds a storage *path*, not a URL.
     let newTicketPhotoUrl = null;
-    if (state.pendingTicketPhotoBlob) {
+    if (formSnapshot.pendingTicketPhotoBlob) {
       try {
-        newTicketPhotoUrl = await this.uploadTicketPhoto(state.pendingTicketPhotoBlob);
+        newTicketPhotoUrl = await this.uploadTicketPhoto(formSnapshot.pendingTicketPhotoBlob);
       } catch (err) {
         console.error("Ticket photo upload error:", err);
         this.showToast("❌", "티켓 사진 업로드 중 오류가 발생했습니다. 다시 시도해 주세요.");
@@ -5642,7 +5782,7 @@ class SeatViewApp {
 
     // Editing an existing review (opened via 기록 수정) updates that one row
     // instead of creating a new ticket/review.
-    if (state.editingReviewId) {
+    if (formSnapshot.editingReviewId) {
       try {
         const updatePayload = {
           image_urls: finalImagesList,
@@ -5650,12 +5790,13 @@ class SeatViewApp {
           is_anonymous: isAnonymous,
           external_link: externalLinkVal,
           watched_date: dateVal || null,
-          is_ticket_verified: !!state.ticketVerified,
+          is_ticket_verified: !!formSnapshot.ticketVerified,
           mod_dtm: new Date().toISOString()
         };
+        if (isMusical) updatePayload.rating = ratingVal;
         if (newTicketPhotoUrl) {
           updatePayload.ticket_photo_url = newTicketPhotoUrl;
-        } else if (state.ticketPhotoRemovedExisting) {
+        } else if (formSnapshot.ticketPhotoRemovedExisting) {
           // "x" on a previously-attached (already-uploaded) pending photo —
           // clear it rather than leaving it dangling as a pending review
           // for a photo the user no longer wants attached.
@@ -5664,16 +5805,16 @@ class SeatViewApp {
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
           .update(updatePayload)
-          .eq('id', state.editingReviewId)
-          .eq('user_id', state.userId);
+          .eq('id', formSnapshot.editingReviewId)
+          .eq('user_id', formSnapshot.userId);
         if (error) throw error;
 
         // Now that the DB row no longer references the old list, it's safe
         // to delete any photos the user removed during this edit.
-        const removedUrls = (state.editingOriginalPhotos || []).filter(u => !finalImagesList.includes(u));
+        const removedUrls = (formSnapshot.editingOriginalPhotos || []).filter(u => !finalImagesList.includes(u));
         this.deleteSeatPhotosFromStorage(removedUrls);
-        if (state.ticketPhotoRemovedExisting && !newTicketPhotoUrl) {
-          this.deleteTicketPhotosFromStorage([state.ticketPhotoRemovedExisting]);
+        if (formSnapshot.ticketPhotoRemovedExisting && !newTicketPhotoUrl) {
+          this.deleteTicketPhotosFromStorage([formSnapshot.ticketPhotoRemovedExisting]);
         }
         state.editingOriginalPhotos = null;
 
@@ -5730,8 +5871,8 @@ class SeatViewApp {
       state.tickets.push(newTicket);
       localStorage.setItem("seatview_tickets", JSON.stringify(state.tickets));
 
-      if (!SEAT_VIEWS_DB[state.activeModalSeatKey]) {
-        SEAT_VIEWS_DB[state.activeModalSeatKey] = {
+      if (!SEAT_VIEWS_DB[formSnapshot.activeModalSeatKey]) {
+        SEAT_VIEWS_DB[formSnapshot.activeModalSeatKey] = {
           stadiumName: newTicket.stadiumName,
           blockName: blockVal,
           seatName: seatVal,
@@ -5751,15 +5892,30 @@ class SeatViewApp {
     // Use the same seat key the detail modal opened with (real baseball_seats.id
     // or musical_seats.id for DB-backed seats, or a demo/composite string for
     // placeholder baseball seats that have no matching row in baseball_seats).
-    const dbKey = state.activeModalSeatKey;
+    const dbKey = formSnapshot.activeModalSeatKey;
     const realSeatId = /^\d+$/.test(String(dbKey)) ? parseInt(dbKey, 10) : null;
+
+    // Musical never has a demo/placeholder seat path (unlike baseball) — a
+    // null realSeatId here always means something went wrong (formerly: the
+    // race this whole snapshot exists to prevent), never a legitimate
+    // local-only case. Surface it instead of silently skipping the insert
+    // and falling through to the success toast below with nothing saved.
+    if (isMusical && realSeatId === null) {
+      console.error("saveNewTicket: musical realSeatId came back null", { dbKey });
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+      await this.showAlertDialog("등록 실패", "좌석 정보를 확인하지 못해 저장하지 못했습니다. 다시 시도해 주세요.");
+      return;
+    }
 
     // Save to Supabase (only for real DB-backed seats — demo/placeholder
     // baseball seats have no matching row, so the FK constraint would
     // reject them; those stay local-only, same as before)
-    if (supabaseClient && state.userId && realSeatId !== null) {
+    if (supabaseClient && formSnapshot.userId && realSeatId !== null) {
       try {
-        const photoHashesForInsert = (state.tempUploadedPhotos || []).map(p => p.hash || null);
+        const photoHashesForInsert = (formSnapshot.tempUploadedPhotos || []).map(p => p.hash || null);
         // What "인증됨" actually vouches for is the seat (venue/floor/block/
         // seat number) matching the ticket — not the watched date, which is
         // just metadata. state.ticketVerified is only ever true while the
@@ -5768,10 +5924,10 @@ class SeatViewApp {
         // 좌석인가요?" escape hatch) always calls resetTicketVerifiedState()
         // first, so there's no path where the seat changes underneath an
         // still-true flag.
-        const isTicketVerified = !!state.ticketVerified;
+        const isTicketVerified = !!formSnapshot.ticketVerified;
         const insertPayload = isMusical
-          ? { musical_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null }
-          : { baseball_seat_id: realSeatId, user_id: state.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null };
+          ? { musical_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null, rating: ratingVal }
+          : { baseball_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null };
 
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
@@ -6571,6 +6727,10 @@ class SeatViewApp {
     const labelEl = document.getElementById("form-seat-info-label");
     if (labelEl) labelEl.innerHTML = `${match.stadiumName}<br>${match.blockName} ${match.seatName}`;
 
+    const ratingGroupEl = document.getElementById("form-rating-group");
+    if (ratingGroupEl) ratingGroupEl.style.display = match.category === "musical" ? "" : "none";
+    this.resetFormRating(0);
+
     const dateEl = document.getElementById("form-match-date");
     if (dateEl) dateEl.value = match.watchedDate || "";
 
@@ -6651,6 +6811,9 @@ class SeatViewApp {
       const info = state.activeModalDisplayInfo || {};
       const labelEl = document.getElementById("form-seat-info-label");
       if (labelEl) labelEl.innerHTML = `${info.stadiumName || ""}<br>${info.blockName || ""} ${info.seatName || ""}`;
+      const ratingGroupEl = document.getElementById("form-rating-group");
+      if (ratingGroupEl) ratingGroupEl.style.display = "";
+      this.resetFormRating(0);
       this.setTicketDateFieldDefaults();
       this.resetTicketVerifiedState();
 
@@ -6714,6 +6877,10 @@ class SeatViewApp {
     if (labelEl) {
       labelEl.innerHTML = `${stadiumName}<br>${seatInfo ? seatInfo.blockName : blockName} ${seatInfo ? seatInfo.seatName : seatName}`;
     }
+    // 야구장엔 시야 별점 개념이 없음 — 이전에 공연장 폼을 열어뒀다 여기로
+    // 왔을 때 별점 필드가 그대로 남아있지 않도록 명시적으로 숨긴다.
+    const ratingGroupEl = document.getElementById("form-rating-group");
+    if (ratingGroupEl) ratingGroupEl.style.display = "none";
     this.setTicketDateFieldDefaults();
     this.resetTicketVerifiedState();
 

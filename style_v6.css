@@ -652,7 +652,10 @@ img {
    dark input background so it doesn't flash white while typing. */
 .search-bar-container input:-webkit-autofill,
 .search-bar-container input:-webkit-autofill:hover,
-.search-bar-container input:-webkit-autofill:focus {
+.search-bar-container input:-webkit-autofill:focus,
+#ticket-search-box input:-webkit-autofill,
+#ticket-search-box input:-webkit-autofill:hover,
+#ticket-search-box input:-webkit-autofill:focus {
   -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset;
   -webkit-text-fill-color: var(--text-primary);
   caret-color: var(--text-primary);
@@ -1859,6 +1862,14 @@ img {
   color: var(--accent-blue);
 }
 
+/* 색상 범례용 — 실제 좌석 색은 별점 평균에 따라 5단계로 갈리므로, 범례
+   스와치는 그 5색을 한 줄 그러데이션으로 압축해 "색이 다양하다"는 걸
+   보여주고 자세한 구간은 옆의 "!" 툴팁으로 넘긴다. */
+.legend-box.rating-gradient {
+  background: linear-gradient(to right, #ef4444, #f97316, #eab308, #a3e635, #22c55e);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
 .legend-box.empty {
   background-color: #1e293b;
   border: 1px solid rgba(255,255,255,0.05);
@@ -1984,6 +1995,69 @@ img {
 
 .floor-grid-seat.offset-left.has-camera:hover {
   transform: translateX(-13px) scale(1.15);
+}
+
+/* 시야 별점 평균에 따른 5단계 좌석 색상 (뮤지컬/연극 전용). [class*="rating-"]
+   로 5개 클래스의 hover/오프셋 규칙을 한 번에 묶어서, 색상 클래스 하나 늘 때마다
+   .has-camera 스타일처럼 매번 3벌씩 반복 작성하지 않아도 되게 했다. */
+.floor-grid-seat[class*="rating-"] {
+  border-color: transparent !important;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+}
+
+.floor-grid-seat.rating-green { background-color: #22c55e !important; color: #ffffff !important; }
+.floor-grid-seat.rating-lightgreen { background-color: #a3e635 !important; color: #1a2e05 !important; }
+.floor-grid-seat.rating-yellow { background-color: #eab308 !important; color: #1a1a05 !important; }
+.floor-grid-seat.rating-orange { background-color: #f97316 !important; color: #ffffff !important; }
+.floor-grid-seat.rating-red { background-color: #ef4444 !important; color: #ffffff !important; }
+
+.floor-grid-seat[class*="rating-"]:hover {
+  background-color: var(--accent-purple) !important;
+  border-color: var(--accent-purple) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+.floor-grid-seat.offset-right[class*="rating-"]:hover {
+  transform: translateX(13px) scale(1.15);
+}
+
+.floor-grid-seat.offset-left[class*="rating-"]:hover {
+  transform: translateX(-13px) scale(1.15);
+}
+
+/* 등록 폼의 별점 입력 위젯 — lucide star 아이콘(기본은 외곽선만)을 클릭해
+   채워진 개수만큼 골라 담는 일반적인 쇼핑몰 리뷰 UI 패턴. */
+.star-rating-input {
+  display: flex;
+  gap: 6px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 2px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--border-color);
+  line-height: 0;
+}
+
+.star-btn svg {
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+}
+
+.star-btn.filled {
+  color: #facc15;
+}
+
+.star-btn.filled svg {
+  fill: currentColor;
 }
 
 .floor-grid-seat.is-disabled-seat::before {

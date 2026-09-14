@@ -91,7 +91,7 @@
   <!-- Lucide Icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.36">
+  <link rel="stylesheet" href="/style_v6.css?v=5.38">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -625,6 +625,7 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <img id="modal-seat-avatar" src="" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--accent-purple);" alt="Avatar" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
                   <span id="modal-seat-uploader" style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary);">@야구러버</span>
+                  <span id="modal-seat-rating" style="display: none; font-size: 0.7rem; color: #facc15; font-weight: 700; white-space: nowrap;"></span>
                   <a id="modal-seat-external-link" href="#" target="_blank" rel="noopener noreferrer" class="ext-link-badge" style="display: none;"></a>
                 </div>
                 <span id="modal-seat-date" style="font-size: 0.72rem; color: var(--text-muted);">2026-08-01</span>
@@ -706,6 +707,30 @@
 
                   <!-- Thumbnails Row -->
                   <div id="uploaded-photos-thumbnails-container" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                </div>
+              </div>
+
+              <!-- 2.5 시야 별점 (공연장 카테고리 전용, 필수). "공연이
+                   재밌었는지"가 아니라 "이 자리에서 무대가 얼마나 잘
+                   보였는지"를 명확히 물어야 해서 문구를 그렇게 못박아둔다.
+                   좌석 리스트 화면을 이 평균 별점 기준 색상(초록~빨강)으로
+                   구분하는 기능도 만들어뒀지만, 축적된 리뷰가 전부
+                   rating=null이라 사진 있는 좌석도 색이 하나도 안 나와서
+                   당장은 꺼둔 상태 — app_v6.js의 renderVenueFloorGrid()/
+                   ratingColorClass() 주석 참고. 여기 입력 폼은 그 색상
+                   기능과 무관하게 데이터 축적용으로 항상 켜져 있다. -->
+              <div class="form-group" id="form-rating-group" style="margin-bottom: 20px;">
+                <label style="margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="star" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                  이 자리에서 시야가 얼마나 좋았나요?
+                  <span style="font-size: 0.66rem; font-weight: 600; color: #f87171; background: rgba(239, 68, 68, 0.12); border-radius: 6px; padding: 2px 6px;">필수</span>
+                </label>
+                <div class="star-rating-input" id="form-rating-stars" data-value="0">
+                  <button type="button" class="star-btn" data-star="1" onclick="app.setFormRating(1)" aria-label="1점"><i data-lucide="star"></i></button>
+                  <button type="button" class="star-btn" data-star="2" onclick="app.setFormRating(2)" aria-label="2점"><i data-lucide="star"></i></button>
+                  <button type="button" class="star-btn" data-star="3" onclick="app.setFormRating(3)" aria-label="3점"><i data-lucide="star"></i></button>
+                  <button type="button" class="star-btn" data-star="4" onclick="app.setFormRating(4)" aria-label="4점"><i data-lucide="star"></i></button>
+                  <button type="button" class="star-btn" data-star="5" onclick="app.setFormRating(5)" aria-label="5점"><i data-lucide="star"></i></button>
                 </div>
               </div>
 
@@ -1099,7 +1124,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.25"></script>
+  <script src="/app_v6.js?v=9.30"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
