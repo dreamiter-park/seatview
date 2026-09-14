@@ -5948,17 +5948,29 @@ class SeatViewApp {
         if (isMusical) this.loadVenues().then(() => this.renderVenueList());
       } catch (error) {
         console.warn("Supabase review insert warning:", error);
-        // Unique-constraint violation means the app-level pre-check above lost
-        // a race (e.g. the same seat submitted from two tabs at once). Surface
-        // it instead of silently falling through to the success toast below.
-        if (error && error.code === '23505') {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalBtnHtml;
-          }
-          await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요.");
-          return;
+        // Every branch here must return (never fall through) — this used to
+        // only special-case 23505 and let any other error (a DB-side rate
+        // limit trigger, a network blip, etc.) silently drop through to the
+        // success toast/modal-close below with nothing actually saved. That
+        // exact "success toast, nothing saved" symptom was traced to a DB
+        // rate-limit trigger firing on musical_seat_reviews (Postgres logs:
+        // "Rate limit exceeded: too many reviews submitted recently",
+        // P0001) — this branch existed before that trigger and never
+        // handled it, or anything else, as a real failure.
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
         }
+        if (error && error.code === '23505') {
+          // Unique-constraint violation means the app-level pre-check above
+          // lost a race (e.g. the same seat submitted from two tabs at once).
+          await this.showAlertDialog("중복 등록 불가", "이 좌석에는 이미 시야 사진을 등록하셨습니다.\n\n한 좌석당 1인 1건만 등록할 수 있어요.");
+        } else if (error && error.message && error.message.includes("Rate limit exceeded")) {
+          await this.showAlertDialog("잠시만 기다려 주세요", "짧은 시간에 너무 많은 시야 정보가 등록되어 잠시 제한되었습니다.\n몇 분 후 다시 시도해 주세요.");
+        } else {
+          await this.showAlertDialog("등록 실패", "시야 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        }
+        return;
       }
     }
 
