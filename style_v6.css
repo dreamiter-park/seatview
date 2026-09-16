@@ -1862,6 +1862,12 @@ img {
   color: var(--accent-blue);
 }
 
+.legend-box.camera-official {
+  background-color: rgba(100, 116, 139, 0.25);
+  border: 1px solid #64748b;
+  color: #64748b;
+}
+
 /* 색상 범례용 — 실제 좌석 색은 별점 평균에 따라 5단계로 갈리므로, 범례
    스와치는 그 5색을 한 줄 그러데이션으로 압축해 "색이 다양하다"는 걸
    보여주고 자세한 구간은 옆의 "!" 툴팁으로 넘긴다. */
@@ -1994,6 +2000,34 @@ img {
 }
 
 .floor-grid-seat.offset-left.has-camera:hover {
+  transform: translateX(-13px) scale(1.15);
+}
+
+/* 공연장이 공식 홈페이지 등에서 제공한 시야 사진(운영자 계정이 빈 좌석/무대를
+   찍어 등록한 것 — 실제 관람객이 그 자리에 앉아 찍은 사진이 아님) 전용 색상.
+   일반 시야 사진(has-camera, 파란색)과는 확실히 구분되게 회색으로 표시해서,
+   실감나는 "진짜 관람 시야"와 헷갈리지 않게 한다. */
+.floor-grid-seat.has-camera-official {
+  background-color: #64748b !important;
+  border-color: #64748b !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.4);
+  font-weight: 700;
+}
+
+.floor-grid-seat.has-camera-official:hover {
+  background-color: var(--accent-purple) !important;
+  border-color: var(--accent-purple) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+.floor-grid-seat.offset-right.has-camera-official:hover {
+  transform: translateX(13px) scale(1.15);
+}
+
+.floor-grid-seat.offset-left.has-camera-official:hover {
   transform: translateX(-13px) scale(1.15);
 }
 

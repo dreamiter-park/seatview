@@ -18,6 +18,12 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
   }
 }
 
+// 잘보여유 에디터 운영 계정(공연장이 공식 홈페이지 등에 올린 빈 좌석/무대
+// 사진을 그대로 캡처해서 인용 등록하는 용도 — 실제 관람객이 앉아서 찍은
+// 사진이 아님). 좌석 그리드 색상 구분(#17)과 공연장 목록 정렬용 카운트
+// 제외(#18)에서 공통으로 쓴다.
+const OFFICIAL_SOURCE_USER_ID = 'ca42d30f-a372-4cc7-8651-3cb49f473dd7';
+
 // --- Kakao SDK Config (카카오톡 공유용, 로그인과는 별개) ---
 const KAKAO_JS_KEY = '5b5835750aff0f479c11ff8a1c15b7e5';
 if (window.Kakao && !Kakao.isInitialized()) {
@@ -1791,10 +1797,15 @@ class SeatViewApp {
         // 기존 display_order 순 — 관리자가 정해둔 순서는 동률일 때의
         // tie-breaker로만 쓰임. 리뷰→좌석→구역→공연장 순으로 FK를 타고
         // 올라가야 해서(리뷰 테이블엔 venue_id가 직접 없음) 중첩 select로
-        // 한 번에 가져온다.
+        // 한 번에 가져온다. 공식 홈페이지 인용 계정(OFFICIAL_SOURCE_USER_ID)의
+        // 리뷰는 여기서 제외한다 — 실제 리뷰가 하나도 없던 공연장이 그
+        // 계정이 사진 몇 장 가져다 쓴 것만으로 상위권에 오르는 건 이
+        // 정렬의 취지(실사용자 시야 데이터가 많은 순)에 안 맞는다. 좌석
+        // 상세(개별 층/구역) 쪽 카운트는 이 필터의 영향을 받지 않는다.
         const { data: reviews, error: reviewErr } = await supabaseClient
           .from('musical_seat_reviews')
-          .select('musical_seats(musical_blocks(venue_id))');
+          .select('user_id, musical_seats(musical_blocks(venue_id))')
+          .neq('user_id', OFFICIAL_SOURCE_USER_ID);
         if (!reviewErr && reviews) {
           const countByVenue = {};
           reviews.forEach(r => {
@@ -2370,15 +2381,24 @@ class SeatViewApp {
       // 별점 데이터가 충분히 쌓이면 이 블록만 되돌리면 된다(과거 버전:
       // git 이력 참고). 지금은 예전처럼 "사진 유무"만 표시.
       const seatsWithPhotos = new Set();
+      // 공식 홈페이지 등에서 가져온 사진만 있는 좌석은 따로 모아서 회색으로
+      // 구분 표시한다(실제 관람 시야와 안 헷갈리게) — 같은 좌석에 실제
+      // 관람객 리뷰도 있으면 seatsWithPhotos(파란색)가 우선한다.
+      const seatsWithOfficialPhotos = new Set();
       if (seatIds.length > 0) {
         const { data: reviews } = await supabaseClient
           .from('musical_seat_reviews')
-          .select('musical_seat_id, image_urls')
+          .select('musical_seat_id, image_urls, user_id')
           .eq('is_blocked', false)
           .in('musical_seat_id', seatIds);
         if (isStale()) return;
         (reviews || []).forEach(rev => {
-          if (Array.isArray(rev.image_urls) && rev.image_urls.length > 0) seatsWithPhotos.add(rev.musical_seat_id);
+          if (!Array.isArray(rev.image_urls) || rev.image_urls.length === 0) return;
+          if (rev.user_id === OFFICIAL_SOURCE_USER_ID) {
+            seatsWithOfficialPhotos.add(rev.musical_seat_id);
+          } else {
+            seatsWithPhotos.add(rev.musical_seat_id);
+          }
         });
       }
 
@@ -2441,6 +2461,7 @@ class SeatViewApp {
           const hasSeatNum = seat.seat_num !== null && seat.seat_num !== undefined && seat.seat_num !== "";
           seatBtn.textContent = hasSeatNum ? seat.seat_num : "";
           if (seatsWithPhotos.has(seat.id)) seatBtn.classList.add("has-camera");
+          else if (seatsWithOfficialPhotos.has(seat.id)) seatBtn.classList.add("has-camera-official");
           if (seat.is_disabled_seat) {
             seatBtn.classList.add("is-disabled-seat");
             // No seat number to show for this cell — the icon would sit as
@@ -6976,6 +6997,13 @@ class SeatViewApp {
     if (modal) {
       modal.classList.add("active");
       document.body.classList.add("modal-open");
+
+      // Reusable modals (e.g. modal-add-ticket) keep the same .modal-body
+      // DOM node across every open, so a scroll position left over from a
+      // previous seat's form carried straight into the next one — the sheet
+      // could visibly open already scrolled past the seat-info header.
+      const modalBody = modal.querySelector(".modal-body");
+      if (modalBody) modalBody.scrollTop = 0;
 
       // Tag whether this open owns a history entry, so popstate/back-button
       // handling (below, and in handleHeaderBack) can tell apart "closing
