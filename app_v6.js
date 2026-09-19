@@ -1902,6 +1902,21 @@ class SeatViewApp {
     let adOccurrence = 0; // which ad slot this is (1st, 2nd, 3rd...), not a venue index — cycles through registered ads in order
     let nextAdIndex = 5; // first ad after 5 venues, then every 8 after that
 
+    // 카드 배경 사진은 CSS background-image라 브라우저가 화면 밖 카드
+    // 것까지 전부 내려받는다(55장 합쳐 약 5.9MB — 신규 방문자마다 Supabase
+    // Cached Egress로 잡힘). 화면에 들어올 때만 실제로 url을 붙인다.
+    if (this._venueBgObserver) this._venueBgObserver.disconnect();
+    this._venueBgObserver = ("IntersectionObserver" in window)
+      ? new IntersectionObserver((entries, obs) => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const el = entry.target;
+            el.style.backgroundImage = `url('${el.dataset.bg}')`;
+            obs.unobserve(el);
+          });
+        }, { rootMargin: "300px 0px" })
+      : null;
+
     venues.forEach((venue, index) => {
       if (showAds && index === nextAdIndex) {
         // 목업 테스트용으로 2열 정사각형 그리드(buildShoppingAdPairCard)를
@@ -1928,7 +1943,12 @@ class SeatViewApp {
       // legibility. This used to ALSO add its own diagonal tint on top of
       // that, which was really two overlays stacked (hence "too dark" no
       // matter how far the numbers here got turned down).
-      card.style.backgroundImage = `url('${venue.bg}')`;
+      if (this._venueBgObserver) {
+        card.dataset.bg = venue.bg;
+        this._venueBgObserver.observe(card);
+      } else {
+        card.style.backgroundImage = `url('${venue.bg}')`;
+      }
       card.onclick = (e) => {
         e.preventDefault();
         if (isPreparing) this.showItemPreparing(venue.name);

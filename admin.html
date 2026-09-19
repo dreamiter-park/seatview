@@ -749,6 +749,9 @@
       <button class="btn" style="padding: 6px 12px; font-size: 0.78rem;" onclick="app.runCacheHeaderMigrationTest()">테스트 실행 (공연장 이미지 2개 + 시야사진 3개)</button>
       <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #2d3748;" onclick="app.runCacheHeaderMigrationEditorBatch()">1차 확대: 잘보여유 에디터 계정 · 9/11~9/13 등록분</button>
       <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #4c1d95;" onclick="app.runCacheHeaderMigrationEditorFull()">2차 확대: 잘보여유 에디터 계정 전체(113건)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #047857;" onclick="app.runCacheHeaderBackupOnly()">1단계: 백업만 먼저 (원본 수정 없음)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #b91c1c;" onclick="app.runCacheHeaderMigrationAll()">2단계: 전체 실행 (시야사진 + 공연장/구장 이미지 + 광고)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #4b5563;" onclick="app.stopCacheMigrationAll()">중지</button>
     </div>
     <pre id="cache-migration-log" style="margin-top: 8px; max-height: 260px; overflow-y: auto; background: #0b0b12; color: #d1d5db; padding: 8px 10px; border-radius: 6px; display: none; white-space: pre-wrap; font-size: 0.72rem;"></pre>
   </div>
@@ -3106,9 +3109,11 @@
         return { bucket: m[1], path: decodeURIComponent(m[2]) };
       }
 
-      async migrateOneCacheHeader(url, label, log) {
+      // 반환값: "done" | "skipped" | "failed" (전체 실행의 요약 집계용)
+      // opts.quietSkip: 이미 1년 캐시인 파일은 백업 보완 없이 조용히 건너뜀
+      async migrateOneCacheHeader(url, label, log, opts = {}) {
         const parsed = this.parseStorageUrl(url);
-        if (!parsed) { log(`[건너뜀] ${label}: URL 형식을 못 읽음 (${url})`); return; }
+        if (!parsed) { log(`[건너뜀] ${label}: URL 형식을 못 읽음 (${url})`); return "skipped"; }
         const { bucket, path } = parsed;
 
         let beforeHeader = "(확인 실패)";
@@ -3117,6 +3122,17 @@
         } catch (e) {}
 
         const backupPath = `_cache_migration_backup/${path}`;
+
+        if (opts.quietSkip && beforeHeader.includes("31536000")) return "skipped";
+
+        // 백업만 하는 모드: 원본은 전혀 건드리지 않고 백업 폴더로 복사만 한다.
+        if (opts.backupOnly) {
+          const { error: bErr } = await supabaseClient.storage.from(bucket).copy(path, backupPath);
+          if (!bErr) { log(`[백업 완료] ${label}`); return "done"; }
+          if (/exists/i.test(bErr.message || "")) { log(`[백업 이미 있음] ${label}`); return "skipped"; }
+          log(`  ❌ 백업 실패: ${label} — ${bErr.message}`);
+          return "failed";
+        }
 
         if (beforeHeader.includes("31536000")) {
           // 캐시는 이미 적용돼 있지만(예: 백업 기능 추가 전 초기 테스트로
@@ -3130,7 +3146,7 @@
           } else {
             log(`[스킵] ${label}: 이미 적용됨 (${beforeHeader}) — 백업 보완 실패: ${backfillBackupErr.message}`);
           }
-          return;
+          return "skipped";
         }
 
         log(`[처리중] ${label} — ${bucket}/${path} (기존: ${beforeHeader})`);
@@ -3142,14 +3158,14 @@
         const { error: backupErr } = await supabaseClient.storage.from(bucket).copy(path, backupPath);
         if (backupErr && !/exists/i.test(backupErr.message || "")) {
           log(`  ⚠️ 백업 실패, 안전을 위해 이 파일은 건너뜁니다: ${backupErr.message}`);
-          return;
+          return "failed";
         }
 
         // 2) 원본을 내려받아 크기가 정상인지 확인 (헤더의 Content-Length와
         // 실제로 받은 바이트 수가 다르면 다운로드가 중간에 끊긴 것 —
         // 손상된 내용으로 원본을 덮어쓰지 않도록 여기서 중단한다.
         const { data: blob, error: dlErr } = await supabaseClient.storage.from(bucket).download(path);
-        if (dlErr || !blob) { log(`  ❌ 다운로드 실패 (백업은 완료됨): ${dlErr ? dlErr.message : "알 수 없음"}`); return; }
+        if (dlErr || !blob) { log(`  ❌ 다운로드 실패 (백업은 완료됨): ${dlErr ? dlErr.message : "알 수 없음"}`); return "failed"; }
         let expectedSize = null;
         try {
           const headRes0 = await fetch(url, { method: "HEAD", cache: "no-store" });
@@ -3158,7 +3174,7 @@
         } catch (e) {}
         if (expectedSize && blob.size !== expectedSize) {
           log(`  ❌ 다운로드 크기 불일치(${blob.size} vs ${expectedSize}), 손상 위험으로 중단 (백업은 완료됨)`);
-          return;
+          return "failed";
         }
 
         // 3) 확인된 원본 바이트를 같은 경로에 그대로 재저장하되 캐시
@@ -3179,13 +3195,91 @@
           cacheControl: "31536000",
           upsert: true
         });
-        if (upErr) { log(`  ❌ 재업로드 실패 (백업은 완료됨, 원본 훼손 없음): ${upErr.message}`); return; }
+        if (upErr) { log(`  ❌ 재업로드 실패 (백업은 완료됨, 원본 훼손 없음): ${upErr.message}`); return "failed"; }
 
         let afterHeader = "(확인 실패)";
         try {
           afterHeader = await this.fetchCacheControlViaGet(`${url}${url.includes("?") ? "&" : "?"}cb=${Date.now()}`);
         } catch (e) {}
         log(`  ✅ 완료 — 새 캐시: ${afterHeader}`);
+        return "done";
+      }
+
+      // 전체 실행: 모든 사용자의 시야 사진(음악/야구) + 공연장·구장 배경/지도
+      // 이미지 + 광고 배너 중 아직 1년 캐시가 아닌 파일만 처리한다. 이미
+      // 적용된 파일은 요청만 하고 조용히 건너뛴다(백업 추가 생성 없음).
+      stopCacheMigrationAll() { this._cacheMigrationCancel = true; }
+
+      async runCacheHeaderBackupOnly() { return this.runCacheHeaderMigrationAll(true); }
+
+      async runCacheHeaderMigrationAll(backupOnly = false) {
+        const logEl = document.getElementById("cache-migration-log");
+        logEl.style.display = "block";
+        logEl.textContent = "";
+        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+
+        try {
+          const urlSet = new Map(); // url -> label
+          const addUrl = (u, label) => { if (u && /\/storage\/v1\/object\/public\//.test(u) && !urlSet.has(u)) urlSet.set(u, label); };
+
+          const fetchAll = async (table, cols) => {
+            const rows = [];
+            for (let p = 0; ; p++) {
+              const { data, error } = await supabaseClient.from(table).select(cols).range(p * 1000, p * 1000 + 999);
+              if (error) { log(`⚠️ ${table} 조회 실패(건너뜀): ${error.message}`); break; }
+              rows.push(...(data || []));
+              if (!data || data.length < 1000) break;
+            }
+            return rows;
+          };
+
+          log("대상 목록 수집 중...");
+          for (const table of ["musical_seat_reviews", "baseball_seat_reviews"]) {
+            const rows = await fetchAll(table, "id, image_urls");
+            rows.forEach(r => (Array.isArray(r.image_urls) ? r.image_urls : []).forEach(u => addUrl(u, `시야 사진 (${table} id ${r.id})`)));
+          }
+          for (const table of ["venues", "stadiums"]) {
+            const rows = await fetchAll(table, "id, name, bg_image_url, map_image_url");
+            rows.forEach(r => { addUrl(r.bg_image_url, `배경 (${r.name})`); addUrl(r.map_image_url, `지도 (${r.name})`); });
+          }
+          const ads = await fetchAll("shopping_ads", "id, image_url");
+          ads.forEach(a => addUrl(a.image_url, `광고 배너 (id ${a.id})`));
+
+          const targets = [...urlSet.entries()];
+          const confirmMsg = backupOnly
+            ? `총 ${targets.length}개 파일 중 아직 1년 캐시가 아닌 파일을 백업 폴더로 복사만 합니다.\n원본은 전혀 수정하지 않습니다. 계속할까요?`
+            : `총 ${targets.length}개 파일을 점검합니다.\n이미 1년 캐시인 파일은 건너뛰고, 나머지만 (원본 백업 후) 다시 저장합니다.\n계속할까요?`;
+          if (!window.confirm(confirmMsg)) {
+            log("취소됨.");
+            return;
+          }
+
+          this._cacheMigrationCancel = false;
+          const stats = { done: 0, skipped: 0, failed: 0 };
+          const failedList = [];
+          log(`총 ${targets.length}개 점검 시작 (중지 버튼으로 언제든 멈출 수 있어요)...\n`);
+
+          for (let i = 0; i < targets.length; i++) {
+            if (this._cacheMigrationCancel) { log(`\n⏹ 사용자가 중지함 (${i}/${targets.length} 처리)`); break; }
+            const [u, label] = targets[i];
+            let result = "failed";
+            try {
+              result = await this.migrateOneCacheHeader(u, label, log, { quietSkip: true, backupOnly });
+            } catch (e) {
+              log(`  ❌ 예외: ${label} — ${e.message || e}`);
+            }
+            stats[result] = (stats[result] || 0) + 1;
+            if (result === "failed") failedList.push(u);
+            if ((i + 1) % 50 === 0) log(`… 진행 ${i + 1}/${targets.length} (완료 ${stats.done} / 이미적용 ${stats.skipped} / 실패 ${stats.failed})`);
+            await this.sleep(120);
+          }
+
+          log(`\n요약 — 새로 적용 ${stats.done}개 / 이미 적용돼 건너뜀 ${stats.skipped}개 / 실패 ${stats.failed}개`);
+          if (failedList.length) log(`실패 목록:\n${failedList.join("\n")}`);
+          log("끝나면 실제 사이트에서 사진이 정상 표시되는지 확인해주세요. (원본은 각 버킷의 _cache_migration_backup/ 폴더에 백업돼 있어요)");
+        } catch (e) {
+          log(`\n❌ 오류 발생: ${e.message || e}`);
+        }
       }
 
       async runCacheHeaderMigrationTest() {
