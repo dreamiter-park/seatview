@@ -1954,12 +1954,15 @@ class SeatViewApp {
         if (isPreparing) this.showItemPreparing(venue.name);
         else this.loadVenueDetail(venue.id);
       };
-      // 리스트 카드는 공간이 좁으니 한 줄만: 현재 공연이 있으면 그것만,
-      // 없으면 다음 공연을 "예정" 스타일로 대신 보여준다(둘 다 없으면
-      // 뱃지 자체를 숨김).
+      // 현재 상영 중인 공연은 동시 상영작이 있으면 전부 뱃지로 보여준다
+      // (컨테이너가 flex-wrap이라 좁으면 줄바꿈). 현재 공연이 없을 때만
+      // 다음 공연을 "예정" 스타일로 대신 보여주고, 둘 다 없으면 뱃지 자체를
+      // 숨김.
       let showsHtml = "";
       if (venue.currentShows && venue.currentShows.length > 0) {
-        showsHtml = `<span class="stadium-card-team stadium-card-team-current">[${this.escapeHtml(venue.currentShows[0])}]</span>`;
+        showsHtml = venue.currentShows
+          .map(s => `<span class="stadium-card-team stadium-card-team-current">[${this.escapeHtml(s)}]</span>`)
+          .join("");
       } else if (venue.nextShow) {
         showsHtml = `<span class="stadium-card-team stadium-card-team-upcoming">공연예정 [${this.escapeHtml(venue.nextShow)}]</span>`;
       }
@@ -2710,7 +2713,7 @@ class SeatViewApp {
     const effectiveMapSrc = stadium.map_image_url || (stadiumId === "jamsil" ? "/stadiums/stadium_01.png" : null);
     if (mapGuideCard) mapGuideCard.style.display = effectiveMapSrc ? "" : "none";
     if (mapWrapper && effectiveMapSrc) {
-      mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${effectiveMapSrc}" class="stadium-static-map" alt="구장 전체 안내도">`;
+      mapWrapper.innerHTML = `<img id="stadium-static-map-img" src="${this.escapeHtml(effectiveMapSrc)}" class="stadium-static-map" alt="구장 전체 안내도">`;
       mapWrapper.classList.add("collapsed");
     }
     if (mapCollapseBtn) {
@@ -4314,7 +4317,7 @@ class SeatViewApp {
     if (labelEl) {
       const heading = document.getElementById("modal-seat-title") ? document.getElementById("modal-seat-title").textContent : "";
       const subheading = document.getElementById("modal-seat-stadium") ? document.getElementById("modal-seat-stadium").textContent : "";
-      labelEl.innerHTML = `${subheading}<br>${heading}`;
+      labelEl.innerHTML = `${this.escapeHtml(subheading)}<br>${this.escapeHtml(heading)}`;
     }
 
     state.tempUploadedPhotos = ownPhotos.map(url => ({ type: "existing", url }));
@@ -4446,7 +4449,13 @@ class SeatViewApp {
         this.modalImages.forEach((img, idx) => {
           const thumb = document.createElement("div");
           thumb.className = `thumb-item ${idx === this.currentImageIndex ? 'active' : ''}`;
-          thumb.innerHTML = `<img src="${img.url}" alt="\uC378\uB124\uC77C ${idx + 1}">`;
+          // img.url\uC740 DB\uC5D0\uC11C \uC628 \uAC12\uC774\uB77C, innerHTML\uC5D0 \uADF8\uB300\uB85C \uB07C\uC6B0\uBA74 \uB530\uC634\uD45C\uAC00 \uB4E0
+          // \uC8FC\uC18C\uB85C \uC18D\uC131\uC744 \uAE68\uACE0 \uC2A4\uD06C\uB9BD\uD2B8\uB97C \uC2EC\uC744 \uC218 \uC788\uB2E4 \u2014 \uC694\uC18C\uB97C \uC9C1\uC811 \uB9CC\uB4E4\uC5B4
+          // src\uC5D0\uB9CC \uB123\uB294\uB2E4.
+          const thumbImg = document.createElement("img");
+          thumbImg.src = img.url;
+          thumbImg.alt = `\uC378\uB124\uC77C ${idx + 1}`;
+          thumb.appendChild(thumbImg);
           thumb.onclick = () => this.setSeatImageIndex(idx);
           thumbContainer.appendChild(thumb);
         });
@@ -5635,7 +5644,11 @@ class SeatViewApp {
     try {
       // Naver's mobile blog links come from m.blog.naver.com, not just the
       // bare domain — strip a leading www./m. the same way so both work.
-      const host = new URL(url).hostname.replace(/^(www\.|m\.)/i, "").toLowerCase();
+      // 호스트 이름만 보면 "javascript://blog.naver.com/%0Aalert(1)" 같은
+      // 값이 통과해서, 링크를 누르는 순간 스크립트가 실행된다 — http(s)만 허용.
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+      const host = parsed.hostname.replace(/^(www\.|m\.)/i, "").toLowerCase();
       if (host === "blog.naver.com") return "naver";
       if (host === "instagram.com") return "instagram";
       return null;
@@ -6430,11 +6443,18 @@ class SeatViewApp {
       console.log("[OCR debug] paste this whole line into a new browser tab's address bar to SEE the exact image that was sent:");
       console.log("data:" + mediaType + ";base64," + base64);
       const cleanUrl = SUPABASE_URL.replace(/\/rest\/v1\/?$/, "");
+      // 서버 함수는 유료 AI 호출이라 로그인한 사용자의 토큰만 받는다(공개된
+      // anon 키만으로는 거절 -> 아래 "사용할 수 없어요" 안내로 자연스럽게 수동 입력).
+      let accessToken = SUPABASE_ANON_KEY;
+      try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        if (sessionData && sessionData.session && sessionData.session.access_token) accessToken = sessionData.session.access_token;
+      } catch (_) { /* 세션을 못 읽으면 anon 키로 시도 -> 서버가 거절 */ }
       const resp = await fetch(`${cleanUrl}/functions/v1/ocr-ticket`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Authorization": `Bearer ${accessToken}`,
           "apikey": SUPABASE_ANON_KEY
         },
         body: JSON.stringify({ imageBase64: base64, mediaType })
@@ -6779,7 +6799,7 @@ class SeatViewApp {
     }
 
     const labelEl = document.getElementById("form-seat-info-label");
-    if (labelEl) labelEl.innerHTML = `${match.stadiumName}<br>${match.blockName} ${match.seatName}`;
+    if (labelEl) labelEl.innerHTML = `${this.escapeHtml(match.stadiumName)}<br>${this.escapeHtml(match.blockName)} ${this.escapeHtml(match.seatName)}`;
 
     const ratingGroupEl = document.getElementById("form-rating-group");
     if (ratingGroupEl) ratingGroupEl.style.display = match.category === "musical" ? "" : "none";
@@ -6864,7 +6884,7 @@ class SeatViewApp {
 
       const info = state.activeModalDisplayInfo || {};
       const labelEl = document.getElementById("form-seat-info-label");
-      if (labelEl) labelEl.innerHTML = `${info.stadiumName || ""}<br>${info.blockName || ""} ${info.seatName || ""}`;
+      if (labelEl) labelEl.innerHTML = `${this.escapeHtml(info.stadiumName || "")}<br>${this.escapeHtml(info.blockName || "")} ${this.escapeHtml(info.seatName || "")}`;
       const ratingGroupEl = document.getElementById("form-rating-group");
       if (ratingGroupEl) ratingGroupEl.style.display = "";
       this.resetFormRating(0);
@@ -6929,7 +6949,7 @@ class SeatViewApp {
 
     const labelEl = document.getElementById("form-seat-info-label");
     if (labelEl) {
-      labelEl.innerHTML = `${stadiumName}<br>${seatInfo ? seatInfo.blockName : blockName} ${seatInfo ? seatInfo.seatName : seatName}`;
+      labelEl.innerHTML = `${this.escapeHtml(stadiumName)}<br>${this.escapeHtml(seatInfo ? seatInfo.blockName : blockName)} ${this.escapeHtml(seatInfo ? seatInfo.seatName : seatName)}`;
     }
     // 야구장엔 시야 별점 개념이 없음 — 이전에 공연장 폼을 열어뒀다 여기로
     // 왔을 때 별점 필드가 그대로 남아있지 않도록 명시적으로 숨긴다.
@@ -7096,7 +7116,7 @@ class SeatViewApp {
     if (nickInput) nickInput.value = state.userNickname || "";
     if (stadiumSelect) {
       const placeholder = `<option value="" disabled ${state.favoriteStadiumId ? "" : "selected"}>구장을 선택해주세요</option>`;
-      stadiumSelect.innerHTML = placeholder + STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      stadiumSelect.innerHTML = placeholder + STADIUMS_DB.map(s => `<option value="${this.escapeHtml(s.id)}">${this.escapeHtml(s.name)}</option>`).join("");
       stadiumSelect.value = state.favoriteStadiumId || "";
     }
     if (teamSelect) teamSelect.value = state.cheeringTeam || "";

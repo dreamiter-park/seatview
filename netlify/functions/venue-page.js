@@ -52,8 +52,12 @@ exports.handler = async (event) => {
     return { statusCode: 404, body: "Not found" };
   }
 
-  const host = event.headers["x-forwarded-host"] || event.headers.host;
-  const origin = `https://${host}`;
+  // 요청 헤더의 호스트 값을 그대로 쓰면, 조작된 헤더로 다른 사이트의 HTML을
+  // 가져와 우리 도메인의 페이지처럼 내보내게 만들 수 있다 — 허용 목록만 쓰고
+  // 그 외에는 대표 도메인으로 고정한다.
+  const ALLOWED_HOSTS = ["xn--on3b27no0awn.com", "www.xn--on3b27no0awn.com"];
+  const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
+  const origin = ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
 
   let venue, blocks;
   try {

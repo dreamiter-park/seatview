@@ -9,9 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- 보안: 이 페이지는 service_role 키를 다룬다. 외부 스크립트는 버전 고정 + 무결성(SRI) 검사를
+       통과한 것만 실행한다(@latest 그대로면 라이브러리가 해킹됐을 때 키가 유출될 수 있음).
+       고정한 파일은 기존 @latest/@2와 바이트 단위로 동일하다. 버전을 올릴 땐 해시도 같이 갱신. -->
+  <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Supabase JS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   
   
   <!-- On-Screen Debug Console for Diagnostics -->
@@ -756,6 +759,18 @@
     <pre id="cache-migration-log" style="margin-top: 8px; max-height: 260px; overflow-y: auto; background: #0b0b12; color: #d1d5db; padding: 8px 10px; border-radius: 6px; display: none; white-space: pre-wrap; font-size: 0.72rem;"></pre>
   </div>
 
+  <!-- 사진 전체 PC 백업 / 복원 -->
+  <div id="storage-backup-tool" style="background: rgba(16, 185, 129, 0.08); border-bottom: 1px solid var(--border-color); padding: 10px 16px; font-family: sans-serif; font-size: 0.8rem;">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <strong style="color: #34d399;">💾 사진 전체 PC 백업 / 복원</strong>
+      <span style="color: var(--text-muted);">모든 사진을 서버와 똑같은 폴더 구조로 PC에 저장 · 서버 원본은 읽기만 함 · 크롬/엣지에서 사용</span>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #047857;" onclick="app.backupStorageToPc()">📥 PC로 백업하기 (폴더 선택)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #1d4ed8;" onclick="app.restoreStorageFromPc()">📤 백업에서 복원 (서버에 없는 파일만)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #4b5563;" onclick="app.stopStorageBackup()">중지</button>
+    </div>
+    <pre id="storage-backup-log" style="margin-top: 8px; max-height: 260px; overflow-y: auto; background: #0b0b12; color: #d1d5db; padding: 8px 10px; border-radius: 6px; display: none; white-space: pre-wrap; font-size: 0.72rem;"></pre>
+  </div>
+
   <header style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
     <div>
       <h1><i data-lucide="settings"></i> 잘보여유 - 관리자 좌석 설정</h1>
@@ -1279,12 +1294,18 @@
     const ADMIN_KEY_STORAGE = "seatview_admin_key_encrypted";
     const ADMIN_KEY_SESSION_CACHE = "seatview_admin_key_session";
 
-    async function deriveCryptoKey(password, saltB64) {
+    // 비밀번호 무차별 대입을 어렵게 하려고 반복 횟수를 60만 회로 올렸다.
+    // 예전에 저장된 값(반복 횟수 기록 없음)은 10만 회로 풀고, 비밀번호를 한 번
+    // 입력해 풀리는 순간 새 횟수로 자동 재암호화한다(사용자가 할 일 없음).
+    const ADMIN_KDF_ITERATIONS = 600000;
+    const ADMIN_KDF_LEGACY_ITERATIONS = 100000;
+
+    async function deriveCryptoKey(password, saltB64, iterations = ADMIN_KDF_LEGACY_ITERATIONS) {
       const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
       const enc = new TextEncoder();
       const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
       return crypto.subtle.deriveKey(
-        { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+        { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
         keyMaterial,
         { name: "AES-GCM", length: 256 },
         false,
@@ -1300,20 +1321,21 @@
       const saltBytes = crypto.getRandomValues(new Uint8Array(16));
       const saltB64 = bytesToB64(saltBytes);
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const key = await deriveCryptoKey(password, saltB64);
+      const key = await deriveCryptoKey(password, saltB64, ADMIN_KDF_ITERATIONS);
       const enc = new TextEncoder();
       const cipherBuf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainText));
       return {
         salt: saltB64,
         iv: bytesToB64(iv),
-        data: bytesToB64(new Uint8Array(cipherBuf))
+        data: bytesToB64(new Uint8Array(cipherBuf)),
+        iter: ADMIN_KDF_ITERATIONS
       };
     }
 
     async function decryptWithPassword(password, payload) {
       const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
       const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
-      const key = await deriveCryptoKey(password, payload.salt);
+      const key = await deriveCryptoKey(password, payload.salt, payload.iter || ADMIN_KDF_LEGACY_ITERATIONS);
       const plainBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
       return new TextDecoder().decode(plainBuf);
     }
@@ -1331,7 +1353,12 @@
           const password = prompt("관리자 비밀번호를 입력해 주세요:");
           if (!password) return null;
           try {
-            const key = await decryptWithPassword(password, JSON.parse(storedRaw));
+            const storedPayload = JSON.parse(storedRaw);
+            const key = await decryptWithPassword(password, storedPayload);
+            // 예전(10만 회) 방식으로 저장돼 있었다면 지금 비밀번호로 새 방식으로 다시 저장
+            if ((storedPayload.iter || ADMIN_KDF_LEGACY_ITERATIONS) < ADMIN_KDF_ITERATIONS) {
+              try { localStorage.setItem(ADMIN_KEY_STORAGE, JSON.stringify(await encryptWithPassword(password, key))); } catch (_) { /* 실패해도 기존 값 유지 */ }
+            }
             sessionStorage.setItem(ADMIN_KEY_SESSION_CACHE, key);
             return key;
           } catch (e) {
@@ -1353,6 +1380,66 @@
       localStorage.setItem(ADMIN_KEY_STORAGE, JSON.stringify(encrypted));
       sessionStorage.setItem(ADMIN_KEY_SESSION_CACHE, trimmedKey);
       return trimmedKey;
+    }
+
+    // =====================================================================
+    // 사진 전체 PC 백업 / 복원 (Storage <-> PC 폴더)
+    //  · 백업: 모든 버킷의 파일을 "버킷이름/원래경로" 그대로 PC 폴더에 저장한다.
+    //    원본(Storage)은 읽기만 하고 절대 수정/삭제하지 않는다.
+    //  · 복원: PC 폴더의 파일 중 Storage에 "없는" 파일만 원래 경로 그대로 다시 올린다.
+    //    경로가 같으므로 사진 URL도 그대로라서, DB의 후기/공연장 데이터가 멀쩡하면
+    //    올리는 즉시 사이트에 다시 보인다. 이미 있는 파일은 덮어쓰지 않는다.
+    // =====================================================================
+    const SB_SKIP_PREFIXES = ["_cache_migration_backup"]; // 캐시 작업 때 만든 임시 복사본 폴더는 제외
+    const SB_MIME_BY_EXT = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", svg: "image/svg+xml" };
+
+    function sbGuessMime(name) {
+      const m = String(name).toLowerCase().match(/\.([a-z0-9]+)$/);
+      return (m && SB_MIME_BY_EXT[m[1]]) || "application/octet-stream";
+    }
+
+    // Windows 폴더/파일 이름으로 쓸 수 없는 경로인지 (쓸 수 없으면 백업에서 건너뛰고 알려준다)
+    function sbIsWinSafe(path) {
+      return String(path).split("/").every(seg => seg.length > 0 && !/[<>:"\\|?*\u0000-\u001f]/.test(seg) && !/[. ]$/.test(seg));
+    }
+
+    // 버킷 안의 모든 파일을 폴더를 따라 내려가며 나열 (한 번에 1000개씩)
+    async function sbListAllObjects(client, bucket, isCancelled) {
+      const files = [];
+      const queue = [""];
+      while (queue.length) {
+        if (isCancelled && isCancelled()) break;
+        const prefix = queue.shift();
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await client.storage.from(bucket).list(prefix, { limit: 1000, offset, sortBy: { column: "name", order: "asc" } });
+          if (error) throw new Error(`${bucket}/${prefix} 목록 조회 실패: ${error.message}`);
+          (data || []).forEach(it => {
+            const path = prefix ? `${prefix}/${it.name}` : it.name;
+            if (SB_SKIP_PREFIXES.some(p => path === p || path.startsWith(p + "/"))) return;
+            if (it.name === ".emptyFolderPlaceholder") return;
+            if (it.id === null || it.id === undefined) queue.push(path); // 폴더
+            else files.push({ path, size: Number(it.metadata && it.metadata.size) || 0, mimetype: (it.metadata && it.metadata.mimetype) || sbGuessMime(it.name) });
+          });
+          if (!data || data.length < 1000) break;
+        }
+      }
+      return files;
+    }
+
+    // "a/b/c.webp" 경로를 따라 폴더 핸들을 만들면서(또는 찾으면서) 내려간다
+    async function sbGetDirHandle(root, segments, create) {
+      let dir = root;
+      for (const seg of segments) dir = await dir.getDirectoryHandle(seg, { create });
+      return dir;
+    }
+
+    // 폴더 안의 모든 파일을 재귀적으로 모은다 (복원용)
+    async function sbWalkLocalDir(dirHandle, prefix, out) {
+      for await (const [name, handle] of dirHandle.entries()) {
+        const path = prefix ? `${prefix}/${name}` : name;
+        if (handle.kind === "directory") await sbWalkLocalDir(handle, path, out);
+        else if (name !== ".emptyFolderPlaceholder") out.push({ path, handle });
+      }
     }
 
     let supabaseKey = null;
@@ -3209,6 +3296,186 @@
       // 이미지 + 광고 배너 중 아직 1년 캐시가 아닌 파일만 처리한다. 이미
       // 적용된 파일은 요청만 하고 조용히 건너뛴다(백업 추가 생성 없음).
       stopCacheMigrationAll() { this._cacheMigrationCancel = true; }
+
+      // ---------------------------------------------------------------
+      // 사진 전체 PC 백업 / 복원 (도우미 함수는 위쪽 sb* 함수들)
+      // ---------------------------------------------------------------
+      stopStorageBackup() { this._sbCancel = true; }
+
+      _sbPrepareLog() {
+        const logEl = document.getElementById("storage-backup-log");
+        logEl.style.display = "block";
+        logEl.textContent = "";
+        return (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+      }
+
+      async backupStorageToPc() {
+        const log = this._sbPrepareLog();
+        if (!window.showDirectoryPicker) {
+          alert("이 기능은 PC의 크롬(Chrome) 또는 엣지(Edge) 브라우저에서만 쓸 수 있어요.");
+          log("❌ 이 브라우저는 폴더 저장 기능을 지원하지 않아요. 크롬/엣지에서 다시 열어주세요.");
+          return;
+        }
+        let root;
+        try {
+          root = await window.showDirectoryPicker({ mode: "readwrite" });
+        } catch (e) { log("취소됨."); return; }
+
+        this._sbCancel = false;
+        const stats = { saved: 0, skipped: 0, failed: 0, bytes: 0 };
+        const failed = [];
+        try {
+          const { data: buckets, error: bErr } = await supabaseClient.storage.listBuckets();
+          if (bErr) throw new Error(`버킷 목록 조회 실패: ${bErr.message}`);
+
+          const plan = []; // { bucket, isPublic, files }
+          for (const b of buckets || []) {
+            log(`📦 ${b.name} (${b.public ? "공개" : "비공개"}) 파일 목록 수집 중...`);
+            const files = await sbListAllObjects(supabaseClient, b.name, () => this._sbCancel);
+            plan.push({ bucket: b.name, isPublic: !!b.public, files });
+            log(`   → ${files.length}개`);
+          }
+          const total = plan.reduce((n, p) => n + p.files.length, 0);
+          const totalMB = Math.round(plan.reduce((n, p) => n + p.files.reduce((s, f) => s + f.size, 0), 0) / 1024 / 1024);
+          if (!window.confirm(`총 ${total}개 파일(약 ${totalMB}MB)을 선택한 폴더에 백업합니다.\n· 이미 같은 크기로 저장된 파일은 건너뜁니다(이어서 받기 가능)\n· 서버의 원본은 읽기만 하고 절대 수정/삭제하지 않습니다\n· PC 폴더에 이미 있는 파일은 지우지 않습니다\n계속할까요?`)) {
+            log("취소됨.");
+            return;
+          }
+
+          log(`\n백업 시작 (중지 버튼으로 언제든 멈출 수 있어요)...`);
+          let n = 0;
+          for (const p of plan) {
+            for (const f of p.files) {
+              if (this._sbCancel) break;
+              n++;
+              if (!sbIsWinSafe(f.path)) {
+                stats.failed++; failed.push(`${p.bucket}/${f.path} (Windows 폴더 이름으로 쓸 수 없는 문자)`);
+                continue;
+              }
+              try {
+                const segs = [p.bucket, ...f.path.split("/")];
+                const fileName = segs.pop();
+                const dir = await sbGetDirHandle(root, segs, true);
+
+                let exists = false;
+                try {
+                  const existing = await (await dir.getFileHandle(fileName)).getFile();
+                  exists = f.size > 0 && existing.size === f.size;
+                } catch (_) { /* 아직 없음 */ }
+                if (exists) { stats.skipped++; continue; }
+
+                let blob = null, lastErr = null;
+                for (let attempt = 0; attempt < 2 && !blob; attempt++) {
+                  const { data, error } = await supabaseClient.storage.from(p.bucket).download(f.path);
+                  if (error) { lastErr = error; await this.sleep(400); } else blob = data;
+                }
+                if (!blob) throw new Error(lastErr ? lastErr.message : "다운로드 실패");
+
+                const fh = await dir.getFileHandle(fileName, { create: true });
+                const w = await fh.createWritable();
+                await w.write(blob);
+                await w.close();
+                stats.saved++; stats.bytes += blob.size;
+              } catch (e) {
+                stats.failed++; failed.push(`${p.bucket}/${f.path} (${e.message || e})`);
+              }
+              if (n % 25 === 0) log(`… ${n}/${total} (새로 저장 ${stats.saved} / 이미 있음 ${stats.skipped} / 실패 ${stats.failed})`);
+              await this.sleep(20);
+            }
+            if (this._sbCancel) break;
+          }
+
+          if (!this._sbCancel) {
+            // 복원·확인용 목록(매니페스트)과 안내문도 같은 폴더에 남긴다
+            const manifest = {
+              createdAt: new Date().toISOString(),
+              note: "Storage 파일 목록 스냅샷 (경로는 버킷이름/파일경로). 복원 시 이 폴더를 그대로 선택하면 됩니다.",
+              buckets: Object.fromEntries(plan.map(p => [p.bucket, { public: p.isPublic, fileCount: p.files.length, files: p.files }]))
+            };
+            const mh = await root.getFileHandle("_backup_manifest.json", { create: true });
+            const mw = await mh.createWritable(); await mw.write(JSON.stringify(manifest, null, 2)); await mw.close();
+            const rh = await root.getFileHandle("README_복원방법.txt", { create: true });
+            const rw = await rh.createWritable();
+            await rw.write("잘보여유 사진 백업\n\n· 폴더 구조: 버킷이름/원래경로 (예: seat-photos/사용자ID/파일명.webp) — 서버와 똑같은 경로입니다.\n· 복원: 관리자 페이지 > '백업에서 복원' 버튼 > 이 폴더 선택. 서버에 없는 파일만 같은 경로로 다시 올라가며, 이미 있는 파일은 덮어쓰지 않습니다.\n· 경로가 같으므로 사진 주소(URL)도 그대로라서, DB(후기/공연장 정보)가 멀쩡하면 올리는 즉시 사이트에 다시 보입니다.\n· 이 폴더의 파일은 지우지 마세요. 서버에서 파일이 삭제돼도 이 백업에는 남아 있습니다.\n");
+            await rw.close();
+          }
+
+          log(`\n${this._sbCancel ? "⏹ 중지됨" : "✅ 완료"} — 새로 저장 ${stats.saved}개 (${Math.round(stats.bytes / 1024 / 1024)}MB) / 이미 있어서 건너뜀 ${stats.skipped}개 / 실패 ${stats.failed}개 (서버 파일 총 ${total}개)`);
+          if (failed.length) log(`실패 목록:\n${failed.join("\n")}`);
+          if (!this._sbCancel && stats.failed === 0 && stats.saved + stats.skipped === total) log("서버 파일 수와 백업 수가 일치합니다. 이 폴더를 안전한 곳(외장하드/클라우드)에도 한 번 더 복사해두면 좋아요.");
+        } catch (e) {
+          log(`\n❌ 오류 발생: ${e.message || e}`);
+        }
+      }
+
+      async restoreStorageFromPc() {
+        const log = this._sbPrepareLog();
+        if (!window.showDirectoryPicker) {
+          alert("이 기능은 PC의 크롬(Chrome) 또는 엣지(Edge) 브라우저에서만 쓸 수 있어요.");
+          return;
+        }
+        let root;
+        try {
+          root = await window.showDirectoryPicker({ mode: "read" });
+        } catch (e) { log("취소됨."); return; }
+
+        this._sbCancel = false;
+        try {
+          // 폴더의 1단계 하위 폴더 이름 = 버킷 이름
+          const plan = [];
+          for await (const [name, handle] of root.entries()) {
+            if (handle.kind !== "directory" || name.startsWith("_")) continue;
+            const local = [];
+            await sbWalkLocalDir(handle, "", local);
+            let existingSet = null;
+            try {
+              const existing = await sbListAllObjects(supabaseClient, name, () => this._sbCancel);
+              existingSet = new Set(existing.map(f => f.path));
+            } catch (e) {
+              log(`⚠️ '${name}' 버킷을 서버에서 찾지 못해 건너뜀 (${e.message || e})`);
+              continue;
+            }
+            const missing = local.filter(f => !existingSet.has(f.path));
+            log(`📦 ${name}: PC ${local.length}개 / 서버에 이미 있음 ${local.length - missing.length}개 / 서버에 없어서 올릴 파일 ${missing.length}개`);
+            plan.push({ bucket: name, missing });
+          }
+          const total = plan.reduce((n, p) => n + p.missing.length, 0);
+          if (total === 0) { log("\n복원할 파일이 없어요. (서버에 모든 파일이 이미 있어요)"); return; }
+          if (!window.confirm(`서버에 없는 파일 ${total}개를 원래 경로 그대로 다시 올립니다.\n· 이미 서버에 있는 파일은 건드리지 않습니다(덮어쓰기 없음)\n· 올린 파일은 1년 캐시로 저장됩니다\n계속할까요?`)) {
+            log("취소됨."); return;
+          }
+
+          const stats = { done: 0, failed: 0 };
+          const failed = [];
+          let n = 0;
+          for (const p of plan) {
+            for (const f of p.missing) {
+              if (this._sbCancel) break;
+              n++;
+              try {
+                const file = await f.handle.getFile();
+                const { error } = await supabaseClient.storage.from(p.bucket).upload(f.path, file, {
+                  contentType: file.type || sbGuessMime(f.path),
+                  cacheControl: "31536000",
+                  upsert: false
+                });
+                if (error) throw new Error(error.message);
+                stats.done++;
+              } catch (e) {
+                stats.failed++; failed.push(`${p.bucket}/${f.path} (${e.message || e})`);
+              }
+              if (n % 25 === 0) log(`… ${n}/${total} (복원 ${stats.done} / 실패 ${stats.failed})`);
+              await this.sleep(20);
+            }
+            if (this._sbCancel) break;
+          }
+          log(`\n${this._sbCancel ? "⏹ 중지됨" : "✅ 완료"} — 복원 ${stats.done}개 / 실패 ${stats.failed}개`);
+          if (failed.length) log(`실패 목록:\n${failed.join("\n")}`);
+          log("사이트에서 사진이 다시 보이는지 확인해주세요.");
+        } catch (e) {
+          log(`\n❌ 오류 발생: ${e.message || e}`);
+        }
+      }
 
       async runCacheHeaderBackupOnly() { return this.runCacheHeaderMigrationAll(true); }
 

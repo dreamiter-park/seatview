@@ -90,7 +90,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&family=Do+Hyeon&family=Gamja+Flower&display=swap" rel="stylesheet">
   <!-- Lucide Icons (CDN) -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- 버전 고정 + 무결성(SRI) 검사: @latest 그대로면 라이브러리가 해킹됐을 때 그 코드가 그대로 실행된다.
+       (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
+  <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
   <link rel="stylesheet" href="/style_v6.css?v=5.39">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
@@ -651,7 +653,7 @@
             <button class="btn" id="btn-detail-delete" onclick="app.deleteCurrentModalReview()" style="display: none; background: var(--danger); color: #fff;">
               <i data-lucide="trash-2"></i> 기록 삭제
             </button>
-            <span id="detail-edit-window-expired-note" style="display: none; width: 100%; text-align: center; font-size: 0.76rem; color: var(--text-muted); padding: 4px 0;">등록 후 3일이 지나 수정/삭제할 수 없습니다. 문의: j2mi.help@gmail.com</span>
+            <span id="detail-edit-window-expired-note" style="display: none; width: 100%; text-align: center; font-size: 0.76rem; color: var(--text-muted); padding: 4px 0;">등록 후 3일이 지나 수정/삭제할 수 없습니다.<br>문의: j2mi.help@gmail.com</span>
           </div>
         </div>
       </div>
@@ -1123,9 +1125,9 @@
   </div>
 
   <!-- Supabase JS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.36"></script>
+  <script src="/app_v6.js?v=9.38"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
