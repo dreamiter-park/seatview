@@ -4362,7 +4362,18 @@ class SeatViewApp {
     if (!this.modalImages || this.modalImages.length === 0) return;
 
     const curImg = this.modalImages[this.currentImageIndex];
-    if (imgEl) imgEl.src = curImg.url;
+    if (imgEl && imgEl.getAttribute("src") !== curImg.url) {
+      // 브라우저는 <img>의 src를 바꿔도 새 사진이 다 불러와질 때까지 이전 사진을
+      // 그대로 화면에 남겨둔다 — 그래서 다른 좌석을 열면 마지막에 봤던 사진이
+      // 잠깐 보였다가 바뀌었다. 새 사진이 준비될 때까지는 숨긴다.
+      const reveal = () => { imgEl.style.opacity = "1"; };
+      imgEl.style.transition = "opacity 0.15s";
+      imgEl.style.opacity = "0";
+      imgEl.onload = reveal;
+      imgEl.onerror = reveal;
+      imgEl.src = curImg.url;
+      if (imgEl.complete && imgEl.naturalWidth > 0) reveal();
+    }
     const dirMap = {
       'home': '\uD648/\uD0C0\uC11D',
       'center': '\uE5E0\uB77C\uC6B4\uB4DC \uC815\uBA74',
@@ -5700,7 +5711,6 @@ class SeatViewApp {
     // Photo upload is mandatory (supports both tempUploadedPhotos and currentUploadedPhotoBase64)
     const hasPhotos = formSnapshot.tempUploadedPhotos && formSnapshot.tempUploadedPhotos.length > 0;
     if (!hasPhotos && !state.currentUploadedPhotoBase64) {
-      this.showToast("⚠️", "실제 좌석 시야 사진 업로드는 필수입니다!");
       await this.showAlertDialog("사진 업로드 필요", "시야 등록을 위해 실제 좌석 시야 사진 업로드는 필수입니다.");
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -5719,7 +5729,6 @@ class SeatViewApp {
     const ratingContainer = document.getElementById("form-rating-stars");
     const ratingVal = isMusical && ratingContainer ? parseInt(ratingContainer.dataset.value, 10) || 0 : 0;
     if (isMusical && !isRatingExemptAccount && ratingVal < 1) {
-      this.showToast("⚠️", "시야 별점을 선택해 주세요!");
       await this.showAlertDialog("별점 선택 필요", "이 자리에서 시야가 얼마나 좋았는지 별점을 선택해 주세요.");
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -6067,7 +6076,6 @@ class SeatViewApp {
       const diffTime = Math.abs(new Date() - createdTime);
       const diffDays = diffTime / (1000 * 60 * 60 * 24);
       if (diffDays > 3) {
-        this.showToast("⚠️", "등록 후 3일이 경과한 기록은 이메일로 삭제 요청해주세요.");
         await this.showAlertDialog("삭제할 수 없어요", "등록 후 3일이 경과한 시야 사진 및 기록은 직접 삭제가 불가능합니다.\n\n삭제가 필요하신 경우 고객센터 이메일(j2mi.help@gmail.com)로 요청주시기 바랍니다.");
         return;
       }

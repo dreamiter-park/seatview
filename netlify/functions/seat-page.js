@@ -206,7 +206,14 @@ exports.handler = async (event) => {
 
   return {
     statusCode: 200,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+    // netlify.toml의 [[headers]]는 함수 응답에는 적용되지 않아서 여기서 직접 넣는다.
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "X-Frame-Options": "SAMEORIGIN",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Content-Security-Policy": "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+    },
     body: html,
   };
 };
