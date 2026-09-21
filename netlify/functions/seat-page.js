@@ -81,6 +81,9 @@ exports.handler = async (event) => {
     if (!block) return { statusCode: 404, body: "Block not found" };
     venue = block.venues;
     if (!venue) return { statusCode: 404, body: "Venue not found" };
+    // DB에는 "극장명_홀명"으로 저장돼 있지만 제목·설명·본문·구조화 데이터에는
+    // 밑줄 대신 공백으로 내보낸다 (검색엔진이 단어를 나눠 읽도록).
+    venue.name = String(venue.name || "").replace(/_/g, " ");
     reviews = seat.musical_seat_reviews || [];
   } catch (e) {
     console.error("seat-page function: Supabase fetch failed", e);

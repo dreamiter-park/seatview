@@ -24,6 +24,13 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 // 제외(#18)에서 공통으로 쓴다.
 const OFFICIAL_SOURCE_USER_ID = 'ca42d30f-a372-4cc7-8651-3cb49f473dd7';
 
+// 공연장 이름은 DB에 "극장명_홀명"(예: 충무아트센터_대극장)으로 저장해 구분하지만,
+// 사용자·검색엔진에 보이는 곳에서는 "_"를 공백으로 바꿔서 "충무아트센터 대극장"으로
+// 보여준다(밑줄은 검색엔진이 한 단어로 붙여 읽을 수 있음). 저장값은 그대로 둔다.
+function displayVenueName(name) {
+  return String(name == null ? "" : name).replace(/_/g, " ");
+}
+
 // --- Kakao SDK Config (카카오톡 공유용, 로그인과는 별개) ---
 const KAKAO_JS_KEY = '5b5835750aff0f479c11ff8a1c15b7e5';
 if (window.Kakao && !Kakao.isInitialized()) {
@@ -1742,7 +1749,7 @@ class SeatViewApp {
       if (!error && data) {
         VENUES_DB = data.map(v => ({
           id: v.id,
-          name: v.name,
+          name: displayVenueName(v.name),   // 화면 표시용 (DB 저장값은 "_" 유지)
           location: v.address || v.location_district || "",
           bg: v.bg_image_url || "/assets/musical_stage.jpg",
           map_image_url: v.map_image_url,
@@ -1854,7 +1861,9 @@ class SeatViewApp {
     if (searchClearBtn) searchClearBtn.style.display = filterText.length > 0 ? "flex" : "none";
     // Case-insensitive — "nol" typed lowercase should still match venues
     // named "NOL 유니플렉스" etc.
-    const needle = trimmed.toLowerCase();
+    // 화면에는 "충무아트센터 대극장"으로 보이지만 "충무아트센터_대극장"처럼 밑줄로
+    // 검색해도 잡히도록 밑줄도 공백으로 통일한다.
+    const needle = trimmed.toLowerCase().replace(/_/g, " ");
     // Search only ever matches what a card actually displays: the venue
     // name, current shows if any exist, or — only when there's no current
     // show to show instead — the next upcoming one. Matching nextShow
@@ -3885,7 +3894,7 @@ class SeatViewApp {
             venueRow = vRow;
           }
         }
-        stadiumName = venueRow ? venueRow.name : (state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5");
+        stadiumName = venueRow ? displayVenueName(venueRow.name) : (state.selectedVenue ? state.selectedVenue.name : "\uACF5\uC5F0\uC7A5");
         // Single-zone venues (e.g. \uBE14\uB8E8\uC2A4\uD018\uC5B4) leave block_code blank in
         // admin rather than carrying a made-up code \u2014 full_name is
         // admin-authored free text either way (e.g. just "1\uCE35"), so it's
@@ -4892,7 +4901,7 @@ class SeatViewApp {
           id: r.id,
           seatId: r.musical_seat_id,
           ins_dtm: r.ins_dtm,
-          stadiumName: venueRow ? venueRow.name : "기타 공연장",
+          stadiumName: venueRow ? displayVenueName(venueRow.name) : "기타 공연장",
           blockName: blockRow ? (blockRow.full_name || (blockRow.block_code ? blockRow.block_code + "구역" : "")) : "구역 정보 없음",
           seatName: this.formatSeatName(seatRow, !!(seatRow && seatRow.is_disabled_seat)),
           comment: r.content,
@@ -6313,8 +6322,8 @@ class SeatViewApp {
     if (!listEl) return;
     const list = state.ocrPickerList || [];
     const trimmed = String(filterText || "").trim();
-    const q = trimmed.toLowerCase();
-    const filtered = q ? list.filter(v => String(v.name || "").toLowerCase().includes(q)) : list;
+    const q = trimmed.toLowerCase().replace(/_/g, " ");
+    const filtered = q ? list.filter(v => displayVenueName(v.name).toLowerCase().includes(q)) : list;
 
     if (filtered.length === 0) {
       // Same empty-state pattern as renderVenueList's search-miss case, so
