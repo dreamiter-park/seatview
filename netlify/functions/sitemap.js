@@ -19,7 +19,9 @@ async function supabaseGet(path) {
 exports.handler = async () => {
   let venues = [];
   try {
-    venues = await supabaseGet(`/venues?select=id&order=id.asc`);
+    // 노출을 꺼둔(is_visible=false) 공연장은 사이트맵에 넣지 않는다 — 좌석 배치가
+    // 준비되기 전에 검색엔진에 빈 페이지가 잡히는 걸 막는다.
+    venues = await supabaseGet(`/venues?is_visible=eq.true&select=id&order=id.asc`);
   } catch (e) {
     console.error("sitemap function: Supabase fetch failed", e);
     // Fall through and still return the static pages below rather than

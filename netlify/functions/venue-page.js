@@ -65,11 +65,12 @@ exports.handler = async (event) => {
     // by anything the venue query returns) — no reason to wait for one
     // before starting the other.
     const [venues, blockRows] = await Promise.all([
-      supabaseGet(`/venues?id=eq.${id}&select=id,name,address,food_info,parking_info&limit=1`),
+      supabaseGet(`/venues?id=eq.${id}&select=id,name,address,food_info,parking_info,is_visible&limit=1`),
       supabaseGet(`/musical_blocks?venue_id=eq.${id}&is_visible=eq.true&select=floor,full_name,block_code&order=floor.asc`),
     ]);
     venue = venues[0];
-    if (!venue) return { statusCode: 404, body: "Venue not found" };
+    // 노출을 꺼둔 공연장은 주소를 직접 입력해도 페이지를 만들지 않는다(사이트맵과 동일 기준).
+    if (!venue || venue.is_visible === false) return { statusCode: 404, body: "Venue not found" };
     // DB에는 "극장명_홀명"으로 저장돼 있지만 제목·설명·본문·구조화 데이터에는
     // 밑줄 대신 공백으로 내보낸다 (검색엔진이 "충무아트센터 대극장"처럼 단어를
     // 나눠 읽도록).
