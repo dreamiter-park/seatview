@@ -3575,45 +3575,6 @@ img {
   color: white;
 }
 
-/* OCR Scanner Animation styles */
-.ocr-scanning-overlay {
-  position: absolute;
-  inset: 0;
-  background-color: rgba(8, 10, 15, 0.85);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.8rem;
-  color: var(--accent-blue);
-  font-weight: 700;
-  z-index: 5;
-}
-
-.scan-bar {
-  width: 80%;
-  height: 2px;
-  background-color: var(--accent-blue);
-  box-shadow: 0 0 8px var(--accent-blue);
-  animation: scanAction 1.5s ease-in-out infinite;
-}
-
-@keyframes scanAction {
-  0% { transform: translateY(-40px); }
-  50% { transform: translateY(40px); }
-  100% { transform: translateY(-40px); }
-}
-
-.ocr-autofill-section {
-  animation: borderGlow 2s infinite alternate;
-}
-
-@keyframes borderGlow {
-  from { border-color: rgba(59, 130, 246, 0.2); }
-  to { border-color: rgba(59, 130, 246, 0.6); }
-}
-
 /* Depth 4 Detailed Block Map View Styles */
 .detailed-zone-header {
   display: flex;

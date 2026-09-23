@@ -125,12 +125,6 @@
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
         <div class="header-right">
-          <!-- OCR 자동 티켓 인식/등록 기능 보류 (정확도 문제로 관리자 승인 방식으로
-               전환 — 나중에 다시 켤 수 있게 주석으로만 남겨둠)
-          <button class="icon-btn" onclick="app.startTicketScan()" aria-label="티켓으로 시야사진 등록">
-            <i data-lucide="camera"></i>
-          </button>
-          -->
           <button class="icon-btn" onclick="app.navigateTo('compare')" aria-label="1:1 시야 비교">
             <i data-lucide="columns"></i>
           </button>
@@ -138,7 +132,6 @@
             <i data-lucide="user"></i>
           </button>
         </div>
-        <!-- <input type="file" id="ticket-scan-input" accept="image/*" style="display: none;" onchange="app.handleTicketScanFileSelect(event)"> -->
         <input type="file" id="form-ticket-verify-input" accept="image/*" style="display: none;" onchange="app.handleInlineTicketVerifyFileSelect(event)">
       </header>
 
@@ -927,78 +920,6 @@
         </div>
       </div>
 
-      <!-- F0. OCR Ticket Scan — Category/Venue Picker (헤더 카메라 버튼용).
-           보류 중 (정확도 문제로 관리자 승인 방식으로 전환) — 통째로 주석처리,
-           나중에 다시 켤 수 있게 그대로 남겨둠.
-      <div class="modal modal-center" id="modal-ocr-venue-picker">
-        <div class="modal-backdrop" onclick="app.closeModal('modal-ocr-venue-picker')"></div>
-        <div class="modal-content" style="max-width: 340px; max-height: 78vh; padding: 20px; background: var(--bg-card); border-radius: 20px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); display: flex; flex-direction: column;">
-          <div class="modal-header" style="padding: 0 0 12px 0; margin-bottom: 14px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <h3 class="modal-title" style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">티켓으로 등록하기</h3>
-            <button class="close-btn" onclick="app.closeModal('modal-ocr-venue-picker')" aria-label="Close" style="padding: 0; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;">
-              <i data-lucide="x"></i>
-            </button>
-          </div>
-          <div id="ocr-picker-step-category" style="display: flex; flex-direction: column; gap: 10px;">
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 2px 0;">어떤 티켓인가요?</p>
-            <button class="btn btn-secondary" onclick="app.selectOcrScanCategory('musical')" style="padding: 14px; font-weight: 700; font-size: 0.9rem; border-radius: 12px; justify-content: center;">🎭 공연 / 콘서트</button>
-            <button class="btn btn-secondary" onclick="app.selectOcrScanCategory('baseball')" style="padding: 14px; font-weight: 700; font-size: 0.9rem; border-radius: 12px; justify-content: center;">⚾ 프로야구</button>
-          </div>
-          <div id="ocr-picker-step-venue" style="display: none; flex-direction: column; gap: 8px; overflow: hidden;">
-            <div class="search-bar-container" id="ocr-picker-venue-search-wrap" style="display: none; margin: 0 0 2px 0;">
-              <i data-lucide="search" class="search-icon"></i>
-              <input type="text" placeholder="공연장명을 검색해보세요 (예: 세종)" id="ocr-picker-venue-search" autocomplete="off">
-            </div>
-            <div id="ocr-picker-venue-list" style="display: flex; flex-direction: column; gap: 8px; height: 340px; overflow-y: auto;"></div>
-          </div>
-          <div id="ocr-picker-step-attach" style="display: none; flex-direction: column; gap: 14px;">
-            <div>
-              <span id="ocr-picker-selected-venue-label" style="font-size: 0.72rem; color: var(--text-muted);">선택한 공연장</span>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
-                <p id="ocr-picker-selected-venue-name" style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary); margin: 0;"></p>
-                <button type="button" onclick="app.backToOcrPickerVenueList()" style="flex-shrink: 0; background: none; border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.68rem; font-weight: 700; padding: 3px 9px; border-radius: 7px; cursor: pointer;">변경</button>
-              </div>
-            </div>
-            <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px 14px; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
-              💡 티켓 인식 잘되는 방법
-              <ul style="margin: 6px 0 0 0; padding-left: 18px;">
-                <li>밝은 곳에서 티켓 전체가 다 나오도록 찍어주세요.</li>
-                <li><span id="ocr-picker-tip-venue-word">공연장</span>·구역·좌석번호 등이 손가락에 가리지 않게 해주세요.</li>
-                <li>초점이 흐리지 않게 찍어주세요.</li>
-                <li>글씨가 눕거나 기울지 않게, 똑바로 세워서 찍어주세요.</li>
-              </ul>
-            </div>
-            <button type="button" class="btn btn-primary" onclick="app.triggerOcrPhotoAttach()" style="padding: 13px; font-weight: 800; font-size: 0.88rem; border-radius: 12px; justify-content: center; gap: 6px;">
-              <i data-lucide="camera"></i> 티켓 사진 첨부하기
-            </button>
-          </div>
-          Step 4: OCR match confirmation — a dedicated in-modal step instead
-          of the generic system-alert-style confirm dialog, so the seat it
-          found gets a proper visual treatment. (Not wrapped in its own
-          &lt;!-- --&gt; on purpose — HTML comments don't nest, and this
-          whole block already sits inside the outer F0 comment above; a
-          second comment here would close that outer one early and leak the
-          rest of this markup as live, unescaped page content.)
-          <div id="ocr-picker-step-confirm" style="display: none; flex-direction: column; gap: 16px;">
-            <div style="text-align: center;">
-              <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(139, 92, 246, 0.14); color: var(--accent-purple); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto;">
-                <i data-lucide="ticket" style="width: 22px; height: 22px;"></i>
-              </div>
-              <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0;">티켓에서 이 좌석을 찾았어요. 이 좌석이 맞나요?</p>
-            </div>
-            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 18px; text-align: center;">
-              <p id="ocr-picker-confirm-venue" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin: 0 0 6px 0;"></p>
-              <p id="ocr-picker-confirm-seat" style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.2px;"></p>
-            </div>
-            <div style="display: flex; gap: 10px;">
-              <button type="button" class="btn btn-secondary" onclick="app.resolveOcrSeatConfirm(false)" style="flex: 1; padding: 12px; font-weight: 700; font-size: 0.85rem; border-radius: 12px; justify-content: center;">아니에요</button>
-              <button type="button" class="btn btn-primary" onclick="app.resolveOcrSeatConfirm(true)" style="flex: 1; padding: 12px; font-weight: 800; font-size: 0.85rem; border-radius: 12px; justify-content: center;">맞아요</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      -->
-
       <!-- F. Coming Soon Modal (준비 중 안내 팝업) -->
       <div class="modal modal-center" id="modal-coming-soon">
         <div class="modal-backdrop" onclick="app.closeModal('modal-coming-soon')"></div>
@@ -1127,7 +1048,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.40"></script>
+  <script src="/app_v6.js?v=9.41"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
