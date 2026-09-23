@@ -4814,7 +4814,7 @@ class SeatViewApp {
               <i data-lucide="plus"></i>
             </div>
             <p style="font-size: 0.72rem; line-height: 1.3;">비교할 두 번째 좌석을 찾아서 담아주세요!</p>
-            <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.72rem; border-radius: 8px;" onclick="app.navigateTo('stadiums')">좌석 추가</button>
+            <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.72rem; border-radius: 8px;" onclick="app.navigateTo('main')">좌석 추가</button>
           </div>
         </div>
       `;
@@ -6493,6 +6493,24 @@ class SeatViewApp {
     }
   }
 
+  // 닉네임에 못 쓰게 막는 단어 — 운영진 사칭(잘보여유/관리자/공식 등)과
+  // 대표적인 욕설. 띄어쓰기로 검사를 피해가는 것(예: "잘 보 여 유")까지
+  // 막으려고 공백을 지운 뒤 부분 일치로 비교한다. 완벽한 욕설 필터는
+  // 아니고, 가장 흔한 표현만 걸러내는 최소한의 안전장치다.
+  isNicknameBlocked(nick) {
+    const normalized = String(nick || "").toLowerCase().replace(/\s+/g, "");
+    if (!normalized) return false;
+    const blockedWords = [
+      // 운영진 사칭
+      "잘보여유", "관리자", "운영자", "공식",
+      // 흔한 욕설/비속어 (완전한 목록은 아님)
+      "씨발", "씨팔", "시발", "시팔", "개새끼", "개색기", "개색끼", "병신", "븅신",
+      "지랄", "좆", "졸라", "미친놈", "미친년", "개년", "걸레", "창녀", "창놈",
+      "썅", "닥쳐", "ㅅㅂ", "ㅄ", "ㅂㅅ", "ㅈㄴ", "fuck", "shit", "bitch", "asshole"
+    ];
+    return blockedWords.some(w => normalized.includes(w.toLowerCase()));
+  }
+
   openEditProfileModal() {
     const nickInput = document.getElementById("profile-nickname-input");
     const stadiumSelect = document.getElementById("profile-stadium-select");
@@ -6516,6 +6534,11 @@ class SeatViewApp {
     const teamVal = document.getElementById("profile-team-select").value || null;
 
     if (!nickVal) return;
+
+    if (this.isNicknameBlocked(nickVal)) {
+      await this.showAlertDialog("닉네임 확인", "사용할 수 없는 닉네임이에요.\n다른 닉네임을 입력해 주세요.");
+      return;
+    }
 
     if (supabaseClient && state.userId) {
       const { data, error } = await supabaseClient
