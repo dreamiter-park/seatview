@@ -545,6 +545,14 @@ class SeatViewApp {
   }
 
   init() {
+    // 딥링크(/venue/29, /seat/123, 예전 공유 링크 ?venue=29)는 여기서 먼저
+    // 읽어 둔다 — 아래 라우터 초기화가 주소창을 "/#main"으로 정리하기 때문에,
+    // 나중에(공연장 목록 로딩 후) 읽으면 이미 지워져 있다.
+    const deepLinkVenueId = new URLSearchParams(window.location.search).get("venue")
+      || (window.location.pathname.match(/^\/venue\/(\d+)/) || [])[1];
+    const deepLinkSeatId = (window.location.pathname.match(/^\/seat\/(\d+)/) || [])[1];
+    this._deepLinkVenueId = deepLinkVenueId; // setupListeners()의 라우터 초기화에서도 쓴다
+
     // Clock update
     this.updateClock();
     setInterval(() => this.updateClock(), 60000);
@@ -571,10 +579,8 @@ class SeatViewApp {
       // the /venue/:id URLs the venue-page Netlify function serves for
       // search engines (see netlify/functions/venue-page.js) — jump
       // straight into that venue once the list it needs is loaded.
-      const pathVenueId = (window.location.pathname.match(/^\/venue\/(\d+)/) || [])[1];
-      const sharedVenueId = new URLSearchParams(window.location.search).get("venue") || pathVenueId;
-      if (sharedVenueId) {
-        this.loadVenueDetail(sharedVenueId);
+      if (deepLinkVenueId) {
+        this.loadVenueDetail(deepLinkVenueId);
         // The /venue/:id page pre-renders a plain-text summary for
         // crawlers (id="ssr-seo-content") — once the real interactive
         // view is up, drop it so a real visitor doesn't see the same
@@ -590,7 +596,7 @@ class SeatViewApp {
       // openSeatDetail() resolves its own display info from dbKey alone, so
       // it doesn't need to wait for the floor grid to actually finish
       // rendering first.
-      const pathSeatId = (window.location.pathname.match(/^\/seat\/(\d+)/) || [])[1];
+      const pathSeatId = deepLinkSeatId;
       if (pathSeatId && supabaseClient) {
         (async () => {
           try {
@@ -601,6 +607,12 @@ class SeatViewApp {
             await this.loadVenueDetail(blockRow.venue_id);
             this.selectVenueFloor(blockRow.floor);
             await this.openSeatDetail(pathSeatId, { category: "musical" });
+            // 좌석 링크로 들어온 경우 주소창은 계속 /seat/<번호> 로 보이게
+            // 되돌린다(공연장 화면 진입 때 /venue/<번호> 로 바뀌었으므로).
+            // 시트를 닫으면 closeModal()이 다시 공연장 주소로 정리한다.
+            if (history.state && history.state.modalId) {
+              history.replaceState(history.state, "", `/seat/${pathSeatId}`);
+            }
             const ssrContent = document.getElementById("ssr-seo-content");
             if (ssrContent) ssrContent.remove();
           } catch (e) {
@@ -966,8 +978,12 @@ class SeatViewApp {
     this.setupImageSwipeGestures();
 
     // History API Router integration
+    // 공연장 딥링크(/venue/29, ?venue=29)로 들어온 경우엔 첫 기록을 "/#main"
+    // 으로 정리한다 — 그래야 공연장 화면에서 뒤로가기로 홈에 돌아왔을 때
+    // 주소창이 여전히 /venue/29 로 남아 새로고침하면 다시 그 공연장으로
+    // 튀는 일이 없다. (/seat/ 링크는 위에서 주소를 유지한다.)
     if (!history.state) {
-      history.replaceState({ view: "main" }, "", "#main");
+      history.replaceState({ view: "main" }, "", this._deepLinkVenueId ? "/#main" : "#main");
     }
 
     window.addEventListener("popstate", (e) => {
@@ -986,7 +1002,14 @@ class SeatViewApp {
       // 2. Otherwise, navigate views (or restore a venue floor tab)
       const stateObj = e.state;
       if (stateObj && typeof stateObj.venueFloor !== "undefined") {
+        // 다른 화면(홈 등)에서 공연장 기록으로 돌아온 경우엔 화면 자체도
+        // 공연장 상세로 바꿔야 한다 — 층 탭만 고르면 화면은 그대로인데
+        // 주소창만 /venue/<번호> 로 바뀌어 보인다.
+        if (state.currentView !== "venue-detail") {
+          this.navigateTo("venue-detail", false);
+        }
         this.selectVenueFloor(stateObj.venueFloor, { pushHistory: false });
+        this.syncUrlToView("venue-detail");
         return;
       }
       if (stateObj && stateObj.view) {
@@ -1189,6 +1212,36 @@ class SeatViewApp {
   }
 
   // --- Router ---
+
+  // 딥링크 주소(/venue/..., /seat/...) 위에서 다른 화면 주소를 만들 때 그
+  // 경로가 그대로 남지 않도록, 그런 경우엔 "/" 를 기준 경로로 쓴다.
+  basePath() {
+    return /^\/(venue|seat)\//.test(window.location.pathname) ? "/" : window.location.pathname;
+  }
+
+  // 화면별 주소창 표시. 공연장 상세는 어느 공연장인지 알 수 있게
+  // /venue/<번호> (검색엔진용 대표 주소와 같은 형태)로, 나머지는 "#화면이름".
+  viewUrl(viewId) {
+    if (viewId === "venue-detail" && state.selectedVenue) {
+      return `/venue/${state.selectedVenue.id}`;
+    }
+    return `${this.basePath()}#${viewId}`;
+  }
+
+  // 새 기록을 쌓지 않고 화면만 바꾸는 경우(헤더 "<" 버튼, 뒤로가기, 이미
+  // 같은 화면)에 주소창이 지금 보이는 화면과 어긋나 있으면 현재 기록 항목을
+  // 그 화면 기준으로 고친다. 열려 있는 모달 항목은 건드리지 않는다.
+  syncUrlToView(viewId) {
+    if (!history.state || history.state.modalId) return;
+    const want = this.viewUrl(viewId);
+    const cur = window.location.pathname + window.location.search + window.location.hash;
+    if (history.state.view !== viewId) {
+      history.replaceState({ view: viewId }, "", want);
+    } else if (cur !== want) {
+      history.replaceState(history.state, "", want);
+    }
+  }
+
   navigateTo(viewId, pushHistory = true) {
     const previousView = state.currentView;
 
@@ -1215,9 +1268,12 @@ class SeatViewApp {
 
     if (pushHistory) {
       if (!history.state || history.state.view !== viewId) {
-        history.pushState({ view: viewId }, "", "#" + viewId);
+        history.pushState({ view: viewId }, "", this.viewUrl(viewId));
       }
     }
+    // 새 기록을 쌓지 않는 경우(뒤로가기, 이미 같은 화면)에도 주소창이 지금
+    // 보이는 화면과 어긋나 있으면 맞춰 준다.
+    this.syncUrlToView(viewId);
 
     // Hide all views
     document.querySelectorAll(".view").forEach(view => {
@@ -1387,7 +1443,7 @@ class SeatViewApp {
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: window.location.origin + window.location.pathname,
+        redirectTo: window.location.origin + this.basePath(),
         queryParams: {
           prompt: 'login'
         }
@@ -2187,12 +2243,12 @@ class SeatViewApp {
     this.closeEventPopup();
   }
 
-  // Opens the share picker for the current venue (?venue=<id>, picked up
+  // Opens the share picker for the current venue (/venue/<id> — 검색용 대표 주소와 동일. 예전 ?venue=<id> 링크도 여전히 인식됨. picked up
   // by init()'s deep-link check).
   shareVenue() {
     const venue = state.selectedVenue;
     if (!venue) return;
-    const url = `${SHARE_URL_ORIGIN}${window.location.pathname}?venue=${venue.id}`;
+    const url = `${SHARE_URL_ORIGIN}/venue/${venue.id}`;
     const urlInput = document.getElementById("share-modal-url");
     if (urlInput) urlInput.value = url;
     this.openModal("modal-venue-share");
@@ -2201,7 +2257,7 @@ class SeatViewApp {
   shareToChannel(channel) {
     const venue = state.selectedVenue;
     if (!venue) return;
-    const url = `${SHARE_URL_ORIGIN}${window.location.pathname}?venue=${venue.id}`;
+    const url = `${SHARE_URL_ORIGIN}/venue/${venue.id}`;
     const text = `${venue.name} 좌석 시야 확인하러 가기`;
 
     if (channel === "facebook") {
@@ -2321,12 +2377,12 @@ class SeatViewApp {
     if (!pushHistory) return;
 
     if (isInitial) {
-      history.replaceState({ view: "venue-detail", venueFloor: floor }, "", "#venue-detail");
+      history.replaceState({ view: "venue-detail", venueFloor: floor }, "", this.viewUrl("venue-detail"));
     } else {
       if (previousFloor !== null && previousFloor !== undefined && previousFloor !== floor) {
         (state.venueFloorHistory = state.venueFloorHistory || []).push(previousFloor);
       }
-      history.pushState({ view: "venue-detail", venueFloor: floor }, "", "#venue-detail");
+      history.pushState({ view: "venue-detail", venueFloor: floor }, "", this.viewUrl("venue-detail"));
     }
   }
 
@@ -6487,7 +6543,7 @@ class SeatViewApp {
       if (!triggeredByPopState) {
         if (history.state && history.state.modalId === modalId) {
           const fallbackView = history.state.view || state.currentView || "main";
-          history.replaceState({ view: fallbackView }, "", "#" + fallbackView);
+          history.replaceState({ view: fallbackView }, "", this.viewUrl(fallbackView));
         }
       }
     }
