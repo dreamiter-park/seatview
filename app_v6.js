@@ -54,6 +54,33 @@ let VENUES_DB = [];
 // STADIUMS_DB uses string ids (jamsil, gocheok, ...) but the baseball_blocks/
 // baseball_seats tables key off the stadiums table's real numeric id.
 const BASEBALL_DB_ID_MAP = { jamsil: 1, gocheok: 2, incheon: 3, suwon: 4, daejeon: 5, daegu: 6, gwangju: 7, changwon: 8, busan: 9 };
+
+// --- LAB: 야구장 새 구역 배치도(SVG 폴리곤) 테스트 ---------------------------
+// "프로야구장" 카테고리 카드의 정식 목적지(stadiums-lab) — 카드의 badge_text 가
+// "TO BE" 인 동안은 일반 사용자에게는 안내 팝업만 뜨고 실제로 열리지 않는다.
+// 실서비스 환경에서 직접 확인하려면 홈 하단 푸터의 "reserved." 글자를 누르면 된다
+// (일부러 눈에 안 띄게 숨겨 둔 링크 — index.html 의 site-footer-copy 참고).
+// svg: 구역 폴리곤 id가 "section-<구역코드>" 인 SVG 파일.
+// codeAlias: SVG 쪽 이름 -> DB(baseball_blocks.block_code) 이름이 다른 경우.
+//   (고척 R.d_club: SVG는 D01~D07, DB는 001~007)
+const IS_LOCAL_DEV = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+// 로컬에서 주소 끝에 ?labopt=1 을 붙여 열면 서비스용(가벼운) SVG 로 확인할 수 있다.
+// 화면 이동 때 주소창의 ?..... 가 지워지므로 페이지를 열 때 딱 한 번만 읽어 둔다.
+const LAB_USE_OPT_SVG = new URLSearchParams(window.location.search).has("labopt");
+const STADIUM_MAP_LAB = {
+  gocheok: {
+    // svg: 서비스에서 쓰는 가벼운 SVG(배경 그림을 별도 파일로 뺀 것).
+    //      docs/tools/split_stadium_svg.ps1 로 srcSvg 에서 만든다 — 폴리곤을 고쳐 새로 올릴 때마다 다시 실행.
+    // srcSvg: 피그마에서 내보낸 원본. localhost 에서는 이걸 바로 읽어 수정이 즉시 보인다
+    //      (주소에 ?labopt=1 을 붙이면 로컬에서도 서비스용 svg 를 읽어 확인할 수 있다).
+    svg: "/stadiums/gocheok.map.svg",
+    srcSvg: "/stadiums/gocheok.svg",
+    codeAlias: { D01: "001", D02: "002", D03: "003", D04: "004", D05: "005", D06: "006", D07: "007" },
+    // 배경 이미지 출처(공공누리 제1유형 — 출처표시만 하면 가공·상업적 이용 모두 허용).
+    // 출처: 공공데이터포털 "서울시설공단_고척스카이돔 좌석 배치도" (data.go.kr/data/15118835/fileData.do)
+    credit: "출처 : 서울시설공단 (공공누리 제1유형)"
+  }
+};
 // One shopping-ad banner per category (baseball/musical), keyed by category —
 // managed from admin's "광고 관리" tab (shopping_ads table). Empty until
 // loadShoppingAds() resolves, so buildShoppingAdCard() just skips the ad
@@ -540,6 +567,9 @@ const state = {
 
 // --- 3. App Controller ---
 class SeatViewApp {
+  // LAB 배치도 최초 1회 안내(구역 클릭 + 핀치줌)를 이미 봤는지 기억하는 localStorage 키.
+  SMLAB_HINT_KEY = "smlab_hint_seen_v1";
+
   constructor() {
     this.init();
   }
@@ -552,6 +582,10 @@ class SeatViewApp {
       || (window.location.pathname.match(/^\/venue\/(\d+)/) || [])[1];
     const deepLinkSeatId = (window.location.pathname.match(/^\/seat\/(\d+)/) || [])[1];
     this._deepLinkVenueId = deepLinkVenueId; // setupListeners()의 라우터 초기화에서도 쓴다
+    // LAB 야구장 새 배치도 주소: /stadium/<구장> 또는 /stadium/<구장>/<구역>. 배치도 진입점이 로컬 전용이라
+    // 딥링크도 로컬에서만 연다(정식 오픈 때 IS_LOCAL_DEV 조건을 걷어낸다).
+    const stadiumMatch = window.location.pathname.match(/^\/stadium\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?/);
+    this._deepLinkStadium = (IS_LOCAL_DEV && stadiumMatch) ? { id: stadiumMatch[1], code: stadiumMatch[2] || null } : null;
 
     // Clock update
     this.updateClock();
@@ -572,6 +606,7 @@ class SeatViewApp {
     this.loadStadiums().then(() => {
       this.renderStadiumList();
       this.checkUserSession();
+      if (this._deepLinkStadium) this.openStadiumDeepLink(this._deepLinkStadium);
     });
     this.loadVenues().then(() => {
       this.renderVenueList();
@@ -704,7 +739,8 @@ class SeatViewApp {
 
         if (!error && data && data.length > 0) {
           container.innerHTML = "";
-          data.forEach(cat => {
+          data.forEach(catRow => {
+            const cat = catRow;
             const card = document.createElement("div");
             // Determine CSS background image based on category ID
             let bgImage = "/assets/jamsil_stadium.jpg";
@@ -720,7 +756,9 @@ class SeatViewApp {
             if (isComingSoon) {
               card.onclick = () => this.showCategoryComingSoon(cat.name);
             } else if (cat.id === "baseball") {
-              card.onclick = () => this.navigateTo('stadiums');
+              // 새 배치도(LAB)가 이 카드의 정식 목적지 — badge_text 가 "TO BE"인 동안은
+              // 위 분기에서 이미 걸러져서 일반 사용자에겐 아직 안 열린다.
+              card.onclick = () => this.navigateTo('stadiums-lab');
             } else if (cat.id === "musical") {
               card.onclick = () => this.navigateTo('venues');
             } else {
@@ -755,9 +793,9 @@ class SeatViewApp {
 
     // Fallback: render hardcoded items if Supabase is not ready or keys are placeholders
     container.innerHTML = `
-      <div class="category-card" onclick="app.navigateTo('stadiums')">
+      <div class="category-card" onclick="app.showCategoryComingSoon('프로야구장')">
         <div class="card-bg-overlay" style="background-image: url('/assets/jamsil_stadium.jpg');"></div>
-        <div class="category-tag blue">MAX TRAFFIC</div>
+        <div class="category-tag blue">TO BE</div>
         <div class="category-info">
           <h3 class="category-name">⚾ 프로야구장</h3>
           <p class="category-sub">10개 구단 홈구장</p>
@@ -983,7 +1021,7 @@ class SeatViewApp {
     // 주소창이 여전히 /venue/29 로 남아 새로고침하면 다시 그 공연장으로
     // 튀는 일이 없다. (/seat/ 링크는 위에서 주소를 유지한다.)
     if (!history.state) {
-      history.replaceState({ view: "main" }, "", this._deepLinkVenueId ? "/#main" : "#main");
+      history.replaceState({ view: "main" }, "", (this._deepLinkVenueId || this._deepLinkStadium) ? "/#main" : "#main");
     }
 
     window.addEventListener("popstate", (e) => {
@@ -1216,7 +1254,7 @@ class SeatViewApp {
   // 딥링크 주소(/venue/..., /seat/...) 위에서 다른 화면 주소를 만들 때 그
   // 경로가 그대로 남지 않도록, 그런 경우엔 "/" 를 기준 경로로 쓴다.
   basePath() {
-    return /^\/(venue|seat)\//.test(window.location.pathname) ? "/" : window.location.pathname;
+    return /^\/(venue|seat|stadium)\//.test(window.location.pathname) ? "/" : window.location.pathname;
   }
 
   // 화면별 주소창 표시. 공연장 상세는 어느 공연장인지 알 수 있게
@@ -1224,6 +1262,14 @@ class SeatViewApp {
   viewUrl(viewId) {
     if (viewId === "venue-detail" && state.selectedVenue) {
       return `/venue/${state.selectedVenue.id}`;
+    }
+    // LAB 야구장 새 배치도: 배치도는 /stadium/<구장>, 배치도에서 넘어온 구역 화면은 /stadium/<구장>/<구역>
+    const st = state.selectedStadium;
+    if (st && STADIUM_MAP_LAB[st.id]) {
+      if (viewId === "stadium-map") return `/stadium/${st.id}`;
+      if (viewId === "stadium-detail" && state.stadiumFromMap) {
+        return state.selectedBlock ? `/stadium/${st.id}/${state.selectedBlock.block_code}` : `/stadium/${st.id}`;
+      }
     }
     return `${this.basePath()}#${viewId}`;
   }
@@ -1244,6 +1290,13 @@ class SeatViewApp {
 
   navigateTo(viewId, pushHistory = true) {
     const previousView = state.currentView;
+
+    // LAB: 배치도/구역(stadium-map, stadium-detail) 이 아닌 다른 화면으로 나가면
+    // 그 순간 진행 중이던 배치도 관련 비동기 작업(fetch 등)은 전부 무효화한다.
+    // (stadium-map ↔ stadium-detail 사이의 내부 이동은 그 작업 자체이므로 건드리지 않는다.)
+    if (viewId !== "stadium-map" && viewId !== "stadium-detail") {
+      this._smlabNavToken = (this._smlabNavToken || 0) + 1;
+    }
 
     // A list screen's search box only makes sense to keep filled when the
     // user is returning to it from the detail screen they drilled into
@@ -1301,6 +1354,15 @@ class SeatViewApp {
     if (viewId === "stadiums") this.injectKakaoAd("ad-slot-stadiums-list", "DAN-j8zQm1KA9FEGWPIx");
     if (viewId === "venues") this.injectKakaoAd("ad-slot-venues-list", "DAN-K9xdpROiUJHnjpww");
     if (viewId === "venue-detail") this.injectKakaoAd("ad-slot-venue-detail", "DAN-k3EmMkFGoCwuNZzq");
+    // LAB: 야구장 새 배치도 테스트 — 목록 화면은 기존 목록과 같은 카드, 클릭만 배치도로 연결.
+    // 목록 카드형 광고(3개마다 끼우던 것)는 어색해서 계속 뺀 채로 두고, 화면 하단
+    // 카카오 애드핏 배너만 화면별 전용 광고단위로 새로 넣는다(리스트/구역/상세 각각 별도).
+    if (viewId === "stadiums-lab") {
+      this.renderStadiumList({ containerId: "stadium-lab-grid", noAds: true, onOpen: (st) => this.openStadiumMapLab(st.id) });
+      this.injectKakaoAd("ad-slot-stadiums-lab-list", "DAN-j8zQm1KA9FEGWPIx");
+    }
+    if (viewId === "stadium-map") this.injectKakaoAd("ad-slot-stadium-map", "DAN-CtgChTKnhEpfWomO");
+    if (viewId === "stadium-detail" && state.stadiumFromMap) this.injectKakaoAd("ad-slot-stadium-detail", "DAN-kOcP8nPwMZ9LlLaK");
 
     // Update Bottom Navigation state (stadium-detail counts as part of the
     // "시야등록" tab since it's reached by drilling into stadiums)
@@ -1347,6 +1409,8 @@ class SeatViewApp {
       document.title = "공연장 목록 | 잘보여유";
     } else if (viewId === "stadiums") {
       document.title = "프로야구장 목록 | 잘보여유";
+    } else if (viewId === "stadiums-lab" || viewId === "stadium-map") {
+      document.title = "야구장 새 배치도 (LAB) | 잘보여유";
     } else if (viewId === "compare") {
       document.title = "1:1 시야 비교 | 잘보여유";
     } else if (viewId === "ticketbook") {
@@ -1653,8 +1717,10 @@ class SeatViewApp {
   }
 
   // --- Stadiums Selection View ---
-  renderStadiumList() {
-    const container = document.getElementById("stadium-grid-container");
+  // opts (LAB 화면용): containerId = 카드를 그릴 곳, onOpen(st) = 카드 클릭
+  // 동작, noAds = 광고 카드 없이. 아무것도 안 주면 예전과 완전히 동일.
+  renderStadiumList(opts = {}) {
+    const container = document.getElementById(opts.containerId || "stadium-grid-container");
     if (!container) return;
 
     container.innerHTML = "";
@@ -1664,10 +1730,19 @@ class SeatViewApp {
       return orderA - orderB;
     });
 
-    // Product ad slot: lands on visual position 6 in the 2-column grid
-    // (1 2 / 3 4 / 5 6 / ...), so inserted before the 6th stadium
-    // (0-indexed: 5). Just one slot for now.
-    const adInsertBeforeIndices = [5];
+    // Product ad slot. Default (2-column grid, old flow): lands on visual
+    // position 6 (1 2 / 3 4 / 5 6 / ...), inserted before the 6th stadium
+    // (0-indexed: 5) — just one slot. opts.adEvery switches to a repeating
+    // "N개 광고 N개 광고 N개..." pattern (used by the 1-column LAB list) —
+    // inserted BETWEEN groups only, never trailing after the last group.
+    const adInsertBeforeIndices = opts.noAds
+      ? []
+      : opts.adEvery
+        ? Array.from(
+            { length: Math.max(0, Math.ceil(sortedStadiums.length / opts.adEvery) - 1) },
+            (_, i) => (i + 1) * opts.adEvery
+          )
+        : [5];
 
     sortedStadiums.forEach((st, index) => {
       if (adInsertBeforeIndices.includes(index)) {
@@ -1688,7 +1763,7 @@ class SeatViewApp {
         : `${st.gradient}, url('${st.bg}')`;
       card.onclick = isPreparing
         ? () => this.showItemPreparing(st.name)
-        : () => this.loadStadiumDetail(st.id);
+        : (opts.onOpen ? () => opts.onOpen(st) : () => this.loadStadiumDetail(st.id));
 
       const teamsHtml = st.team
         ? st.team.split(" / ").map(t => `<span class="stadium-card-team">[${this.escapeHtml(t.replace(/\s+/g, ""))}]</span>`).join("")
@@ -2248,17 +2323,39 @@ class SeatViewApp {
   shareVenue() {
     const venue = state.selectedVenue;
     if (!venue) return;
-    const url = `${SHARE_URL_ORIGIN}/venue/${venue.id}`;
+    this.openShare({
+      name: venue.name,
+      url: `${SHARE_URL_ORIGIN}/venue/${venue.id}`,
+      bg: venue.bg,
+      fallbackImage: "/assets/musical_stage.jpg",
+    });
+  }
+
+  // LAB 야구장 새 배치도(/stadium/<구장>[/<구역>]) 공유. 지금 보는 화면 주소를 그대로 공유한다.
+  shareStadium() {
+    const st = state.selectedStadium;
+    if (!st) return;
+    const path = this.viewUrl(state.currentView === "stadium-detail" ? "stadium-detail" : "stadium-map");
+    this.openShare({
+      name: st.fullname || st.name,
+      url: `${SHARE_URL_ORIGIN}${path}`,
+      bg: st.bg,
+      fallbackImage: "/assets/jamsil_stadium.jpg",
+    });
+  }
+
+  openShare(target) {
+    this._shareTarget = target;
     const urlInput = document.getElementById("share-modal-url");
-    if (urlInput) urlInput.value = url;
+    if (urlInput) urlInput.value = target.url;
     this.openModal("modal-venue-share");
   }
 
   shareToChannel(channel) {
-    const venue = state.selectedVenue;
-    if (!venue) return;
-    const url = `${SHARE_URL_ORIGIN}/venue/${venue.id}`;
-    const text = `${venue.name} 좌석 시야 확인하러 가기`;
+    const target = this._shareTarget;
+    if (!target) return;
+    const url = target.url;
+    const text = `${target.name} 좌석 시야 확인하러 가기`;
 
     if (channel === "facebook") {
       window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank");
@@ -2271,15 +2368,15 @@ class SeatViewApp {
         this.copyShareLink();
         return;
       }
-      // venue.bg is already the venue's bg_image_url (falls back to a local
-      // asset path, which Kakao's servers can't fetch — needs to be absolute).
-      const imageUrl = (venue.bg && /^https?:\/\//i.test(venue.bg))
-        ? venue.bg
-        : `${window.location.origin}/assets/musical_stage.jpg`;
+      // target.bg is the entity's bg_image_url (falls back to a local asset
+      // path, which Kakao's servers can't fetch — needs to be absolute).
+      const imageUrl = (target.bg && /^https?:\/\//i.test(target.bg))
+        ? target.bg
+        : `${window.location.origin}${target.fallbackImage}`;
       Kakao.Share.sendDefault({
         objectType: "feed",
         content: {
-          title: venue.name,
+          title: target.name,
           description: text,
           imageUrl,
           link: { mobileWebUrl: url, webUrl: url },
@@ -2293,7 +2390,6 @@ class SeatViewApp {
       });
     }
   }
-
   copyShareLink() {
     const urlInput = document.getElementById("share-modal-url");
     const url = urlInput ? urlInput.value : "";
@@ -2658,54 +2754,15 @@ class SeatViewApp {
   }
 
   // --- Stadium Detail View ---
-  async loadStadiumDetail(stadiumId) {
-    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
-    if (!stadium) return;
-    if (stadium.status === "preparing") {
-      this.showItemPreparing(stadium.name);
-      return;
-    }
-
-    state.selectedStadium = stadium;
-    state.selectedZone = null;
-    state.selectedBlock = null;
-
-    // Reset Amenities
-    Object.keys(state.activeAmenities).forEach(key => {
-      state.activeAmenities[key] = false;
-    });
-    document.querySelectorAll(".amenity-pill").forEach(pill => pill.classList.remove("active"));
-
-    // Populate Headers
-    const nameEl = document.getElementById("detail-stadium-name");
-    if (nameEl) nameEl.textContent = stadium.name;
-
-    document.getElementById("detail-stadium-team").textContent = stadium.team;
-    document.getElementById("detail-stadium-fullname").textContent = stadium.fullname;
-    document.getElementById("detail-stadium-loc").textContent = stadium.location;
-    
-    // Set banner image
-    const bannerOverlay = document.querySelector("#detail-stadium-banner .profile-overlay");
-    if (bannerOverlay) {
-      bannerOverlay.style.backgroundImage = `url('${stadium.bg}')`;
-    }
-
-    // Fetch blocks dynamically from Supabase
+  // Loads a stadium's visible blocks (baseball_blocks) from Supabase into
+  // stadium.blocks in the shape the rest of the stadium UI expects. Returns
+  // true when at least one block was found. Shared by loadStadiumDetail()
+  // and the LAB stadium-map screen (openStadiumMapLab).
+  async fetchStadiumBlocks(stadium) {
     let hasBlocks = false;
     if (supabaseClient) {
       try {
-        const reverseIdMap = {
-          "jamsil": 1,
-          "gocheok": 2,
-          "incheon": 3,
-          "suwon": 4,
-          "daejeon": 5,
-          "daegu": 6,
-          "gwangju": 7,
-          "changwon": 8,
-          "busan": 9
-        };
-        const dbId = reverseIdMap[stadiumId];
+        const dbId = BASEBALL_DB_ID_MAP[stadium.id];
         if (dbId) {
           const { data: blocks, error } = await supabaseClient
             .from('baseball_blocks')
@@ -2748,13 +2805,63 @@ class SeatViewApp {
                 location_type: b.location_type
               };
             });
-            console.log(`Loaded ${blocks.length} blocks from Supabase for ${stadiumId}.`);
+            console.log(`Loaded ${blocks.length} blocks from Supabase for ${stadium.id}.`);
           }
         }
       } catch (e) {
         console.error("Supabase blocks fetch failed, falling back to local:", e);
       }
     }
+    return hasBlocks;
+  }
+
+  // opts.fromMap: LAB 배치도에서 구역을 눌러 들어온 경우 — 이미 구역을 골랐으므로
+  // STEP 1·2 카드를 숨기고 "다른 구역 보기" 안내줄을 보여 준다(CSS .from-map).
+  async loadStadiumDetail(stadiumId, opts = {}) {
+    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+    if (!stadium) return;
+    if (stadium.status === "preparing") {
+      this.showItemPreparing(stadium.name);
+      return;
+    }
+
+    state.selectedStadium = stadium;
+    state.selectedZone = null;
+    state.selectedBlock = null;
+    state.stadiumFromMap = !!opts.fromMap;
+    const stadiumDetailView = document.getElementById("view-stadium-detail");
+    if (stadiumDetailView) stadiumDetailView.classList.toggle("from-map", state.stadiumFromMap);
+
+    // Reset Amenities
+    Object.keys(state.activeAmenities).forEach(key => {
+      state.activeAmenities[key] = false;
+    });
+    document.querySelectorAll(".amenity-pill").forEach(pill => pill.classList.remove("active"));
+
+    // Populate Headers
+    const nameEl = document.getElementById("detail-stadium-name");
+    if (nameEl) nameEl.textContent = stadium.name;
+
+    document.getElementById("detail-stadium-team").textContent = stadium.team;
+    document.getElementById("detail-stadium-fullname").textContent = stadium.fullname;
+    document.getElementById("detail-stadium-loc").textContent = stadium.location;
+    
+    // Set banner image
+    const bannerOverlay = document.querySelector("#detail-stadium-banner .profile-overlay");
+    if (bannerOverlay) {
+      // 사진이 없거나 못 불러와도 배너가 까맣게 비지 않도록 팀 색 그라데이션을 사진 밑에 깐다.
+      bannerOverlay.style.backgroundImage = this.stadiumBannerBackground(stadium);
+    }
+
+    // Fetch blocks dynamically from Supabase
+    const hasBlocks = await this.fetchStadiumBlocks(stadium);
+
+    // LAB: openStadiumMapLabBlock() 이 넘겨준 navToken 이 있는데 그 사이(이 fetch가
+    // 도는 동안) 사용자가 배치도/다른 구역으로 다시 들어가 버렸다면(_smlabNavToken 이
+    // 바뀜) 여기서 조용히 멈춘다 — 안 그러면 이 늦게 도착한 응답이 화면과 주소창을
+    // "지금 보고 있지도 않은" 예전 구역으로 되돌려 놓는다(구역→홈 이동 후 새로고침하면
+    // 다시 구역으로 튀던 문제의 원인).
+    if (opts.navToken !== undefined && this._smlabNavToken !== opts.navToken) return;
 
     // 구역 데이터가 정의되지 않은 구장은 상세화면 이동을 차단하고 팝업 노출
     if (!hasBlocks) {
@@ -2836,6 +2943,442 @@ class SeatViewApp {
 
     // Navigate to Detail view
     this.navigateTo("stadium-detail");
+  }
+
+  // ===========================================================================
+  // LAB: 야구장 새 구역 배치도 (SVG 폴리곤). 로컬 테스트 전용 — 기존 STEP 1~3
+  // 화면(loadStadiumDetail 등)은 그대로 두고, 구역을 눌렀을 때만 그 화면으로 넘긴다.
+  // ===========================================================================
+
+  async openStadiumMapLab(stadiumId) {
+    const stadium = STADIUMS_DB.find(st => st.id === stadiumId);
+    if (!stadium) return;
+    const cfg = STADIUM_MAP_LAB[stadiumId];
+    if (!cfg) {
+      this.showToast("🧪", `${stadium.name} 배치도는 아직 준비 중이에요. (지금은 고척만 테스트 중)`);
+      return;
+    }
+    state.selectedStadium = stadium;
+    // LAB: 이 진입점(구장 목록에서 누름)과 openStadiumMapLabBlock(구역 선택) 만 이
+    // 토큰을 쓴다 — 늦게 도착한 응답이 그 사이 사용자가 떠난 화면을 되살리지 않도록.
+    const navToken = (this._smlabNavToken = (this._smlabNavToken || 0) + 1);
+    const hasBlocks = await this.fetchStadiumBlocks(stadium);
+    if (this._smlabNavToken !== navToken) return;
+    if (!hasBlocks) {
+      this.showToast("⚠️", `${stadium.name} 구역 데이터를 불러오지 못했어요.`);
+      return;
+    }
+    if (this._smlab) this._smlab.grade = null; // 목록에서 새로 열면 등급 필터는 "전체"부터
+
+    // 구장 배너(팀·이름·위치·사진)와 "구장 정보" 탭 내용. 항상 "구장 좌석배치도" 탭부터 시작.
+    const teamEl = document.getElementById("smlab-team");
+    const nameEl = document.getElementById("smlab-name");
+    const locEl = document.getElementById("smlab-loc");
+    if (teamEl) teamEl.textContent = stadium.team || "";
+    if (nameEl) nameEl.textContent = stadium.fullname || stadium.name;
+    if (locEl) locEl.textContent = stadium.location || "";
+    const bannerBg = document.querySelector("#smlab-banner .profile-overlay");
+    if (bannerBg) bannerBg.style.backgroundImage = this.stadiumBannerBackground(stadium);
+    const setInfo = (id, txt, empty) => { const el = document.getElementById(id); if (el) el.innerHTML = this.formatInfoText(txt) || empty; };
+    setInfo("smlab-info-food", stadium.food_info, "등록된 맛집 정보가 없습니다.");
+    setInfo("smlab-info-parking", stadium.parking_info, "등록된 주차 정보가 없습니다.");
+    setInfo("smlab-info-sunlight", stadium.sunlight_info, "등록된 햇빛 정보가 없습니다.");
+    this.smlabSwitchTab("map");
+
+    // 화면부터 보여 주고 SVG는 그 안에서 불러온다(크기 계산에 보이는 상태가 필요).
+    this.navigateTo("stadium-map");
+    await this.renderStadiumMapLab(stadium, cfg, navToken);
+  }
+
+  // 구장 배너 배경: 사진 위에 사진이 없거나 못 불러올 때를 대비해 팀 색 그라데이션을 밑에 깐다.
+  // 사진 주소에 따옴표·괄호·공백 등 CSS 를 깨뜨릴 수 있는 글자가 있으면 사진은 쓰지 않는다.
+  stadiumBannerBackground(stadium) {
+    const bg = String(stadium.bg || "");
+    const okUrl = bg && !/['")\\\s<>]/.test(bg);
+    const grad = stadium.gradient || "none";
+    return okUrl ? `url('${bg}'), ${grad}` : grad;
+  }
+
+  // 배치도 SVG 정화: 스크립트/외부 문서를 끌어오는 요소, on* 이벤트 속성, javascript: 등 위험한 주소를 제거한다.
+  // 이미지 주소는 같은 사이트의 /stadiums/ 경로나 data:image(png/jpeg/webp)만 허용.
+  sanitizeMapSvg(text) {
+    let doc;
+    try { doc = new DOMParser().parseFromString(text, "image/svg+xml"); } catch (e) { return null; }
+    const root = doc.documentElement;
+    if (!root || root.nodeName.toLowerCase() !== "svg" || doc.querySelector("parsererror")) return null;
+    root.querySelectorAll("script, foreignObject, iframe, object, embed, link, style, audio, video, animate, set").forEach(n => n.remove());
+    const okHref = (v) => /^#/.test(v) || /^\/stadiums\/[A-Za-z0-9_.\-]+(\?v=[A-Za-z0-9]+)?$/.test(v) || /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+\/=\s]+$/.test(v);
+    [root, ...root.querySelectorAll("*")].forEach(el => {
+      [...el.attributes].forEach(a => {
+        const name = a.name.toLowerCase();
+        if (name.startsWith("on")) { el.removeAttribute(a.name); return; }
+        if ((name === "href" || name === "xlink:href") && !okHref(a.value.trim())) el.removeAttribute(a.name);
+      });
+    });
+    return document.importNode(root, true);
+  }
+
+  async renderStadiumMapLab(stadium, cfg, navToken) {
+    const stage = document.getElementById("smlab-stage");
+    const viewport = document.getElementById("smlab-viewport");
+    const noteEl = document.getElementById("smlab-note");
+    if (!stage || !viewport) return;
+
+    stage.innerHTML = `<div class="smlab-loading">배치도를 불러오는 중...</div>`;
+    // 로컬 개발: 원본 SVG 를 매번 새로 읽는다(고친 폴리곤이 바로 보이게).
+    // 서비스: 가벼운 SVG 를 브라우저 기본 캐시로 받고(재방문은 변경 확인만 = 거의 0 전송),
+    //         한 번 받은 글자는 메모리에 두었다가 다시 열 때 재사용한다.
+    const devFresh = IS_LOCAL_DEV && !LAB_USE_OPT_SVG;
+    let svgText = devFresh ? "" : (cfg._svgText || "");
+    try {
+      if (!svgText) {
+        const res = devFresh
+          ? await fetch(`${cfg.srcSvg}?t=${Date.now()}`, { cache: "no-store" })
+          : await fetch(cfg.svg);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        svgText = await res.text();
+        if (!devFresh) cfg._svgText = svgText;
+      }
+    } catch (e) {
+      console.error("배치도 SVG 로딩 실패:", e);
+      stage.innerHTML = `<div class="smlab-loading">배치도를 불러오지 못했어요.</div>`;
+      return;
+    }
+    // 이 fetch 가 끝나기 전에 사용자가 다른 화면으로 이동했다면(=더 최신 토큰이 발급됐다면)
+    // 지금 화면에 그리지 않고 조용히 멈춘다.
+    if (navToken !== undefined && this._smlabNavToken !== navToken) return;
+    // 우리 저장소의 파일이지만, 혹시 파일이 바뀌어도(실수·외부 유입) 화면에서 스크립트가 실행되지 않도록
+    // 문서로 파싱해 위험한 요소/속성을 걷어낸 뒤 삽입한다.
+    const safeSvg = this.sanitizeMapSvg(svgText);
+    if (!safeSvg) { stage.innerHTML = `<div class="smlab-loading">배치도 형식이 올바르지 않아요.</div>`; return; }
+    stage.replaceChildren(safeSvg);
+    const svg = stage.querySelector("svg");
+
+    // 피그마 내보내기의 고정 width/height 는 떼고 컨테이너 폭에 맞춘다(비율은 viewBox 유지).
+    const vb = (svg.getAttribute("viewBox") || "0 0 1306 1908").split(/\s+/).map(Number);
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    svg.style.display = "block";
+    svg.style.width = "100%";
+    svg.style.height = "auto";
+
+    // 폴리곤 id "section-<코드>" -> DB 구역. DB에 없는 코드는 반응 없는 그림으로 둔다.
+    const alias = cfg.codeAlias || {};
+    let enabled = 0, total = 0;
+    const gradeColors = {}; // 연결된 구역에 실제로 쓰인 등급만 칩으로 만든다
+    svg.querySelectorAll('[id^="section-"]').forEach(el => {
+      total++;
+      const svgCode = el.id.replace(/^section-/, "");
+      const dbCode = alias[svgCode] || svgCode;
+      const block = (stadium.blocks || []).find(b => String(b.block_code) === String(dbCode));
+      if (!block) { el.classList.add("smlab-off"); return; }
+      enabled++;
+      el.classList.add("smlab-zone");
+      el.dataset.blockId = block.id;
+      el.dataset.grade = block.category || "";
+      (gradeColors[block.category] = gradeColors[block.category] || block.color_code || "");
+      if (block.color_code) el.style.setProperty("--zone", block.color_code);
+      const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+      title.textContent = `${block.block_code}구역 · ${block.category || ""}`;
+      el.appendChild(title);
+    });
+    // 이 구장의 (공개된) 구역을 전부 연결했으면 안내만, 일부만이면 몇 개가 연결됐는지 함께 보여 준다.
+    const blockTotal = (stadium.blocks || []).length;
+    if (noteEl) noteEl.textContent = enabled >= blockTotal
+      ? ""
+      : `구역을 눌러 좌석을 확인하세요 · 지금은 테스트 버전이라 ${enabled}/${blockTotal}개 구역만 연결돼 있어요.`;
+    const creditEl = document.getElementById("smlab-credit");
+    if (creditEl) creditEl.textContent = cfg.credit || "";
+
+    // 최초 1회 안내(구역 클릭 + 핀치줌): 이 브라우저에서 이미 닫은 적 있으면 다시 띄우지 않는다.
+    const hintEl = document.getElementById("smlab-first-hint");
+    if (hintEl) {
+      let seen = false;
+      try { seen = !!localStorage.getItem(this.SMLAB_HINT_KEY); } catch (e) {}
+      hintEl.style.display = seen ? "none" : "flex";
+    }
+
+    const z = this._smlab || (this._smlab = { zoom: 1, min: 1, max: 3.5, aspect: vb[3] / vb[2] });
+    z.aspect = vb[3] / vb[2];
+    z.stadium = stadium;
+    z.gradeColors = gradeColors;
+    this.smlabRenderChips();
+    this.smlabBindOnce();
+    this.smlabFit();
+    viewport.scrollTop = 0;
+    viewport.scrollLeft = 0;
+  }
+
+  // 배치도 화면의 탭: "구장 좌석배치도" / "구장 정보". 지도는 숨겨졌다 돌아와도
+  // 확대 배율·등급 필터가 그대로다(DOM 을 지우지 않고 숨기기만 한다).
+  smlabSwitchTab(name) {
+    document.querySelectorAll("#smlab-tabs .tab-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.smlabTab === name);
+    });
+    const mapPane = document.getElementById("smlab-tab-map");
+    const infoPane = document.getElementById("smlab-tab-info");
+    if (mapPane) mapPane.classList.toggle("active", name === "map");
+    if (infoPane) infoPane.classList.toggle("active", name === "info");
+    if (name === "map" && this._smlab && this._smlab.baseW) {
+      // 정보 탭에서 돌아왔을 때 폭이 달라졌을 수 있어 기준 폭만 다시 잡는다(배율 유지).
+      const vp = document.getElementById("smlab-viewport");
+      if (vp && vp.clientWidth && Math.abs(vp.clientWidth - this._smlab.baseW) >= 24) {
+        const rel = this._smlab.zoom / this._smlab.min;
+        this.smlabFit();
+        if (rel > 1.001) this.smlabApplyZoom(this._smlab.min * rel);
+      }
+    }
+  }
+
+  // 지도 위 등급 필터 칩: "전체" + 연결된 구역이 실제로 갖고 있는 등급들.
+  smlabRenderChips() {
+    const box = document.getElementById("smlab-chips");
+    const z = this._smlab;
+    if (!box || !z) return;
+    const esc = (s) => this.escapeHtml(String(s));
+    const grades = Object.keys(z.gradeColors || {});
+    box.innerHTML = [`<button type="button" class="smlab-chip" data-grade="">전체</button>`]
+      .concat(grades.map(g => `<button type="button" class="smlab-chip" data-grade="${esc(g)}"><i style="background:${/^#[0-9a-fA-F]{3,8}$/.test(z.gradeColors[g] || "") ? z.gradeColors[g] : "#94a3b8"}"></i>${esc(g)}</button>`))
+      .join("");
+    this.smlabSetGrade(z.grade && grades.includes(z.grade) ? z.grade : null);
+  }
+
+  // 등급 하나만 밝게(테두리 강조), 나머지 구역은 어둡게 눌러서 못 누르게 한다. null 이면 전체.
+  smlabSetGrade(grade) {
+    const z = this._smlab;
+    if (!z) return;
+    z.grade = grade || null;
+    const chipBar = document.getElementById("smlab-chips");
+    document.querySelectorAll("#smlab-chips .smlab-chip").forEach(c => {
+      const on = (c.dataset.grade || "") === (z.grade || "");
+      c.classList.toggle("active", on);
+      // 가로로 넘치는 칩 줄에서 선택된 칩이 (일부라도) 가려져 있을 때만 보이도록 밀어 준다.
+      // 칩 줄 안에서만 움직이고 페이지 세로 스크롤은 건드리지 않는다. "전체"(맨 앞)는 절대 안 밀린다.
+      if (on && chipBar) {
+        const barRect = chipBar.getBoundingClientRect();
+        const cRect = c.getBoundingClientRect();
+        if (cRect.left < barRect.left) chipBar.scrollTo({ left: Math.max(0, chipBar.scrollLeft + (cRect.left - barRect.left) - 8), behavior: "smooth" });
+        else if (cRect.right > barRect.right) chipBar.scrollTo({ left: chipBar.scrollLeft + (cRect.right - barRect.right) + 8, behavior: "smooth" });
+      }
+    });
+    document.querySelectorAll("#smlab-stage .smlab-zone").forEach(el => {
+      const match = !z.grade || el.dataset.grade === z.grade;
+      el.classList.toggle("smlab-dim", !match);
+      el.classList.toggle("smlab-match", !!z.grade && match);
+    });
+  }
+
+  // 처음 화면에는 배치도 전체가 보이도록 맞추고(모바일은 가로폭 100%, PC는 세로가
+  // 화면에 들어오게), 그보다 더 줄이지는 못하게 한다.
+  smlabFit() {
+    const z = this._smlab;
+    const viewport = document.getElementById("smlab-viewport");
+    if (!z || !viewport) return;
+    const baseW = viewport.clientWidth;
+    const maxH = parseFloat(getComputedStyle(viewport).maxHeight) || window.innerHeight * 0.7;
+    const fit = Math.min(1, maxH / (baseW * z.aspect));
+    z.baseW = baseW;
+    z.min = fit;
+    z.zoom = fit;
+    this.smlabApplyZoom(fit);
+  }
+
+  smlabApplyZoom(zoom) {
+    const z = this._smlab;
+    const stage = document.getElementById("smlab-stage");
+    const viewport = document.getElementById("smlab-viewport");
+    if (!z || !stage || !viewport) return;
+    z.zoom = Math.max(z.min, Math.min(z.max, zoom));
+    stage.style.width = `${Math.round(z.baseW * z.zoom)}px`;
+    viewport.classList.toggle("smlab-zoomed", z.zoom > z.min + 0.001);
+    const label = document.getElementById("smlab-zoom-label");
+    if (label) label.textContent = `${Math.round((z.zoom / z.min) * 100)}%`;
+  }
+
+  // 배율만 바꾸면 보던 지점이 화면 밖으로 밀리므로, 기준점(anchor, 화면 좌표)이
+  // 같은 자리에 머물도록 스크롤을 함께 보정한다.
+  smlabSetZoom(newZoom, anchorClientX, anchorClientY) {
+    const z = this._smlab;
+    const viewport = document.getElementById("smlab-viewport");
+    const stage = document.getElementById("smlab-stage");
+    if (!z || !viewport || !stage) return;
+    const rect = viewport.getBoundingClientRect();
+    const ax = (anchorClientX === undefined ? rect.left + rect.width / 2 : anchorClientX) - rect.left;
+    const ay = (anchorClientY === undefined ? rect.top + rect.height / 2 : anchorClientY) - rect.top;
+    const oldW = stage.offsetWidth, oldH = stage.offsetHeight;
+    // 스테이지가 뷰포트보다 좁으면 가운데 정렬되어 있으므로 그 여백만큼도 반영한다.
+    const oldOffsetX = Math.max(0, (viewport.clientWidth - oldW) / 2);
+    const cx = (viewport.scrollLeft + ax - oldOffsetX) / oldW;
+    const cy = (viewport.scrollTop + ay) / oldH;
+    this.smlabApplyZoom(newZoom);
+    const newW = stage.offsetWidth, newH = stage.offsetHeight;
+    const newOffsetX = Math.max(0, (viewport.clientWidth - newW) / 2);
+    viewport.scrollLeft = cx * newW + newOffsetX - ax;
+    viewport.scrollTop = cy * newH - ay;
+  }
+
+  smlabZoomBy(factor) {
+    const z = this._smlab;
+    if (!z) return;
+    this.smlabSetZoom(z.zoom * factor);
+  }
+
+  smlabReset() {
+    this.smlabFit();
+    const viewport = document.getElementById("smlab-viewport");
+    if (viewport) { viewport.scrollTop = 0; viewport.scrollLeft = 0; }
+  }
+
+  // 최초 1회 안내 오버레이를 닫고, 이 브라우저에서는 다시 뜨지 않게 기억해 둔다.
+  smlabDismissHint() {
+    try { localStorage.setItem(this.SMLAB_HINT_KEY, "1"); } catch (e) {}
+    const hintEl = document.getElementById("smlab-first-hint");
+    if (hintEl) hintEl.style.display = "none";
+  }
+
+  smlabBindOnce() {
+    if (this._smlabBound) return;
+    const viewport = document.getElementById("smlab-viewport");
+    if (!viewport) return;
+    this._smlabBound = true;
+    const z = this._smlab;
+
+    // 등급 칩 클릭 (같은 칩을 다시 누르면 "전체"로)
+    const chips = document.getElementById("smlab-chips");
+    if (chips) {
+      chips.addEventListener("click", (e) => {
+        const btn = e.target.closest ? e.target.closest("[data-grade]") : null;
+        if (!btn) return;
+        const g = btn.dataset.grade || null;
+        this.smlabSetGrade(g && g === z.grade ? null : g);
+      });
+    }
+
+    // 구역 클릭 -> 기존 구역 상세 화면. 드래그(이동)였다면 클릭으로 치지 않는다.
+    viewport.addEventListener("click", (e) => {
+      if (z.dragMoved) { z.dragMoved = false; return; }
+      const el = e.target.closest ? e.target.closest(".smlab-zone") : null;
+      if (!el) return;
+      this.openStadiumMapLabBlock(el.dataset.blockId);
+    });
+
+    // PC: 확대된 상태에서 마우스로 끌어서 이동
+    let drag = null;
+    viewport.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || !viewport.classList.contains("smlab-zoomed")) return;
+      drag = { x: e.clientX, y: e.clientY, sl: viewport.scrollLeft, st: viewport.scrollTop };
+      z.dragMoved = false;
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) z.dragMoved = true;
+      viewport.scrollLeft = drag.sl - dx;
+      viewport.scrollTop = drag.st - dy;
+    });
+    window.addEventListener("mouseup", () => { drag = null; });
+
+    // PC: Ctrl(⌘)+휠 확대/축소
+    viewport.addEventListener("wheel", (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      this.smlabSetZoom(z.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX, e.clientY);
+    }, { passive: false });
+
+    // 모바일: 두 손가락 벌리기/모으기. 한 손가락 이동은 브라우저 기본 스크롤을 그대로 쓴다.
+    let pinch = null;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    viewport.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) pinch = { d0: dist(e.touches), z0: z.zoom };
+    }, { passive: true });
+    viewport.addEventListener("touchmove", (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      this.smlabSetZoom(pinch.z0 * dist(e.touches) / pinch.d0, cx, cy);
+    }, { passive: false });
+    const endPinch = (e) => { if (e.touches.length < 2) pinch = null; };
+    viewport.addEventListener("touchend", endPinch, { passive: true });
+    viewport.addEventListener("touchcancel", endPinch, { passive: true });
+
+    // 화면 크기가 바뀌면(회전, 창 크기, PC에서 패널이 넓어지는 애니메이션) 기준
+    // 폭만 다시 잡고, 사용자가 확대해 둔 배율(전체보기 대비)은 그대로 유지한다.
+    let lastW = viewport.clientWidth;
+    const onResize = () => {
+      if (state.currentView !== "stadium-map") return;
+      const w = viewport.clientWidth;
+      if (!w || Math.abs(w - lastW) < 24) return; // 스크롤바 등장/사라짐(약 15px)은 무시
+      lastW = w;
+      const rel = z.zoom / z.min;
+      this.smlabFit();
+      if (rel > 1.001) this.smlabApplyZoom(z.min * rel);
+    };
+    // ResizeObserver 콜백 안에서 곧바로 크기를 바꾸면 브라우저가 "ResizeObserver
+    // loop completed with undelivered notifications" 오류를 내므로(동작에는 문제
+    // 없지만 전역 오류 표시줄이 빨갛게 뜬다), 다음 프레임으로 미뤄서 처리한다.
+    if (window.ResizeObserver) new ResizeObserver(() => requestAnimationFrame(onResize)).observe(viewport);
+    else window.addEventListener("resize", onResize);
+  }
+
+  async openStadiumMapLabBlock(blockId) {
+    const stadium = state.selectedStadium;
+    if (!stadium || !blockId) return;
+    // 검색창의 "구장 구역" 이동(handleStadiumSearch)과 같은 순서: 구장 상세를 열고 그 구역을 선택.
+    const navToken = (this._smlabNavToken = (this._smlabNavToken || 0) + 1);
+    await this.loadStadiumDetail(stadium.id, { fromMap: true, navToken });
+    if (this._smlabNavToken !== navToken) return;
+    this.selectStadiumBlock(blockId);
+    // 등급은 배지에 이미 있으니 제목에서는 빼고 "204구역" 만 보여 준다.
+    const block = (stadium.blocks || []).find(b => String(b.id) === String(blockId));
+    const titleEl = document.getElementById("selected-block-title");
+    if (block && titleEl) titleEl.textContent = `${block.block_code}구역`;
+    this.smlabWatchSeatStats();
+    this.syncUrlToView("stadium-detail"); // 주소를 /stadium/<구장>/<구역> 까지
+  }
+
+  // 주소로 바로 들어온 경우(/stadium/gocheok, /stadium/gocheok/101): 배치도를 열고 구역이 있으면 그 구역까지.
+  async openStadiumDeepLink({ id, code }) {
+    await this.openStadiumMapLab(id);
+    if (!code) return;
+    const st = STADIUMS_DB.find(s => s.id === id);
+    const block = st && (st.blocks || []).find(b => String(b.block_code).toUpperCase() === String(code).toUpperCase());
+    if (block) await this.openStadiumMapLabBlock(block.id);
+  }
+
+  // 구역 좌석 화면 범례의 "시야 사진 있음 (N)" / "사진 없음 (M)" 숫자. 좌석 표가
+  // (비동기로) 그려질 때마다 세어서 갱신한다. 한 번만 연결.
+  smlabWatchSeatStats() {
+    const container = document.getElementById("seat-rows-container");
+    const photoEl = document.getElementById("smlab-cnt-photo");
+    const noPhotoEl = document.getElementById("smlab-cnt-nophoto");
+    if (!container || !photoEl || !noPhotoEl) return;
+    photoEl.textContent = ""; // 이전 구역의 숫자가 잠깐 남아 보이지 않게
+    noPhotoEl.textContent = "";
+    if (this._smlabStatsBound) return;
+    this._smlabStatsBound = true;
+    let timer = null;
+    const update = () => {
+      if (!state.stadiumFromMap) return;
+      const total = container.querySelectorAll(".seat-item:not(.gap)").length;
+      if (!total) { photoEl.textContent = ""; noPhotoEl.textContent = ""; return; }
+      const withPhoto = container.querySelectorAll(".seat-item.has-camera, .seat-item.has-camera-official").length;
+      photoEl.textContent = ` (${withPhoto})`;
+      noPhotoEl.textContent = ` (${total - withPhoto})`;
+    };
+    new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(update, 120); })
+      .observe(container, { childList: true, subtree: true });
+    update();
+  }
+
+  // 구역 좌석 화면의 "배치도" 버튼 — 배치도에서 넘어왔다면 뒤로가기와 같은 이동
+  // (기록을 더 쌓지 않음), 아니면(주소로 바로 들어온 경우 등) 배치도를 새로 연다.
+  backToStadiumMap() {
+    if (state.viewHistory[state.viewHistory.length - 1] === "stadium-map") {
+      this.handleHeaderBack();
+    } else if (state.selectedStadium) {
+      this.openStadiumMapLab(state.selectedStadium.id);
+    }
   }
 
   // Dynamically render seat grade filter pills based on block categories

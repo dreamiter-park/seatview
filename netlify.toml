@@ -105,3 +105,32 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
     Content-Security-Policy = "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+# 야구장 배치도 배경 그림: 파일 주소에 내용 해시(?v=)가 붙어 있어(docs/tools/split_stadium_svg.ps1),
+# 그림이 바뀌면 주소도 바뀐다. 그래서 브라우저가 1년간 다시 받지 않고 재사용해도 안전하다.
+[[headers]]
+  for = "/stadiums/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# 야구장 새 배치도(LAB) 주소: /stadium/<구장> , /stadium/<구장>/<구역> 은 앱(index.html) 하나로 처리하고
+# 실제 화면은 브라우저 쪽 코드가 주소를 읽어서 연다. (정식 오픈 전까지 진입점은 로컬 전용)
+[[redirects]]
+  from = "/stadium/*"
+  to = "/index.html"
+  status = 200
+
+# 야구장 배치도 "원본" SVG(배경 그림이 통째로 들어 있는 큰 파일, 로컬 개발·스크립트 입력용)는 서비스에서 쓰지 않으므로
+# 외부에서 내려받지 못하게 막는다. 서비스는 가벼운 *.map.svg + *-bg.jpg 만 쓴다.
+# ※ 구장을 추가할 때(예: gocheok -> incheon) 같은 형태로 원본 파일 이름을 여기에도 추가할 것.
+[[redirects]]
+  from = "/stadiums/gocheok.svg"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/stadiums/gocheok1.svg"
+  to = "/404.html"
+  status = 404
+  force = true

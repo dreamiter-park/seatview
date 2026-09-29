@@ -938,6 +938,11 @@ img {
   grid-template-columns: 1fr;
 }
 
+/* LAB 야구장 목록: 공연장 목록과 통일감 있게 1줄에 1개씩. */
+#stadium-lab-grid {
+  grid-template-columns: 1fr;
+}
+
 .stadium-card {
   /* Always-on, opaque-ish so it stays consistently visible against both
      bright and dark patches of whatever photo sits behind it (a low-opacity
@@ -4488,3 +4493,264 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 
+
+/* ==========================================================================
+   LAB: 야구장 새 구역 배치도 (SVG 폴리곤) — 로컬 테스트용
+   ========================================================================== */
+.smlab-banner {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+}
+
+.smlab-wrap { width: 100%; }
+/* 배치도 화면 배너: 공연장 상세(.stadium-detail-profile)와 완전히 동일한 크기로 통일. */
+.smlab-note { margin: 0 2px 8px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; }
+.smlab-note:empty { display: none; }
+
+/* 등급 칩: 하나의 영역(카드)으로 묶는다. 공연장 .step-card 와 동일한 여백/둥글기로 통일. */
+.smlab-chip-card {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+/* 지도 + 오른쪽 아래 확대/축소 버튼 */
+.smlab-frame { position: relative; }
+.smlab-zoom-ctl {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.smlab-zoom-ctl button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.smlab-zoom-ctl button:hover { background: rgba(15, 23, 42, 0.92); }
+.smlab-zoom-ctl .smlab-zoom-reset { font-size: 0.62rem; font-weight: 600; }
+/* 경기장 배치도 영역만 확대/축소·스크롤된다(페이지 전체는 그대로). */
+.smlab-viewport {
+  width: 100%;
+  max-height: calc(100dvh - 250px);
+  min-height: 300px;
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: #f3f4f6;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;   /* 두 손가락 확대는 우리가 직접 처리 */
+}
+.smlab-viewport.smlab-zoomed { cursor: grab; }
+.smlab-stage { margin: 0 auto; }
+.smlab-loading { padding: 40px 12px; text-align: center; color: #6b7280; font-size: 0.85rem; }
+.smlab-hint { margin-top: 8px; font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+
+/* 구역 폴리곤: 연결된 구역만 눌리는 것처럼 보이고, 나머지는 반응 없는 그림.
+   피그마에서 폴리곤 id 가 <path> 에 붙은 경우와 <g>(여러 조각을 묶은 그룹)에 붙은 경우가
+   섞여 있어서, 그룹이면 그 안의 조각(path)에도 같은 스타일을 준다.
+   평소에는 원래 그림이 깨끗하게 보이도록 아주 옅게(테두리는 거의 안 보이게),
+   마우스를 올리거나 누르면 노란색으로 강조한다. */
+.smlab-stage svg .smlab-off,
+.smlab-stage svg .smlab-off > * {
+  fill: transparent;
+  stroke: none;
+  pointer-events: none;
+}
+.smlab-stage svg .smlab-zone,
+.smlab-stage svg .smlab-zone > * {
+  fill: #ffffff;
+  fill-opacity: 0.12;
+  stroke: #ffffff;
+  stroke-opacity: 0.35;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;   /* 확대/축소해도 테두리 굵기는 화면 기준으로 일정 */
+  transition: fill-opacity 0.12s ease, stroke-width 0.12s ease;
+}
+.smlab-stage svg .smlab-zone { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.smlab-stage svg .smlab-zone:hover,
+.smlab-stage svg .smlab-zone:hover > *,
+.smlab-stage svg .smlab-zone:active,
+.smlab-stage svg .smlab-zone:active > * {
+  fill: #fde047;
+  fill-opacity: 0.6;
+  stroke: #fde047;
+  stroke-opacity: 1;
+  stroke-width: 3px;
+}
+/* PC: 배치도 화면은 공연장 상세처럼 패널이 넓어지되, 세로로 긴 지도 이미지가 너무
+   길어지지 않도록 지도 자체는 읽기 좋은 폭으로 가운데 정렬한다. */
+@media (min-width: 900px) {
+  .phone-frame:has(#view-stadium-map.active) {
+    max-width: min(1300px, 94vw);
+  }
+  #view-stadium-map .smlab-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+}
+.smlab-viewport:not(.smlab-zoomed) { overflow: hidden; }
+
+/* PC: 배치도에서 구역을 눌러 들어온 좌석 화면(.from-map)도 공연장 상세와 같은 방식으로
+   패널을 넓힌다 — 배너는 읽기 좋은 폭으로 가운데 두고, 좌석 카드만 넓어진 폭을 그대로 쓴다.
+   (이 규칙이 없으면 배치도에서는 넓던 패널이 좌석 화면으로 넘어가자마자 좁아져 버린다.) */
+@media (min-width: 900px) {
+  .phone-frame:has(#view-stadium-detail.active.from-map) {
+    max-width: min(1300px, 94vw);
+  }
+  #view-stadium-detail.from-map .stadium-detail-profile {
+    max-width: 430px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* LAB: 배치도에서 구역을 눌러 들어온 구역 좌석 화면(.from-map).
+   이미 구역을 골랐으니 STEP 1·2 와 "좌석 선택" 제목, 좌석 이미지 펼치기는 숨기고
+   카드 오른쪽 위의 "배치도" 버튼으로 돌아가게 한다. 기존 방식 화면에는 영향 없음. */
+#view-stadium-detail.from-map .grade-filter-card,
+#view-stadium-detail.from-map #stadium-block-selector-wrapper,
+#view-stadium-detail.from-map #block-seats-section .step-title,
+#view-stadium-detail.from-map .map-guide-card { display: none !important; }
+
+/* 위쪽 배너: 배치도 화면과 같은 크기·구성(팀 / 구장 이름 / 주소 + 공유 버튼)으로 통일감 있게.
+   .stadium-detail-profile 기본값(공연장 상세와 동일한 140px)을 그대로 쓴다. */
+.smlab-share-btn { display: none; }
+#view-stadium-detail.from-map .smlab-share-btn { display: flex; }
+
+/* "배치도" 버튼: 테두리 + 아이콘이 있는 알약 모양 */
+.smlab-map-btn { display: none; }
+#view-stadium-detail.from-map .smlab-map-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-focus);
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+#view-stadium-detail.from-map .smlab-map-btn:hover { background: rgba(59, 130, 246, 0.22); }
+#view-stadium-detail.from-map .smlab-map-btn:active { transform: scale(0.96); }
+.smlab-map-btn svg { width: 13px; height: 13px; }
+
+/* 범례 옆 숫자: 시야 사진 있음 (N) / 사진 없음 (M) */
+.smlab-cnt { color: inherit; font-weight: inherit; }
+#view-stadium-detail:not(.from-map) .smlab-cnt { display: none; }
+/* LAB: 배치도 위 좌석 등급 필터 칩 (가로 스크롤). 간격은 공연장 .grade-filter-bar 와 동일하게. */
+.smlab-chips {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.smlab-chips::-webkit-scrollbar { display: none; }
+.smlab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.smlab-chip i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.35); }
+.smlab-chip:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.smlab-chip.active {
+  background: var(--text-primary);
+  color: var(--bg-card);
+  border-color: var(--text-primary);
+  font-weight: 700;
+}
+
+/* 등급 필터가 켜졌을 때: 다른 등급은 테두리 없이 연한 회색으로 눌러 죽이고(선택 불가),
+   같은 등급은 아무 것도 덧칠하지 않아 원래 사진 색이 그대로 보이게 둔다("전체" 상태와
+   똑같은 모습). 굳이 강조색을 따로 칠하지 않아도 — 주변이 다 회색이 되니 원래 색을
+   유지하는 구역만 자연스럽게 도드라져 보인다. (.smlab-match 는 일부러 스타일을 하나도
+   주지 않는다 — .smlab-zone 기본(“전체”) 스타일을 그대로 물려받는다.) */
+.smlab-stage svg .smlab-zone.smlab-dim,
+.smlab-stage svg .smlab-zone.smlab-dim > * {
+  fill: #9ca3af;
+  fill-opacity: 0.8;
+  stroke: none;
+  pointer-events: none;
+  cursor: default;
+}
+/* 배치도에서 넘어온 구역 화면도 자체 탭(좌석배치도/구장 정보)을 그대로 보여준다 —
+   배치도 화면의 탭("구역배치도/구장 정보")과는 별개 단계. */
+
+/* 예전 STEP1~3 방식용으로 만들어진 .stadium-map-wrapper 가 폭을 94%로 안쪽에 들여
+   쓰는 바람에, 그 안에 있는 좌석 카드(STEP3)만 위쪽 이미지 배너보다 좁게 보이던 문제.
+   배치도에서 넘어온 화면(.from-map)에서는 이 들여쓰기를 없애 배너와 폭을 맞춘다. */
+#view-stadium-detail.from-map .stadium-map-wrapper {
+  width: 100%;
+  max-width: 100%;
+  /* 위쪽 여백을 0으로 — 탭 자체의 margin-bottom(16px)만으로 "구장 정보" 탭과
+     같은 간격이 되도록(이전엔 8px 이 더해져 탭 밑 여백만 유독 넓어 보였다). */
+  margin: 0 0 12px;
+}
+/* 배치도 배경 이미지 출처(공공누리 등) — 작고 눈에 덜 띄게, 없으면 숨김 */
+.smlab-credit { margin: 6px 2px 0; font-size: 0.68rem; color: var(--text-muted); text-align: right; }
+.smlab-credit:empty { display: none; }
+
+/* 최초 1회 안내 오버레이: 상단 고정 문구 대신, 지도 위에 살짝 딤 처리하고 눌러서 닫는 방식.
+   app.js 가 localStorage 확인 후 이미 봤으면 display:none 으로 바꿔 다시는 안 보이게 한다. */
+.smlab-first-hint {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 12, 0.55);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.smlab-first-hint-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(18, 22, 32, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+}
+.smlab-first-hint-icon { font-size: 1.8rem; line-height: 1; }
+.smlab-first-hint-box p { margin: 0; font-size: 0.8rem; line-height: 1.5; color: #e5e7eb; }

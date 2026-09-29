@@ -65,7 +65,11 @@
       window.errors.push('Promise Rejection: ' + event.reason);
       showVisualError();
     });
+    // 개발용 빨간 오류 표시줄은 로컬(localhost)에서만 보인다. 실제 사이트 방문자에게는
+    // 무해한 브라우저 경고에도 빨간 화면이 뜨거나 내부 파일명·줄번호가 노출되지 않게 한다.
+    var IS_DEV_HOST = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
     function showVisualError() {
+      if (!IS_DEV_HOST) return;
       var div = document.getElementById('debug-log-div');
       if (!div) {
         div = document.createElement('div');
@@ -77,6 +81,7 @@
     }
     window.onload = function() {
       if (window.errors.length > 0) showVisualError();
+      if (!IS_DEV_HOST) return;
       setTimeout(function() {
         var catContainer = document.getElementById("category-grid-container");
         var stadContainer = document.getElementById("stadium-grid-container");
@@ -94,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.39">
+  <link rel="stylesheet" href="/style_v6.css?v=5.59">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -179,17 +184,12 @@
             <p class="site-footer-contact">배너 광고 문의 · 오류 제보는 언제든 <a href="mailto:j2mi.help@gmail.com">j2mi.help@gmail.com</a>로 남겨주세요!</p>
             <p class="site-footer-notice">시야 사진 사용을 원하시면 위 메일로 협업 요청 바랍니다.<br>출처 표기 없는 무단 상업적 이용 시 민·형사상 책임을 물을 수 있습니다.</p>
             <p class="site-footer-business">사업자명: 제이투미(J2MI)</p>
-            <p class="site-footer-copy">© 2026 잘보여유. All rights reserved.</p>
+            <p class="site-footer-copy">© 2026 잘보여유. All rights <span onclick="app.navigateTo('stadiums-lab')" style="cursor: default;">reserved.</span></p>
           </footer>
         </section>
 
         <!-- 2. STADIUM SELECTION VIEW -->
         <section id="view-stadiums" class="view">
-
-          <div class="search-bar-container" style="margin-bottom: 16px;">
-            <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="야구장 + 구역/좌석 검색 (예: 고척 111 5열 3번)" id="stadium-search-input" autocomplete="off">
-          </div>
 
           <!-- Stadium Card Grid -->
           <div class="stadium-grid" id="stadium-grid-container">
@@ -200,6 +200,83 @@
                injected by app.js the first time this view becomes visible;
                see injectKakaoAd()'s comment for why. -->
           <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadiums-list"></div>
+        </section>
+
+        <!-- LAB: 야구장 새 구역 배치도 테스트 ("프로야구장" 카테고리의 정식 목적지 —
+             badge_text 가 "TO BE"인 동안은 홈 카드 클릭으로는 못 들어오고, 푸터의
+             숨겨진 링크로만 들어온다. app_v6.js 의 STADIUM_MAP_LAB / openStadiumMapLab 참고) -->
+        <section id="view-stadiums-lab" class="view">
+          <div class="stadium-grid" id="stadium-lab-grid">
+            <!-- Dynamically populated -->
+          </div>
+          <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadiums-lab-list"></div>
+        </section>
+
+        <section id="view-stadium-map" class="view">
+          <div class="smlab-wrap">
+            <!-- 구장 배너 + 탭 (공연장 화면과 같은 구조): 구장 단위 정보는 여기서, 구역을 고르면 구역 화면으로 -->
+            <div class="stadium-detail-profile smlab-banner-profile" id="smlab-banner">
+              <div class="profile-overlay"></div>
+              <button type="button" class="venue-share-btn" onclick="app.shareStadium()" aria-label="공유하기">
+                <i data-lucide="share-2"></i>
+              </button>
+              <div class="profile-info">
+                <span class="stadium-badge" id="smlab-team"></span>
+                <h3 id="smlab-name">구장</h3>
+                <p class="stadium-meta"><i data-lucide="map-pin"></i> <span id="smlab-loc"></span></p>
+              </div>
+            </div>
+            <div class="detail-tabs" id="smlab-tabs">
+              <button type="button" class="tab-btn active" data-smlab-tab="map" onclick="app.smlabSwitchTab('map')">구역배치도</button>
+              <button type="button" class="tab-btn" data-smlab-tab="info" onclick="app.smlabSwitchTab('info')">구장 정보</button>
+            </div>
+
+            <div id="smlab-tab-map" class="tab-pane active">
+              <!-- 등급 필터 칩(가로 스크롤)을 하나의 영역으로. app.js 가 이 구장의 연결된 구역 등급으로 채운다. -->
+              <div class="smlab-chip-card">
+                <div class="smlab-chips" id="smlab-chips" aria-label="좌석 등급 필터"></div>
+              </div>
+              <p class="smlab-note" id="smlab-note"></p>
+              <div class="smlab-frame">
+                <div class="smlab-viewport" id="smlab-viewport">
+                  <div class="smlab-stage" id="smlab-stage"></div>
+                </div>
+                <!-- 확대/축소: 지도 위 오른쪽 아래에 작게 -->
+                <div class="smlab-zoom-ctl">
+                  <button type="button" onclick="app.smlabZoomBy(1.25)" aria-label="확대">+</button>
+                  <button type="button" onclick="app.smlabZoomBy(1 / 1.25)" aria-label="축소">−</button>
+                  <button type="button" class="smlab-zoom-reset" onclick="app.smlabReset()" aria-label="전체보기">전체</button>
+                </div>
+                <!-- 최초 1회만: 구역 클릭 + 핀치줌 안내. 누르면 닫히고 다시는 안 뜬다(localStorage). -->
+                <div class="smlab-first-hint" id="smlab-first-hint" onclick="app.smlabDismissHint()">
+                  <div class="smlab-first-hint-box">
+                    <span class="smlab-first-hint-icon">🤏</span>
+                    <p>구역을 눌러 좌석을 확인하고,<br>두 손가락으로 확대/축소해보세요</p>
+                  </div>
+                </div>
+              </div>
+              <!-- 배치도 배경 이미지 출처(공공누리 등). app.js 가 구장마다 다른 문구로 채우고, 없으면 숨긴다. -->
+              <p class="smlab-credit" id="smlab-credit"></p>
+
+              <!-- 광고 자리 (app.js 가 이 화면이 보일 때 처음 한 번 채운다) -->
+              <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadium-map"></div>
+            </div>
+
+            <div id="smlab-tab-info" class="tab-pane">
+              <div class="info-card">
+                <h4>🍔 대표 맛집 및 먹거리</h4>
+                <div class="info-text" id="smlab-info-food">정보를 불러오는 중입니다...</div>
+              </div>
+              <div class="info-card">
+                <h4>🚗 주차 및 대중교통 팁</h4>
+                <div class="info-text" id="smlab-info-parking">정보를 불러오는 중입니다...</div>
+              </div>
+              <div class="info-card">
+                <h4>☀️ 시간대별 햇빛 위치</h4>
+                <div class="info-text" id="smlab-info-sunlight">정보를 불러오는 중입니다...</div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- 2b. VENUE (공연장) LIST VIEW -->
@@ -329,6 +406,10 @@
           <!-- Stadium Mini Profile -->
           <div class="stadium-detail-profile" id="detail-stadium-banner">
             <div class="profile-overlay"></div>
+            <!-- LAB: 배치도에서 넘어온 경우(.from-map)에만 보이는 공유 버튼 -->
+            <button type="button" class="venue-share-btn smlab-share-btn" onclick="app.shareStadium()" aria-label="공유하기">
+              <i data-lucide="share-2"></i>
+            </button>
             <div class="profile-info">
               <span class="stadium-badge" id="detail-stadium-team">구단명</span>
               <h3 id="detail-stadium-fullname">구장이름</h3>
@@ -338,7 +419,7 @@
 
           <!-- Section Navigation -->
           <div class="detail-tabs">
-            <button class="tab-btn active" onclick="app.switchDetailTab('map')">구장 좌석배치도</button>
+            <button class="tab-btn active" onclick="app.switchDetailTab('map')">좌석배치도</button>
             <button class="tab-btn" onclick="app.switchDetailTab('info')">구장 정보</button>
           </div>
 
@@ -346,10 +427,7 @@
           <div id="tab-content-map" class="tab-pane active">
             <!-- Depth 3: Overall Map View -->
             <div id="stadium-overall-map-view" class="stadium-map-wrapper">
-              
-              <!-- Collapsible Stadium Map Accordion — hidden for now (not
-                   deleted, may be needed again later); flip display back on
-                   to restore it. -->
+
               <div class="map-guide-card" style="display: none; margin-bottom: 16px;">
                 <button class="map-collapse-btn" onclick="app.toggleMapCollapse()" id="map-collapse-btn">
                   <span>🗺️ 좌석 이미지 펼치기</span>
@@ -402,13 +480,17 @@
                     <span class="block-badge" id="selected-block-badge">구역 미선택</span>
                     <h4 class="block-name" id="selected-block-title">원하는 구역을 먼저 지도에서 선택해 주세요</h4>
                   </div>
+                  <!-- LAB: 배치도에서 넘어온 화면에서만 보이는 "배치도로" 버튼 -->
+                  <button type="button" class="smlab-map-btn" onclick="app.backToStadiumMap()" aria-label="배치도에서 다른 구역 보기">
+                    <i data-lucide="map"></i><span>배치도</span>
+                  </button>
                 </div>
 
                 <!-- Detailed Seat Grid container -->
                 <div class="seat-grid-container" id="seat-grid-wrapper">
                   <div class="seat-grid-legend">
-                    <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음</div>
-                    <div class="legend-item"><span class="legend-box empty"></span> 사진 없음</div>
+                    <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음<span class="smlab-cnt" id="smlab-cnt-photo"></span></div>
+                    <div class="legend-item"><span class="legend-box empty"></span> 사진 없음<span class="smlab-cnt" id="smlab-cnt-nophoto"></span></div>
                   </div>
 
                   <!-- Seat row grids -->
@@ -417,6 +499,9 @@
                   </div>
                 </div>
               </div>
+
+              <!-- LAB: 구역 좌석 화면(배치도에서 넘어온 경우에만 채워짐) 광고 자리 -->
+              <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadium-detail"></div>
 
             </div>
           </div>
@@ -1048,7 +1133,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.43"></script>
+  <script src="/app_v6.js?v=9.68"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
