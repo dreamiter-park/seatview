@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.59">
+  <link rel="stylesheet" href="/style_v6.css?v=5.72">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -180,6 +180,8 @@
               <a href="/privacy.html">개인정보처리방침</a>
               <span class="site-footer-divider">·</span>
               <a href="/event-terms.html">이벤트 참여규정</a>
+              <span class="site-footer-divider">·</span>
+              <a href="/email-policy.html">이메일무단수집거부</a>
             </div>
             <p class="site-footer-contact">배너 광고 문의 · 오류 제보는 언제든 <a href="mailto:j2mi.help@gmail.com">j2mi.help@gmail.com</a>로 남겨주세요!</p>
             <p class="site-footer-notice">시야 사진 사용을 원하시면 위 메일로 협업 요청 바랍니다.<br>출처 표기 없는 무단 상업적 이용 시 민·형사상 책임을 물을 수 있습니다.</p>
@@ -206,6 +208,23 @@
              badge_text 가 "TO BE"인 동안은 홈 카드 클릭으로는 못 들어오고, 푸터의
              숨겨진 링크로만 들어온다. app_v6.js 의 STADIUM_MAP_LAB / openStadiumMapLab 참고) -->
         <section id="view-stadiums-lab" class="view">
+          <div class="search-bar-container" style="margin-bottom: 16px;">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" placeholder="구장명 또는 구단명 검색 (예: 고척, 키움)" id="stadium-lab-search-input" autocomplete="off">
+            <button type="button" id="stadium-lab-search-clear-btn" onclick="app.clearSearchInput('stadium-lab-search-input', () => app.renderStadiumList(app.stadiumLabListOpts('')))" aria-label="검색어 지우기" style="display: none; background: none; border: none; padding: 4px; margin-left: 6px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;">
+              <i data-lucide="x-circle" style="width: 16px; height: 16px; display: block;"></i>
+            </button>
+          </div>
+
+          <div class="venue-list-toolbar">
+            <span class="venue-list-count" id="stadium-lab-list-count">총 0개</span>
+            <select class="venue-sort-select" id="stadium-lab-sort-select" onchange="app.renderStadiumList(app.stadiumLabListOpts(document.getElementById('stadium-lab-search-input').value))">
+              <option value="default">등록순</option>
+              <option value="recent">신규 등록순</option>
+              <option value="name">가나다순</option>
+            </select>
+          </div>
+
           <div class="stadium-grid" id="stadium-lab-grid">
             <!-- Dynamically populated -->
           </div>
@@ -489,7 +508,8 @@
                 <!-- Detailed Seat Grid container -->
                 <div class="seat-grid-container" id="seat-grid-wrapper">
                   <div class="seat-grid-legend">
-                    <div class="legend-item"><span class="legend-box camera">📷</span> 시야 사진 있음<span class="smlab-cnt" id="smlab-cnt-photo"></span></div>
+                    <div class="legend-item"><span class="legend-box camera">📷</span> 실제 시야<span class="smlab-cnt" id="smlab-cnt-photo"></span></div>
+                    <div class="legend-item"><span class="legend-box camera-official">📷</span> 공식 시야<span class="smlab-cnt" id="smlab-cnt-official"></span></div>
                     <div class="legend-item"><span class="legend-box empty"></span> 사진 없음<span class="smlab-cnt" id="smlab-cnt-nophoto"></span></div>
                   </div>
 
@@ -791,8 +811,8 @@
                 </div>
               </div>
 
-              <!-- 2.5 시야 별점 (공연장 카테고리 전용, 필수). "공연이
-                   재밌었는지"가 아니라 "이 자리에서 무대가 얼마나 잘
+              <!-- 2.5 시야 별점 (공연장·야구장 공통, 필수). "공연이
+                   재밌었는지"가 아니라 "이 자리에서 무대/그라운드가 얼마나 잘
                    보였는지"를 명확히 물어야 해서 문구를 그렇게 못박아둔다.
                    좌석 리스트 화면을 이 평균 별점 기준 색상(초록~빨강)으로
                    구분하는 기능도 만들어뒀지만, 축적된 리뷰가 전부
@@ -943,7 +963,7 @@
         </div>
       </div>
 
-      <!-- 이벤트 팝업 (메인 진입 시 자동으로 뜸, init()의 maybeShowEventPopup()) -->
+      <!-- 이벤트 결과 팝업 (메인 진입 시 자동으로 뜸, init()의 maybeShowEventPopup()) — 당첨자 발표 -->
       <div class="modal modal-center" id="modal-event-popup">
         <div class="modal-backdrop" onclick="app.closeEventPopup()"></div>
         <div class="modal-content event-popup-content">
@@ -953,45 +973,90 @@
           <div class="event-popup-body" data-nosnippet>
             <div style="text-align: center;">
               <span class="event-popup-badge">EVENT</span>
-              <h3 class="event-popup-title">내가 앉은 좌석 시야 공유하고<br><span>뮤지컬 VIP석</span> 보러 가자!</h3>
-              <p class="event-popup-subtitle">시야 사진 등록하면 추첨으로 선물을 드려요</p>
+              <h3 class="event-popup-title">🎉 시야 공유 이벤트 <span>당첨자 발표</span> 🎉</h3>
+              <p class="event-popup-subtitle">내가 앉은 좌석의 시야 사진을 올려주신 덕분에<br>다음 관람객이 자리를 미리 확인할 수 있게 됐어요.<br>참여해 주셔서 감사합니다 💜</p>
             </div>
 
-            <div class="event-popup-prizes">
-              <div class="event-popup-prize-item event-popup-prize-1">
+            <div class="event-popup-info">
+              <div><strong>📢 당첨 발표 :</strong> 2026.10.02(금)</div>
+              <div><strong>📩 경품 발송 :</strong> 2026.10.10(토)</div>
+              <div><strong>🎁 수령 방법 :</strong> 가입하신 이메일로 개별 발송 예정</div>
+            </div>
+
+            <div class="event-result-tier event-result-tier-1">
+              <div class="event-result-tier-head">
                 <span class="event-popup-rank">🥇 1등 (1명)</span>
                 <span class="event-popup-gift">뮤지컬 VIP석 티켓 (2매)</span>
               </div>
-              <div class="event-popup-prize-item">
+              <div class="event-result-chips event-result-chips-1col">
+                <div class="event-result-chip"><b>JE***</b><span>tt***@hanmail.net</span></div>
+              </div>
+            </div>
+
+            <div class="event-result-tier event-result-tier-2">
+              <div class="event-result-tier-head">
                 <span class="event-popup-rank">🥈 2등 (3명)</span>
                 <span class="event-popup-gift">대학로 연극 티켓 (2매)</span>
               </div>
-              <div class="event-popup-prize-item">
+              <div class="event-result-chips">
+                <div class="event-result-chip"><b>김진***</b><span>he***@kakao.com</span></div>
+                <div class="event-result-chip"><b>ch***</b><span>ia***@kakao.com</span></div>
+                <div class="event-result-chip"><b>ry***</b><span>ku***0@naver.com</span></div>
+              </div>
+            </div>
+
+            <div class="event-result-tier event-result-tier-3">
+              <div class="event-result-tier-head">
                 <span class="event-popup-rank">🥉 3등 (5명)</span>
                 <span class="event-popup-gift">CGV 영화 티켓 (2매)</span>
               </div>
-              <div class="event-popup-prize-item">
+              <div class="event-result-chips">
+                <div class="event-result-chip"><b>꼬잉***</b><span>jm***@naver.com</span></div>
+                <div class="event-result-chip"><b>선샤***</b><span>st***@naver.com</span></div>
+                <div class="event-result-chip"><b>쀼***</b><span>na***@naver.com</span></div>
+                <div class="event-result-chip"><b>jj***</b><span>je***@naver.com</span></div>
+                <div class="event-result-chip"><b>ch***</b><span>ch***@gmail.com</span></div>
+              </div>
+            </div>
+
+            <div class="event-result-tier event-result-tier-4">
+              <div class="event-result-tier-head">
                 <span class="event-popup-rank">☕ 4등 (20명)</span>
                 <span class="event-popup-gift">스타벅스 아메리카노</span>
               </div>
+              <div class="event-result-chips">
+                <div class="event-result-chip"><b>밍***</b><span>wl***@kakao.com</span></div>
+                <div class="event-result-chip"><b>캐슈***</b><span>go***@hanmail.net</span></div>
+                <div class="event-result-chip"><b>빌젤***</b><span>so***@kakao.com</span></div>
+                <div class="event-result-chip"><b>은혜***</b><span>ss***@naver.com</span></div>
+                <div class="event-result-chip"><b>개구***</b><span>03***@naver.com</span></div>
+                <div class="event-result-chip"><b>윤이***</b><span>um***@naver.com</span></div>
+                <div class="event-result-chip"><b>뮤덕***</b><span>vi***@gmail.com</span></div>
+                <div class="event-result-chip"><b>써니***</b><span>gi***@daum.net</span></div>
+                <div class="event-result-chip"><b>김하***</b><span>ha***@naver.com</span></div>
+                <div class="event-result-chip"><b>삐뽀***</b><span>na***@gmail.com</span></div>
+                <div class="event-result-chip"><b>희로***</b><span>dh***@naver.com</span></div>
+                <div class="event-result-chip"><b>경하***</b><span>mo***@nate.com</span></div>
+                <div class="event-result-chip"><b>염혜***</b><span>ra***@naver.com</span></div>
+                <div class="event-result-chip"><b>조아***</b><span>bl***@naver.com</span></div>
+                <div class="event-result-chip"><b>지우***</b><span>ji***@kakao.com</span></div>
+                <div class="event-result-chip"><b>혜린***</b><span>01***@naver.com</span></div>
+                <div class="event-result-chip"><b>지원***</b><span>ji***@naver.com</span></div>
+                <div class="event-result-chip"><b>염제***</b><span>jh***@kakao.com</span></div>
+                <div class="event-result-chip"><b>ke***</b><span>ke***@naver.com</span></div>
+                <div class="event-result-chip"><b>SU***</b><span>ma***@gmail.com</span></div>
+              </div>
             </div>
-            <p class="event-popup-fineprint">* 구체적인 공연명·관람일은 당첨자 발표 후 개별 안내되며, 실제 가액은 선정 공연에 따라 달라질 수 있습니다.</p>
 
-            <div class="event-popup-info">
-              <div><strong>📅 참여 기간 :</strong> 2026.08.25(화) ~ 09.30(수)</div>
-              <div><strong>👤 참여 대상 :</strong> 회원 누구나 (1인 최대 5회 응모)</div>
-              <div><strong>🎲 당첨자 선정 :</strong> 무작위 추첨 (부적절한 사진은 제외)</div>
-              <div><strong>📢 당첨 발표 :</strong> 2026.10.02(금) 홈페이지 공지</div>
-              <div><strong>📩 경품 지급 :</strong> 가입 이메일로 모바일 교환권 발송</div>
+            <div class="event-result-about">
+              <p class="event-result-about-title">💡 처음 오셨나요?</p>
+              <p>잘보여유는 공연장 좌석에서 <strong>실제로 어떻게 보이는지</strong>를 관람객이 직접 올린 시야 사진으로 모아둔 서비스예요. 내가 앉았던 자리의 시야 사진을 등록하면 이런 이벤트에도 참여할 수 있어요. 다음 이벤트는 공지로 안내드릴게요.</p>
             </div>
 
             <p class="event-popup-notice-title">📋 참고사항</p>
             <div class="event-popup-notice">
-              • 동일 사진의 중복 등록은 불가하며, 도용 사진 적발 시 당첨이 취소됩니다.<br>
-              • 빈 무대 또는 커튼콜 등 촬영이 허용된 시간의 사진만 인정됩니다.<br>
-              • 등록된 사진은 서비스 좌석 정보 및 홍보 목적으로 활용됩니다.<br>
-              • 제세공과금(기타소득세 등)은 당첨자 부담을 원칙으로 합니다.<br>
-              • 본 이벤트는 회사 사정에 따라 사전 고지 없이 변경되거나 조기 종료될 수 있습니다.<br>
+              • 닉네임과 이메일은 개인정보 보호를 위해 일부만 표시했어요.<br>
+              • 제세공과금(기타소득세 등)은 당첨자 부담을 원칙으로 하며, 필요한 경우 발송 전에 개별 안내드려요.<br>
               • 문의: j2mi.help@gmail.com<br>
               • 자세한 내용은 <a href="/event-terms.html" target="_blank">이벤트 참여규정</a>을 확인해주세요.
             </div>
@@ -1133,7 +1198,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.68"></script>
+  <script src="/app_v6.js?v=9.73"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

@@ -913,6 +913,7 @@ class SeatViewApp {
               id: mappedId,
               db_id: dbStadium.id,
               display_order: dbStadium.display_order,
+              ins_dtm: dbStadium.ins_dtm,
               name: dbStadium.name,
               fullname: dbStadium.name,
               team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
@@ -986,18 +987,6 @@ class SeatViewApp {
       }
     });
 
-    // Quick handle search box typing — one search bar per category list
-    // screen now (each one only ever needs to search its own category).
-    const stadiumSearchInput = document.getElementById("stadium-search-input");
-    if (stadiumSearchInput) {
-      stadiumSearchInput.addEventListener("keypress", (e) => {
-        if (e.key === "Enter" && stadiumSearchInput.value.trim() !== "") {
-          const query = stadiumSearchInput.value.trim();
-          stadiumSearchInput.value = "";
-          this.handleStadiumSearch(query);
-        }
-      });
-    }
     // Live filter, not a submit-and-navigate search — floor tabs already
     // show every zone at once now, so there's no "구역" or "좌석" left to
     // deep-link into. Typing just narrows the visible venue list by name.
@@ -1005,6 +994,13 @@ class SeatViewApp {
     if (venueSearchInput) {
       venueSearchInput.addEventListener("input", () => {
         this.renderVenueList(venueSearchInput.value);
+      });
+    }
+    // 야구장(LAB) 목록도 공연장과 동일하게 입력 즉시 필터링.
+    const stadiumLabSearchInput = document.getElementById("stadium-lab-search-input");
+    if (stadiumLabSearchInput) {
+      stadiumLabSearchInput.addEventListener("input", () => {
+        this.renderStadiumList(this.stadiumLabListOpts(stadiumLabSearchInput.value));
       });
     }
 
@@ -1358,7 +1354,8 @@ class SeatViewApp {
     // 목록 카드형 광고(3개마다 끼우던 것)는 어색해서 계속 뺀 채로 두고, 화면 하단
     // 카카오 애드핏 배너만 화면별 전용 광고단위로 새로 넣는다(리스트/구역/상세 각각 별도).
     if (viewId === "stadiums-lab") {
-      this.renderStadiumList({ containerId: "stadium-lab-grid", noAds: true, onOpen: (st) => this.openStadiumMapLab(st.id) });
+      const searchInput = document.getElementById("stadium-lab-search-input");
+      this.renderStadiumList(this.stadiumLabListOpts(searchInput ? searchInput.value : ""));
       this.injectKakaoAd("ad-slot-stadiums-lab-list", "DAN-j8zQm1KA9FEGWPIx");
     }
     if (viewId === "stadium-map") this.injectKakaoAd("ad-slot-stadium-map", "DAN-CtgChTKnhEpfWomO");
@@ -1717,6 +1714,21 @@ class SeatViewApp {
   }
 
   // --- Stadiums Selection View ---
+  // LAB 목록 화면(검색창+정렬 select 포함)을 다시 그릴 때 항상 똑같은 opts를
+  // 쓰도록 한곳에 모아둠 — 검색 입력 이벤트, 정렬 select onchange, navigateTo
+  // 진입 시 전부 이 헬퍼를 거친다.
+  stadiumLabListOpts(filterText) {
+    return {
+      containerId: "stadium-lab-grid",
+      noAds: true,
+      onOpen: (st) => this.openStadiumMapLab(st.id),
+      filterText,
+      sortSelectId: "stadium-lab-sort-select",
+      countId: "stadium-lab-list-count",
+      searchClearBtnId: "stadium-lab-search-clear-btn",
+    };
+  }
+
   // opts (LAB 화면용): containerId = 카드를 그릴 곳, onOpen(st) = 카드 클릭
   // 동작, noAds = 광고 카드 없이. 아무것도 안 주면 예전과 완전히 동일.
   renderStadiumList(opts = {}) {
@@ -1724,11 +1736,48 @@ class SeatViewApp {
     if (!container) return;
 
     container.innerHTML = "";
-    const sortedStadiums = [...STADIUMS_DB].sort((a, b) => {
-      const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 999;
-      const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 999;
-      return orderA - orderB;
-    });
+
+    // 검색: 구장명 또는 구단명에 일치하는 것만 (LAB 목록 전용 — opts.filterText가
+    // 없으면 예전 방식과 동일하게 전체를 보여준다).
+    const trimmed = (opts.filterText || "").trim();
+    const needle = trimmed.toLowerCase();
+    let stadiums = trimmed.length >= 1
+      ? STADIUMS_DB.filter(st => st.name.toLowerCase().includes(needle) || (st.team && st.team.toLowerCase().includes(needle)))
+      : STADIUMS_DB.slice();
+
+    // 정렬: opts.sortSelectId가 가리키는 <select>의 값을 읽는다. 없으면(옛 방식
+    // 화면) 항상 "등록순"과 같은 기본 정렬을 쓴다.
+    const sortSelect = opts.sortSelectId ? document.getElementById(opts.sortSelectId) : null;
+    const sortMode = sortSelect ? sortSelect.value : "default";
+    if (sortMode === "recent") {
+      stadiums = stadiums.slice().sort((a, b) => new Date(b.ins_dtm || 0) - new Date(a.ins_dtm || 0));
+    } else if (sortMode === "name") {
+      stadiums = stadiums.slice().sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    } else {
+      stadiums = stadiums.slice().sort((a, b) => {
+        const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 999;
+        const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 999;
+        return orderA - orderB;
+      });
+    }
+
+    const countEl = opts.countId ? document.getElementById(opts.countId) : null;
+    if (countEl) countEl.textContent = `총 ${stadiums.length}개`;
+    const clearBtn = opts.searchClearBtnId ? document.getElementById(opts.searchClearBtnId) : null;
+    if (clearBtn) clearBtn.style.display = trimmed.length > 0 ? "flex" : "none";
+
+    if (trimmed.length >= 1 && stadiums.length === 0) {
+      container.innerHTML = `
+        <div class="compare-empty" style="border-style: solid;">
+          <div class="compare-empty-icon"><i data-lucide="search-x"></i></div>
+          <h3>'${this.escapeHtml(trimmed)}'와(과) 일치하는 야구장이 없습니다</h3>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
+    const sortedStadiums = stadiums;
 
     // Product ad slot. Default (2-column grid, old flow): lands on visual
     // position 6 (1 2 / 3 4 / 5 6 / ...), inserted before the 6th stadium
@@ -1759,7 +1808,7 @@ class SeatViewApp {
       // making some of them stand out — plus a grayscale filter (in CSS) as
       // a second layer of insurance against the photos' own natural hues.
       card.style.backgroundImage = isPreparing
-        ? `linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(8, 10, 15, 0.88)), url('${st.bg}')`
+        ? `linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(8, 10, 15, 0.6)), url('${st.bg}')`
         : `${st.gradient}, url('${st.bg}')`;
       card.onclick = isPreparing
         ? () => this.showItemPreparing(st.name)
@@ -2292,7 +2341,7 @@ class SeatViewApp {
   }
 
   maybeShowEventPopup() {
-    const hideUntil = Number(localStorage.getItem("seatview_event_popup_hide_until") || 0);
+    const hideUntil = Number(localStorage.getItem("seatview_event_result_popup_hide_until") || 0);
     if (Date.now() < hideUntil) return;
     // pushHistory=false — this shows on every fresh load regardless of what
     // view/deep-link is underneath, so it must not insert its own back-stop
@@ -3346,29 +3395,19 @@ class SeatViewApp {
     if (block) await this.openStadiumMapLabBlock(block.id);
   }
 
-  // 구역 좌석 화면 범례의 "시야 사진 있음 (N)" / "사진 없음 (M)" 숫자. 좌석 표가
-  // (비동기로) 그려질 때마다 세어서 갱신한다. 한 번만 연결.
+  // 구역 좌석 화면 범례의 "실제 시야 (N)" 같은 개수 표시 — 지금은 데이터(사진)가
+  // 거의 없어서 오히려 더 휑해 보인다는 피드백으로 당분간 꺼둔다. 라벨 옆 span은
+  // 그대로 남겨두고 항상 빈 문자열만 써서, 나중에 데이터가 쌓이면 이 함수 안에
+  // 개수 세는 로직만 다시 넣으면 된다(과거 버전: git 이력 참고).
   smlabWatchSeatStats() {
     const container = document.getElementById("seat-rows-container");
     const photoEl = document.getElementById("smlab-cnt-photo");
+    const officialEl = document.getElementById("smlab-cnt-official");
     const noPhotoEl = document.getElementById("smlab-cnt-nophoto");
-    if (!container || !photoEl || !noPhotoEl) return;
-    photoEl.textContent = ""; // 이전 구역의 숫자가 잠깐 남아 보이지 않게
+    if (!container || !photoEl || !officialEl || !noPhotoEl) return;
+    photoEl.textContent = "";
+    officialEl.textContent = "";
     noPhotoEl.textContent = "";
-    if (this._smlabStatsBound) return;
-    this._smlabStatsBound = true;
-    let timer = null;
-    const update = () => {
-      if (!state.stadiumFromMap) return;
-      const total = container.querySelectorAll(".seat-item:not(.gap)").length;
-      if (!total) { photoEl.textContent = ""; noPhotoEl.textContent = ""; return; }
-      const withPhoto = container.querySelectorAll(".seat-item.has-camera, .seat-item.has-camera-official").length;
-      photoEl.textContent = ` (${withPhoto})`;
-      noPhotoEl.textContent = ` (${total - withPhoto})`;
-    };
-    new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(update, 120); })
-      .observe(container, { childList: true, subtree: true });
-    update();
   }
 
   // 구역 좌석 화면의 "배치도" 버튼 — 배치도에서 넘어왔다면 뒤로가기와 같은 이동
@@ -4003,6 +4042,12 @@ class SeatViewApp {
 
     wrapper.style.display = "block";
     container.innerHTML = "";
+    // 공연장(renderVenueFloorGrid)은 무대 정면인 가운데 좌석이 중요해서 가로로
+    // 넘칠 때 가운데부터 보여주지만, 야구장은 열 번호(1번 좌석)부터 보는 게
+    // 기준이라 항상 왼쪽 끝(스크롤 0)에서 시작하도록 명시적으로 맞춘다 — 안 그러면
+    // 넓은 구역을 오른쪽으로 스크롤해서 보다가 다른 구역으로 바꿨을 때 그 스크롤
+    // 위치가 그대로 남아있을 수 있다.
+    wrapper.scrollLeft = 0;
 
     // Field/ground direction indicator, shown once above the seat rows.
     // The bar itself spans the full width of the seat grid (every block's
@@ -4079,16 +4124,23 @@ class SeatViewApp {
         if (!error) {
           const seatIds = (seats || []).map(s => s.id);
           const seatsWithPhotos = new Set();
+          // 공연장(renderVenueFloorGrid)과 동일하게, 공식 출처 계정(OFFICIAL_SOURCE_USER_ID)이
+          // 올린 사진만 있는 좌석은 따로 모아 회색("공식 시야")으로 구분 표시한다.
+          // 같은 좌석에 실제 관람객 사진도 있으면 seatsWithPhotos(파란색)가 우선한다.
+          const seatsWithOfficialPhotos = new Set();
           if (seatIds.length > 0) {
             const { data: reviews, error: revErr } = await supabaseClient
               .from('baseball_seat_reviews')
-              .select('baseball_seat_id, image_urls')
+              .select('baseball_seat_id, image_urls, user_id')
               .in('baseball_seat_id', seatIds);
 
             if (!revErr && reviews) {
               reviews.forEach(rev => {
                 const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
-                if (urls.length > 0) {
+                if (urls.length === 0) return;
+                if (rev.user_id === OFFICIAL_SOURCE_USER_ID) {
+                  seatsWithOfficialPhotos.add(rev.baseball_seat_id);
+                } else {
                   seatsWithPhotos.add(rev.baseball_seat_id);
                 }
               });
@@ -4191,6 +4243,7 @@ class SeatViewApp {
               } else {
                 const isWalkway = (seat.status == 3 || seat.status === "3" || seat.status === "WALKWAY");
                 const isPhotoExists = seatsWithPhotos.has(seat.id);
+                const isOfficialPhotoExists = !isPhotoExists && seatsWithOfficialPhotos.has(seat.id);
 
                 if (isWalkway) {
                   const gapBtn = document.createElement("button");
@@ -4202,9 +4255,10 @@ class SeatViewApp {
                   seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
 
                   const dbKey = seat.id;
+                  if (isOfficialPhotoExists) seatBtn.classList.add("has-camera-official");
                   if (isPhotoExists) {
                     seatBtn.classList.add("has-camera");
-                    
+
                     if (!SEAT_VIEWS_DB[dbKey]) {
                       SEAT_VIEWS_DB[dbKey] = {
                         stadiumName: state.selectedStadium.name,
@@ -4917,7 +4971,7 @@ class SeatViewApp {
     const extLinkEl = document.getElementById("form-external-link");
     if (extLinkEl) extLinkEl.value = current.externalLink || "";
     const ratingGroupEl = document.getElementById("form-rating-group");
-    if (ratingGroupEl) ratingGroupEl.style.display = state.activeModalCategory === "musical" ? "" : "none";
+    if (ratingGroupEl) ratingGroupEl.style.display = "";
     // 예전에 등록된 리뷰는 별점이 없을 수 있음(0으로 표시, 저장 시 다시
     // 골라야 함) — 이미 별점이 있으면 그 값을 그대로 보여준다.
     this.resetFormRating(current.rating || 0);
@@ -6281,16 +6335,15 @@ class SeatViewApp {
       return;
     }
 
-    // 시야 별점도 사진과 마찬가지로 필수 — 공연장(뮤지컬) 카테고리에만
-    // 해당하고, 야구장은 필드 자체가 없어서 검사하지 않는다. 단, 공연장이
-    // 공식 제공한 시야 사진을 그대로 캡처해서 올리는 "잘보여유 에디터"
+    // 시야 별점도 사진과 마찬가지로 필수 — 공연장·야구장 둘 다 해당한다.
+    // 단, 공식 제공한 시야 사진을 그대로 캡처해서 올리는 "잘보여유 에디터"
     // 운영 계정(dreamiter@naver.com)은 본인이 직접 관람한 게 아니라서
     // 별점을 매기는 게 오히려 왜곡이라 이 계정만 필수 검증에서 제외한다.
     const RATING_EXEMPT_EMAILS = ["dreamiter@naver.com"];
     const isRatingExemptAccount = RATING_EXEMPT_EMAILS.includes(formSnapshot.userEmail);
     const ratingContainer = document.getElementById("form-rating-stars");
-    const ratingVal = isMusical && ratingContainer ? parseInt(ratingContainer.dataset.value, 10) || 0 : 0;
-    if (isMusical && !isRatingExemptAccount && ratingVal < 1) {
+    const ratingVal = ratingContainer ? parseInt(ratingContainer.dataset.value, 10) || 0 : 0;
+    if (!isRatingExemptAccount && ratingVal < 1) {
       await this.showAlertDialog("별점 선택 필요", "이 자리에서 시야가 얼마나 좋았는지 별점을 선택해 주세요.");
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -6419,7 +6472,7 @@ class SeatViewApp {
         // ratingVal은 미선택 시 0인데, DB 체크 제약은 null이거나 1~5만
         // 허용한다 — 별점 예외 계정이 0으로 저장 시도하면 제약 위반으로
         // 저장 자체가 실패하므로 0을 null로 변환해서 보낸다.
-        if (isMusical) updatePayload.rating = ratingVal || null;
+        updatePayload.rating = ratingVal || null;
         if (newTicketPhotoUrl) {
           updatePayload.ticket_photo_url = newTicketPhotoUrl;
         } else if (formSnapshot.ticketPhotoRemovedExisting) {
@@ -6553,7 +6606,7 @@ class SeatViewApp {
         const isTicketVerified = !!formSnapshot.ticketVerified;
         const insertPayload = isMusical
           ? { musical_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null, rating: ratingVal || null }
-          : { baseball_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null };
+          : { baseball_seat_id: realSeatId, user_id: formSnapshot.userId, image_urls: finalImagesList, photo_hashes: photoHashesForInsert, is_ticket_verified: isTicketVerified, ticket_photo_url: newTicketPhotoUrl, content: commentVal, is_anonymous: isAnonymous, external_link: externalLinkVal, watched_date: dateVal || null, rating: ratingVal || null };
 
         const { error } = await supabaseClient
           .from(isMusical ? 'musical_seat_reviews' : 'baseball_seat_reviews')
@@ -6611,8 +6664,10 @@ class SeatViewApp {
       if (state.selectedVenueFloor) this.renderVenueFloorGrid(state.selectedVenueFloor);
       this.navigateTo("venue-detail");
     } else {
-      this.renderTicketbook();
-      this.navigateTo("ticketbook");
+      // 공연장과 동일하게 등록 직후엔 있던 화면(구역 좌석 그리드)에 그대로 머문다 —
+      // 예전엔 여기서 바로 마이페이지로 보냈는데, 공연장은 안 그러길래 통일한다.
+      if (state.selectedBlock) this.renderSeatingGrid(state.selectedBlock.id);
+      this.navigateTo("stadium-detail");
     }
     this.showToast("🎉", isMusical ? "새로운 시야 정보가 등록되었습니다!" : "새로운 직관 기록과 시야 정보가 등록되었습니다!");
   }
@@ -6935,10 +6990,9 @@ class SeatViewApp {
     if (labelEl) {
       labelEl.innerHTML = `${this.escapeHtml(stadiumName)}<br>${this.escapeHtml(seatInfo ? seatInfo.blockName : blockName)} ${this.escapeHtml(seatInfo ? seatInfo.seatName : seatName)}`;
     }
-    // 야구장엔 시야 별점 개념이 없음 — 이전에 공연장 폼을 열어뒀다 여기로
-    // 왔을 때 별점 필드가 그대로 남아있지 않도록 명시적으로 숨긴다.
+    // 공연장과 동일하게 야구장도 시야 별점을 받는다.
     const ratingGroupEl = document.getElementById("form-rating-group");
-    if (ratingGroupEl) ratingGroupEl.style.display = "none";
+    if (ratingGroupEl) ratingGroupEl.style.display = "";
     this.setTicketDateFieldDefaults();
     this.resetTicketVerifiedState();
 
@@ -7067,7 +7121,7 @@ class SeatViewApp {
         const checkbox = document.getElementById("event-popup-dontshow-checkbox");
         if (checkbox && checkbox.checked) {
           const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-          localStorage.setItem("seatview_event_popup_hide_until", String(Date.now() + THREE_DAYS_MS));
+          localStorage.setItem("seatview_event_result_popup_hide_until", String(Date.now() + THREE_DAYS_MS));
         }
       }
       modal.classList.remove("active");

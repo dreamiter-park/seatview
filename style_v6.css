@@ -194,6 +194,16 @@ img {
     padding-top: calc(56px + env(safe-area-inset-top));
   }
 
+  /* 모바일에서는 .app-content 가 flex:1 이 아니라(위) 내용 높이만큼만 차지하므로,
+     마이페이지·1:1비교함의 min-height:100% (기본 규칙)는 기준이 없어 무의미해진다.
+     여기서는 실제 뷰포트(100dvh)에서 고정 헤더 높이를 뺀 값을 대신 기준으로 쓴다.
+     기본 규칙(#view-ticketbook.active 등)이 이 미디어쿼리보다 파일 뒤쪽에 있어서
+     그냥 두면 뒤쪽 규칙이 이겨버리므로(.app-content 위 주석과 같은 이유) !important. */
+  #view-ticketbook.active,
+  #view-compare.active {
+    min-height: calc(100dvh - 56px - env(safe-area-inset-top)) !important;
+  }
+
   /* .phone-frame can now be taller than the viewport (it grows with page
      content since real mobile scrolls the page, not an inner div). .modal
      is position:absolute against .phone-frame, so with align-items:flex-end
@@ -537,6 +547,22 @@ img {
 
 .view.active {
   display: block;
+}
+
+/* 마이페이지·1:1비교함처럼 내용이 짧을 수 있는 화면: 풋터(공유 <footer> —
+   navigateTo()가 현재 활성 .view의 마지막 자식으로 옮겨 둔다)가 짧은 내용
+   바로 밑에 붙어 화면 중간에 떠 보이는 대신, 항상 화면 맨 아래에 붙도록
+   한다. min-height 는 .app-content 가 실제로 채워주는 높이(데스크톱은
+   flex:1, 모바일은 아래 미디어쿼리에서 dvh 기준으로 따로 잡음) 기준. */
+#view-ticketbook.active,
+#view-compare.active {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+#view-ticketbook.active > .site-footer,
+#view-compare.active > .site-footer {
+  margin-top: auto;
 }
 
 @keyframes fadeIn {
@@ -1515,6 +1541,97 @@ img {
   margin-bottom: 0;
 }
 
+/* ===== Event Result Popup (당첨자 발표) ===== */
+/* 등수별 색: 1등 금 > 2등 은 > 3등 동 > 4등 쿨그레이 (--tier는 r,g,b) */
+.event-result-tier {
+  --tier: 148, 163, 184;
+  background: rgba(var(--tier), 0.12);
+  border: 1px solid rgba(var(--tier), 0.4);
+  border-left: 4px solid rgb(var(--tier));
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.event-result-tier-1 { --tier: 255, 215, 0; }    /* #FFD700 금 */
+.event-result-tier-2 { --tier: 160, 178, 198; }  /* #A0B2C6 은(실버 블루) */
+.event-result-tier-3 { --tier: 205, 127, 50; }   /* #CD7F32 동(브론즈) */
+.event-result-tier-4 { --tier: 108, 117, 125; }  /* #6C757D 쿨그레이 */
+
+.event-result-tier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  margin-bottom: 9px;
+  padding: 0 2px;
+}
+
+.event-result-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.event-result-chips-1col {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 모든 등수의 칩 크기/모양/불투명도를 동일하게 — 색상 띠와 테두리로만 구분 */
+.event-result-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(var(--tier), 0.13);
+  border: 1px solid rgba(var(--tier), 0.5);
+}
+
+.event-result-chip b {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-result-chip span {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.event-result-about {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 13px;
+  margin: 14px 0 12px;
+  font-size: 0.74rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  word-break: keep-all;
+}
+
+.event-result-about p {
+  margin: 0;
+}
+
+.event-result-about-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px !important;
+}
+
+.event-result-about strong {
+  color: var(--text-primary);
+}
+
 .stadium-badge {
   font-size: 0.7rem;
   font-weight: 700;
@@ -2226,6 +2343,25 @@ img {
 }
 
 .seat-item.has-camera:hover {
+  background-color: var(--accent-purple) !important;
+  border-color: var(--accent-purple) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+  transform: scale(1.15);
+  z-index: 10;
+}
+
+/* 공연장의 .floor-grid-seat.has-camera-official 과 동일한 개념 — 구단/구장이
+   공식 제공한 시야 사진(실제 관람객이 찍은 게 아님)은 회색으로 구분한다. */
+.seat-item.has-camera-official {
+  background-color: #64748b !important;
+  border: 1px solid #64748b !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.4);
+  font-weight: 700;
+}
+
+.seat-item.has-camera-official:hover {
   background-color: var(--accent-purple) !important;
   border-color: var(--accent-purple) !important;
   color: #ffffff !important;
@@ -4598,7 +4734,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   stroke-width: 3px;
 }
 /* PC: 배치도 화면은 공연장 상세처럼 패널이 넓어지되, 세로로 긴 지도 이미지가 너무
-   길어지지 않도록 지도 자체는 읽기 좋은 폭으로 가운데 정렬한다. */
+   길어지지 않도록 지도 자체는 읽기 좋은 폭으로 가운데 정렬한다. 배너·탭은 구역
+   상세화면과 동일하게 430px로 — 지도(SVG)만 그보다 넓은 760px까지 쓴다. */
 @media (min-width: 900px) {
   .phone-frame:has(#view-stadium-map.active) {
     max-width: min(1300px, 94vw);
@@ -4607,20 +4744,56 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     max-width: 760px;
     margin: 0 auto;
   }
+  #view-stadium-map .smlab-banner-profile,
+  #view-stadium-map #smlab-tabs {
+    max-width: 430px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 .smlab-viewport:not(.smlab-zoomed) { overflow: hidden; }
 
-/* PC: 배치도에서 구역을 눌러 들어온 좌석 화면(.from-map)도 공연장 상세와 같은 방식으로
-   패널을 넓힌다 — 배너는 읽기 좋은 폭으로 가운데 두고, 좌석 카드만 넓어진 폭을 그대로 쓴다.
-   (이 규칙이 없으면 배치도에서는 넓던 패널이 좌석 화면으로 넘어가자마자 좁아져 버린다.) */
+/* PC: 배치도에서 구역을 눌러 들어온 좌석 화면(.from-map)도 공연장 상세와 완전히 같은
+   방식으로 — 배너·탭은 읽기 좋은 폭(430px)으로 가운데 두고, 좌석 카드만 넓어진 패널
+   폭을 그대로 채운다(공연장의 .floor-grid-seat 이 넓은 패널에서 더 많은 열을 스크롤
+   없이 보여주는 것과 동일한 효과를 노린다).
+   (패널 자체를 넓히는 규칙이 없으면 배치도→좌석 화면 전환 때 패널이 좁아졌다 넓어지는
+   깜빡임이 생긴다.)
+   단, 공연장 좌석은 고정 26px인 반면 이 화면의 좌석(.seat-item)은 기본적으로 컨테이너
+   폭에 비례해서(cqw) 크기가 정해지는 방식이라(모바일에서 화면을 꽉 채우기 위함) —
+   패널이 넓어지면 좌석도 같이 커져버린다. PC 전용으로 좌석도 공연장과 동일하게 고정
+   26px로 바꿔서, 최대 31석까지 있는 넓은 구역(예: 외야석 132구역)도 PC에서는 스크롤
+   없이 한눈에 보이게 한다. 모바일 쪽 cqw 방식은 그대로 유지(이미 잘 보임). */
 @media (min-width: 900px) {
   .phone-frame:has(#view-stadium-detail.active.from-map) {
     max-width: min(1300px, 94vw);
   }
-  #view-stadium-detail.from-map .stadium-detail-profile {
+  #view-stadium-detail.from-map .stadium-detail-profile,
+  #view-stadium-detail.from-map .detail-tabs {
     max-width: 430px;
     margin-left: auto;
     margin-right: auto;
+  }
+  #view-stadium-detail.from-map .seat-item {
+    flex: 0 0 26px !important;
+  }
+  #view-stadium-detail.from-map .seat-row.offset-right .row-seats {
+    margin-left: 13px !important;
+  }
+  #view-stadium-detail.from-map .seat-row.offset-left .row-seats {
+    margin-left: -13px !important;
+  }
+  /* 열 폭(=가장 넓은 행 기준)이 넓어진 패널보다 좁을 때 왼쪽에 쏠려 보이지 않도록
+     블록 전체를 가운데로 — 각 행 안에서 1번 좌석이 항상 먼저 보이는 건 그대로다
+     (이건 행 전체를 가운데 두는 것뿐, 넘칠 때 어느 쪽부터 보이는지와는 별개). */
+  #view-stadium-detail.from-map .seat-rows {
+    /* 기본 규칙의 min-width:100% 가 좌석 적은 구역도 항상 컨테이너 전체 폭으로
+       강제로 늘려버려서(모바일에서 "화면 꽉 채우기" 위한 것) margin:auto가
+       아무 효과가 없었다 — PC에서는 이 강제 늘림을 풀어야 실제 내용 폭만큼만
+       차지하고 그 안에서 가운데 정렬이 눈에 보인다. */
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 }
 
