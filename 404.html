@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>잘못된 페이지 주소 - 잘보여유</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #080a0f;
+      --bg-card: #121620;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --accent-purple: #8b5cf6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      font-family: 'Noto Sans KR', sans-serif;
+      line-height: 1.7;
+      padding: 24px 16px;
+    }
+    .box {
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 36px 24px 32px;
+    }
+    .logo { height: 28px; margin-bottom: 24px; }
+    .code {
+      font-size: 2.6rem;
+      font-weight: 900;
+      color: var(--accent-purple);
+      letter-spacing: 2px;
+      margin: 0 0 4px;
+    }
+    h1 { font-size: 1.15rem; margin: 0 0 10px; }
+    p { font-size: 0.88rem; color: var(--text-secondary); margin: 0 0 24px; }
+    .home-btn {
+      display: inline-block;
+      background: var(--accent-purple);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 12px 28px;
+      border-radius: 12px;
+    }
+    .home-btn:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+  <main class="box">
+    <img class="logo" src="/assets/header-logo.png" alt="잘보여유">
+    <p class="code">404</p>
+    <h1>잘못된 페이지 주소예요</h1>
+    <p>주소가 바뀌었거나 없는 페이지예요.<br>홈에서 원하는 공연장을 찾아보세요.</p>
+    <a class="home-btn" href="/">홈으로 이동</a>
+  </main>
+</body>
+</html>

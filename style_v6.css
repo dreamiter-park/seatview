@@ -4512,6 +4512,19 @@ input[type="date"]:focus {
   font-size: 0.76rem;
 }
 
+/* 약관 개정 예정 공지(적용일 전까지) — 별도 줄 대신 약관 링크 옆에 작은 칩으로만 표시 */
+.site-footer-links .footer-revision-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  font-size: 0.6rem;
+  line-height: 1.5;
+  color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.14);
+  border-radius: 999px;
+  vertical-align: 1px;
+}
+
 .site-footer-business {
   font-size: 0.68rem;
   color: var(--text-muted);

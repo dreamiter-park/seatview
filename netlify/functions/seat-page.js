@@ -48,19 +48,41 @@ function seatLabel(seat) {
   return `${seat.row_num}열 ${seat.seat_num}번`;
 }
 
+// 요청 헤더의 호스트 값을 그대로 쓰면, 조작된 헤더로 다른 사이트의 HTML을
+// 가져와 우리 도메인의 페이지처럼 내보내게 만들 수 있다 — 허용 목록만 쓰고
+// 그 외에는 대표 도메인으로 고정한다.
+const ALLOWED_HOSTS = ["xn--on3b27no0awn.com", "www.xn--on3b27no0awn.com"];
+function resolveOrigin(event) {
+  const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
+  return ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
+}
+
+// 없는 좌석(또는 사진이 아직 없는 좌석) 주소는 글자만 있는 "Not found" 대신 사이트
+// 디자인의 안내 화면(404.html)을 404 상태 코드 그대로 보여준다.
+async function notFoundPage(event) {
+  try {
+    const res = await fetch(`${resolveOrigin(event)}/404.html`);
+    if (res.ok) {
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff" },
+        body: await res.text(),
+      };
+    }
+  } catch (e) {
+    console.error("seat-page function: failed to fetch 404.html", e);
+  }
+  return { statusCode: 404, body: "Not found" };
+}
+
 exports.handler = async (event) => {
   const idMatch = (event.path || "").match(/\/seat\/(\d+)/);
   const id = (event.queryStringParameters && event.queryStringParameters.id) || (idMatch && idMatch[1]);
   if (!id || !/^\d+$/.test(id)) {
-    return { statusCode: 404, body: "Not found" };
+    return notFoundPage(event);
   }
 
-  // 요청 헤더의 호스트 값을 그대로 쓰면, 조작된 헤더로 다른 사이트의 HTML을
-  // 가져와 우리 도메인의 페이지처럼 내보내게 만들 수 있다 — 허용 목록만 쓰고
-  // 그 외에는 대표 도메인으로 고정한다.
-  const ALLOWED_HOSTS = ["xn--on3b27no0awn.com", "www.xn--on3b27no0awn.com"];
-  const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
-  const origin = ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
+  const origin = resolveOrigin(event);
 
   let seat, block, venue, reviews;
   try {
@@ -76,11 +98,11 @@ exports.handler = async (event) => {
         `&musical_seat_reviews.is_blocked=eq.false&musical_seat_reviews.order=ins_dtm.desc&limit=1`
     );
     seat = seats[0];
-    if (!seat) return { statusCode: 404, body: "Seat not found" };
+    if (!seat) return notFoundPage(event);
     block = seat.musical_blocks;
-    if (!block) return { statusCode: 404, body: "Block not found" };
+    if (!block) return notFoundPage(event);
     venue = block.venues;
-    if (!venue) return { statusCode: 404, body: "Venue not found" };
+    if (!venue) return notFoundPage(event);
     // DB에는 "극장명_홀명"으로 저장돼 있지만 제목·설명·본문·구조화 데이터에는
     // 밑줄 대신 공백으로 내보낸다 (검색엔진이 단어를 나눠 읽도록).
     venue.name = String(venue.name || "").replace(/_/g, " ");
@@ -98,7 +120,7 @@ exports.handler = async (event) => {
   // No real content to show — this is exactly the "thin page" case we
   // decided to skip rather than generate for every seat regardless.
   if (photoUrls.length === 0) {
-    return { statusCode: 404, body: "No photos registered for this seat yet" };
+    return notFoundPage(event);
   }
 
   let indexHtml;
@@ -161,6 +183,18 @@ exports.handler = async (event) => {
     image: photoUrls,
   };
 
+  // 화면에는 보이지 않는, 검색엔진용 경로 정보("잘보여유 > 공연장 > 좌석"). 주소는 그대로
+  // 두고 계층 구조만 알려준다. "공연장 목록"은 별도 주소가 없는 화면이라 경로에서 뺐다.
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "잘보여유", item: "https://xn--on3b27no0awn.com/" },
+      { "@type": "ListItem", position: 2, name: venue.name, item: `https://xn--on3b27no0awn.com/venue/${venue.id}` },
+      { "@type": "ListItem", position: 3, name: `${blockLabel} ${seatLbl}` },
+    ],
+  };
+
   const photosHtml = photoUrls
     .slice(0, 6)
     .map((u) => `<img src="${escapeHtml(u)}" alt="${escapeHtml(fullLabel)} 시야 사진" style="max-width:100%;border-radius:8px;margin-bottom:10px;" loading="lazy">`)
@@ -208,7 +242,7 @@ exports.handler = async (event) => {
     )
     .replace(
       "</head>",
-      () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n</head>`
+      () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n<script type="application/ld+json">${safeJsonLd(breadcrumbLd)}</script>\n</head>`
     )
     .replace("<body>", () => `<body>\n${seoContentHtml}`);
 

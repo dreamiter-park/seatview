@@ -69,19 +69,41 @@ async function countVenuePhotos(id) {
 // 사진이 이 장수 이상일 때만 제목·설명에 숫자를 넣는다("3장"처럼 너무 적으면 오히려 약해 보임).
 const MIN_PHOTOS_FOR_COUNT = 3;
 
+// 요청 헤더의 호스트 값을 그대로 쓰면, 조작된 헤더로 다른 사이트의 HTML을
+// 가져와 우리 도메인의 페이지처럼 내보내게 만들 수 있다 — 허용 목록만 쓰고
+// 그 외에는 대표 도메인으로 고정한다.
+const ALLOWED_HOSTS = ["xn--on3b27no0awn.com", "www.xn--on3b27no0awn.com"];
+function resolveOrigin(event) {
+  const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
+  return ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
+}
+
+// 없는 공연장 주소는 글자만 있는 "Not found" 대신 사이트 디자인의 안내 화면(404.html)을
+// 404 상태 코드 그대로 보여준다(검색엔진에는 계속 "없는 페이지"로 전달됨).
+async function notFoundPage(event) {
+  try {
+    const res = await fetch(`${resolveOrigin(event)}/404.html`);
+    if (res.ok) {
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff" },
+        body: await res.text(),
+      };
+    }
+  } catch (e) {
+    console.error("venue-page function: failed to fetch 404.html", e);
+  }
+  return { statusCode: 404, body: "Not found" };
+}
+
 exports.handler = async (event) => {
   const idMatch = (event.path || "").match(/\/venue\/(\d+)/);
   const id = (event.queryStringParameters && event.queryStringParameters.id) || (idMatch && idMatch[1]);
   if (!id || !/^\d+$/.test(id)) {
-    return { statusCode: 404, body: "Not found" };
+    return notFoundPage(event);
   }
 
-  // 요청 헤더의 호스트 값을 그대로 쓰면, 조작된 헤더로 다른 사이트의 HTML을
-  // 가져와 우리 도메인의 페이지처럼 내보내게 만들 수 있다 — 허용 목록만 쓰고
-  // 그 외에는 대표 도메인으로 고정한다.
-  const ALLOWED_HOSTS = ["xn--on3b27no0awn.com", "www.xn--on3b27no0awn.com"];
-  const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
-  const origin = ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
+  const origin = resolveOrigin(event);
 
   let venue, blocks, photoCount = 0;
   try {
@@ -100,7 +122,7 @@ exports.handler = async (event) => {
     photoCount = photos;
     venue = venues[0];
     // 노출을 꺼둔 공연장은 주소를 직접 입력해도 페이지를 만들지 않는다(사이트맵과 동일 기준).
-    if (!venue || venue.is_visible === false) return { statusCode: 404, body: "Venue not found" };
+    if (!venue || venue.is_visible === false) return notFoundPage(event);
     // DB에는 "극장명_홀명"으로 저장돼 있지만 제목·설명·본문·구조화 데이터에는
     // 밑줄 대신 공백으로 내보낸다 (검색엔진이 "충무아트센터 대극장"처럼 단어를
     // 나눠 읽도록).
@@ -154,6 +176,16 @@ exports.handler = async (event) => {
     name: venue.name,
     address: venue.address || undefined,
     url: canonicalUrl,
+  };
+
+  // 화면에는 보이지 않는, 검색엔진용 경로 정보("잘보여유 > 공연장"). 주소는 그대로 둔다.
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "잘보여유", item: "https://xn--on3b27no0awn.com/" },
+      { "@type": "ListItem", position: 2, name: venue.name },
+    ],
   };
 
   // app_v6.js's <body> is `display:flex; align-items:center; justify-content:center`
@@ -212,7 +244,7 @@ exports.handler = async (event) => {
     )
     .replace(
       "</head>",
-      () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n</head>`
+      () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n<script type="application/ld+json">${safeJsonLd(breadcrumbLd)}</script>\n</head>`
     )
     .replace("<body>", () => `<body>\n${seoContentHtml}`);
 
