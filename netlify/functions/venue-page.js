@@ -157,9 +157,22 @@ exports.handler = async (event) => {
   const title = hasCount
     ? `${venue.name} 좌석 시야 후기 | 시야 사진 ${photoCount}장 - 잘보여유`
     : `${venue.name} 좌석 시야 후기 | 뮤지컬·연극 공연장 - 잘보여유`;
+  // 네이버 서치어드바이저가 설명을 80자 이내로 권장하므로(넘으면 검색 결과에서 잘림),
+  // 공연장 이름이 길어도 80자 이하가 되도록 풍부한 문구부터 차례로 시도한다.
+  const fitDescription = (candidates) =>
+    candidates.find((s) => [...s].length <= 80) || [...candidates[candidates.length - 1]].slice(0, 80).join("");
   const description = hasCount
-    ? `${venue.name} ${floorsText}구역별 실제 시야 사진 ${photoCount}장과 관람객 후기를 확인하세요. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`
-    : `${venue.name}에서 실제 관람객이 등록한 구역별 좌석 시야 사진과 후기를 확인하세요. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`;
+    ? fitDescription([
+        `${venue.name} ${floorsText}실제 시야 사진 ${photoCount}장과 후기를 확인하세요. 뮤지컬·연극 공연장 시야 공유 서비스 잘보여유.`,
+        `${venue.name} ${floorsText}실제 시야 사진 ${photoCount}장과 후기를 확인하세요. 뮤지컬·연극 공연장 잘보여유.`,
+        `${venue.name} 실제 시야 사진 ${photoCount}장과 후기를 확인하세요. 뮤지컬·연극 공연장 잘보여유.`,
+        `${venue.name} 시야 사진 ${photoCount}장과 후기를 확인하세요. 잘보여유.`,
+      ])
+    : fitDescription([
+        `${venue.name}에서 실제 관람객이 등록한 구역별 좌석 시야 사진과 후기를 확인하세요. 잘보여유.`,
+        `${venue.name}의 구역별 좌석 시야 사진과 후기를 확인하세요. 뮤지컬·연극 공연장 잘보여유.`,
+        `${venue.name}의 좌석 시야 사진과 후기를 확인하세요. 잘보여유.`,
+      ]);
   const floorListHtml = floors
     .map((floor) => {
       const names = blocks

@@ -137,7 +137,13 @@ exports.handler = async (event) => {
   const fullLabel = `${venue.name} ${blockLabel} ${seatLbl}`;
 
   const title = `${fullLabel} 좌석 시야 후기 | 잘보여유`;
-  const description = `${fullLabel}에서 실제 관람객이 등록한 좌석 시야 사진과 후기입니다. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`;
+  // 네이버 서치어드바이저가 설명을 80자 이내로 권장하므로, 공연장·구역 이름이 길어도
+  // 80자 이하가 되도록 풍부한 문구부터 차례로 시도한다.
+  const description = [
+    `${fullLabel}에서 실제 관람객이 등록한 좌석 시야 사진과 후기입니다. 뮤지컬·연극 공연장 잘보여유.`,
+    `${fullLabel}의 실제 좌석 시야 사진과 후기입니다. 잘보여유.`,
+    `${fullLabel} 시야 사진과 후기 | 잘보여유`,
+  ].find((s) => [...s].length <= 80) || [...`${fullLabel} 시야 사진과 후기 | 잘보여유`].slice(0, 80).join("");
   const canonicalUrl = `https://xn--on3b27no0awn.com/seat/${id}`;
 
   // Google's Review rich-result validator flagged two real problems here
