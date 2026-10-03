@@ -45,6 +45,30 @@ async function supabaseGet(path) {
   return res.json();
 }
 
+// 제목·설명에 넣을 "등록된 시야 사진 장수". 후기 건수가 아니라 사진 장수(후기 하나에
+// 여러 장일 수 있음)를 센다. PostgREST 기본 1000행 제한 때문에 끝까지 나눠서 읽는다.
+// 실패해도 페이지 자체는 만들어야 하므로 호출하는 쪽에서 try/catch로 감싼다.
+async function countVenuePhotos(id) {
+  const PAGE = 1000;
+  let total = 0;
+  for (let offset = 0; ; offset += PAGE) {
+    const rows = await supabaseGet(
+      `/musical_seat_reviews?is_blocked=eq.false` +
+        `&select=image_urls,musical_seats!inner(musical_blocks!inner(venue_id))` +
+        `&musical_seats.musical_blocks.venue_id=eq.${id}` +
+        `&order=id.asc&limit=${PAGE}&offset=${offset}`
+    );
+    rows.forEach((r) => {
+      if (Array.isArray(r.image_urls)) total += r.image_urls.filter(Boolean).length;
+    });
+    if (rows.length < PAGE) break;
+  }
+  return total;
+}
+
+// 사진이 이 장수 이상일 때만 제목·설명에 숫자를 넣는다("3장"처럼 너무 적으면 오히려 약해 보임).
+const MIN_PHOTOS_FOR_COUNT = 3;
+
 exports.handler = async (event) => {
   const idMatch = (event.path || "").match(/\/venue\/(\d+)/);
   const id = (event.queryStringParameters && event.queryStringParameters.id) || (idMatch && idMatch[1]);
@@ -59,15 +83,21 @@ exports.handler = async (event) => {
   const reqHost = event.headers["x-forwarded-host"] || event.headers.host;
   const origin = ALLOWED_HOSTS.includes(reqHost) ? `https://${reqHost}` : "https://xn--on3b27no0awn.com";
 
-  let venue, blocks;
+  let venue, blocks, photoCount = 0;
   try {
     // Independent of each other (blocks is filtered by the URL's id, not
     // by anything the venue query returns) — no reason to wait for one
     // before starting the other.
-    const [venues, blockRows] = await Promise.all([
-      supabaseGet(`/venues?id=eq.${id}&select=id,name,address,food_info,parking_info,is_visible&limit=1`),
+    const [venues, blockRows, photos] = await Promise.all([
+      supabaseGet(`/venues?id=eq.${id}&select=id,name,address,food_info,parking_info,is_visible,bg_image_url&limit=1`),
       supabaseGet(`/musical_blocks?venue_id=eq.${id}&is_visible=eq.true&select=floor,full_name,block_code&order=floor.asc`),
+      // 사진 수 집계가 실패해도 페이지는 기존 문구로 그대로 내보낸다.
+      countVenuePhotos(id).catch((e) => {
+        console.error("venue-page function: photo count failed", e);
+        return 0;
+      }),
     ]);
+    photoCount = photos;
     venue = venues[0];
     // 노출을 꺼둔 공연장은 주소를 직접 입력해도 페이지를 만들지 않는다(사이트맵과 동일 기준).
     if (!venue || venue.is_visible === false) return { statusCode: 404, body: "Venue not found" };
@@ -93,11 +123,21 @@ exports.handler = async (event) => {
   // "뮤지컬"/"연극" spelled out explicitly in the title/description — the
   // venue name alone won't surface for someone searching the broader
   // category rather than a specific venue by name.
-  const title = `${venue.name} 좌석 시야 후기 | 뮤지컬·연극 공연장 - 잘보여유`;
-  const description = `${venue.name}에서 실제 관람객이 등록한 구역별 좌석 시야 사진과 후기를 확인하세요. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`;
   const canonicalUrl = `https://xn--on3b27no0awn.com/venue/${id}`;
 
   const floors = [...new Set(blocks.map((b) => b.floor))].sort((a, b) => a - b);
+
+  // 사진이 충분히 쌓인 공연장은 제목·설명에 공연장별 고유 정보(사진 장수·층 구성)를 넣어
+  // 검색 결과에서 공연장끼리 구분되게 한다. 현재 공연명은 공연이 바뀔 때마다 검색엔진이
+  // 다시 수집해야 하므로 일부러 넣지 않는다. 부족하면 기존 문구를 그대로 쓴다.
+  const hasCount = photoCount >= MIN_PHOTOS_FOR_COUNT;
+  const floorsText = floors.length ? `${floors.map((f) => `${f}층`).join("·")} ` : "";
+  const title = hasCount
+    ? `${venue.name} 좌석 시야 후기 | 시야 사진 ${photoCount}장 - 잘보여유`
+    : `${venue.name} 좌석 시야 후기 | 뮤지컬·연극 공연장 - 잘보여유`;
+  const description = hasCount
+    ? `${venue.name} ${floorsText}구역별 실제 시야 사진 ${photoCount}장과 관람객 후기를 확인하세요. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`
+    : `${venue.name}에서 실제 관람객이 등록한 구역별 좌석 시야 사진과 후기를 확인하세요. 뮤지컬·연극 공연장 좌석 시야 공유 서비스 잘보여유.`;
   const floorListHtml = floors
     .map((floor) => {
       const names = blocks
@@ -165,6 +205,11 @@ exports.handler = async (event) => {
     .replace(/<meta property="og:title" content="[^"]*">/, () => `<meta property="og:title" content="${titleTag}">`)
     .replace(/<meta property="og:description" content="[^"]*">/, () => `<meta property="og:description" content="${descTag}">`)
     .replace(/<meta property="og:url" content="[^"]*">/, () => `<meta property="og:url" content="${canonicalUrl}">`)
+    // 공유·검색 썸네일 후보를 사이트 공통 이미지 대신 이 공연장의 대표 이미지로 바꾼다.
+    // 대표 이미지가 없거나 https 주소가 아니면 공통 이미지를 그대로 둔다.
+    .replace(/<meta property="og:image" content="[^"]*">/, (m) =>
+      /^https:\/\//.test(venue.bg_image_url || "") ? `<meta property="og:image" content="${escapeHtml(venue.bg_image_url)}">` : m
+    )
     .replace(
       "</head>",
       () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n</head>`

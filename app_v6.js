@@ -2341,6 +2341,8 @@ class SeatViewApp {
   }
 
   maybeShowEventPopup() {
+    // 당첨자 발표 팝업은 2026-10-17(토) 23:59 KST까지만 노출한다.
+    if (Date.now() >= new Date("2026-10-18T00:00:00+09:00").getTime()) return;
     const hideUntil = Number(localStorage.getItem("seatview_event_result_popup_hide_until") || 0);
     if (Date.now() < hideUntil) return;
     // pushHistory=false — this shows on every fresh load regardless of what
@@ -7292,7 +7294,7 @@ class SeatViewApp {
         this.checkUserSession();
       } catch (e) {
         console.warn("Withdraw error:", e);
-        await this.showAlertDialog("\uD0C8\uD1F4 \uCC98\uB9AC \uC2E4\uD328", "\uD68C\uC6D0 \uD0C8\uD1F4\uB97C \uC9C0\uC6D0\uD558\uAE30 \uC704\uD574 DB\uC5D0 \uD0C8\uD1F4 Policy\uAC00 \uD544\uC694\uD569\uB2C8\uB2E4.\n\n\uC548\uB0B4\uB4DC\uB9AC\uB294 SQL \uCFFC\uB9AC\uB97C SQL Editor\uC5D0 \uC2E4\uD589\uD574 \uC8FC\uC138\uC694!");
+        await this.showAlertDialog("\uD0C8\uD1F4 \uCC98\uB9AC\uC5D0 \uC2E4\uD328\uD588\uC5B4\uC694", "\uD0C8\uD1F4 \uCC98\uB9AC \uC911 \uBB38\uC81C\uAC00 \uBC1C\uC0DD\uD588\uC5B4\uC694. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694.\n\n\uACC4\uC18D \uC2E4\uD328\uD558\uBA74 j2mi.help@gmail.com \uC73C\uB85C \uBB38\uC758\uD574 \uC8FC\uC138\uC694.");
       }
     }
   }

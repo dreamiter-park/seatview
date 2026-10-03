@@ -66,6 +66,15 @@
   status = 404
   force = true
 
+# 서버 함수 소스(netlify/functions/*.js)가 정적 파일로도 그대로 열렸다. 실제 함수는
+# /.netlify/functions/ 경로로만 실행되므로(위 /venue, /seat, /sitemap.xml 규칙),
+# 소스 파일 경로는 외부에서 막아도 서비스에 영향이 없다.
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # 예전 관리자 페이지 복사본 (실제 관리자 페이지는 /admin.html)
 [[redirects]]
   from = "/admin-site"

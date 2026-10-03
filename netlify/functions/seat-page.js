@@ -201,6 +201,11 @@ exports.handler = async (event) => {
     .replace(/<meta property="og:title" content="[^"]*">/, () => `<meta property="og:title" content="${titleTag}">`)
     .replace(/<meta property="og:description" content="[^"]*">/, () => `<meta property="og:description" content="${descTag}">`)
     .replace(/<meta property="og:url" content="[^"]*">/, () => `<meta property="og:url" content="${canonicalUrl}">`)
+    // 공유·검색 썸네일 후보를 사이트 공통 이미지 대신 이 좌석의 실제 시야 사진으로 바꾼다.
+    // (최신 후기의 첫 사진. https 주소가 아니면 공통 이미지를 그대로 둔다.)
+    .replace(/<meta property="og:image" content="[^"]*">/, (m) =>
+      /^https:\/\//.test(photoUrls[0]) ? `<meta property="og:image" content="${escapeHtml(photoUrls[0])}">` : m
+    )
     .replace(
       "</head>",
       () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n</head>`

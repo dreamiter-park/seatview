@@ -32,13 +32,23 @@ exports.handler = async () => {
   // page (seat-page.js 404s on the rest) — pulling every review's
   // image_urls here and filtering client-side, since PostgREST has no
   // "array is non-empty" filter to push this down to the query itself.
-  // Fine at today's volume; worth paginating if this list grows large.
+  // PostgREST는 한 번에 최대 1000행만 돌려주므로(후기가 1000건을 넘으면 뒤쪽 좌석이
+  // 사이트맵에서 조용히 빠진다) 끝까지 나눠서 읽는다. order=id.asc는 페이지 사이에
+  // 행이 겹치거나 빠지지 않게 순서를 고정하기 위한 것.
   let seatIds = [];
   try {
-    const reviews = await supabaseGet(
-      `/musical_seat_reviews?is_blocked=eq.false&select=musical_seat_id,image_urls`
-    );
-    const withPhotos = reviews.filter((r) => Array.isArray(r.image_urls) && r.image_urls.length > 0);
+    const PAGE = 1000;
+    const withPhotos = [];
+    for (let offset = 0; ; offset += PAGE) {
+      const rows = await supabaseGet(
+        `/musical_seat_reviews?is_blocked=eq.false&select=musical_seat_id,image_urls` +
+          `&order=id.asc&limit=${PAGE}&offset=${offset}`
+      );
+      rows.forEach((r) => {
+        if (Array.isArray(r.image_urls) && r.image_urls.length > 0) withPhotos.push(r);
+      });
+      if (rows.length < PAGE) break;
+    }
     seatIds = [...new Set(withPhotos.map((r) => r.musical_seat_id).filter((id) => id != null))];
   } catch (e) {
     console.error("sitemap function: seat review fetch failed", e);
