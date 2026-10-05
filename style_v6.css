@@ -4610,18 +4610,20 @@ input[type="date"]:focus {
 }
 .notice-body[hidden] { display: none; }
 
-/* 이벤트·발표 공지: 위쪽 핵심 요약 상자 + 구분선 + 아래 본문 */
+/* 이벤트·발표 공지: 위쪽 핵심 요약(배경·굵은 글씨 없이 글만) + 구분선 + 아래 본문 카드(배경 있음) */
 .notice-summary {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(139, 92, 246, 0.12);
   color: var(--text-primary);
-  font-weight: 600;
 }
 .notice-divider {
   border: 0;
   border-top: 1px solid var(--border-color);
   margin: 14px 0;
+}
+.notice-card {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
 }
 
 .notice-empty {
