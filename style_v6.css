@@ -1447,15 +1447,11 @@ img {
 
 /* 이벤트 슬라이드의 추첨 줄: 최다 등록자 줄(보라)과 똑같이 눈에 띄도록 다른 색(분홍) 배경·왼쪽 띠를 준다 */
 .event-popup-prize-draw {
-  background: rgba(244, 114, 182, 0.15);
-  border-left: 3px solid #f472b6;
+  background: rgba(244, 114, 182, 0.08);
+  border-left: 3px solid rgba(244, 114, 182, 0.5);
 }
 .event-popup-prize-draw .event-popup-rank {
-  color: #fbcfe8;
-}
-.event-popup-prize-draw .event-popup-gift {
-  color: #fff;
-  font-weight: 700;
+  color: #f3c6dc;
 }
 
 /* 참고사항 안의 꼭 알아야 할 문장(굵게 + 밑줄) */
