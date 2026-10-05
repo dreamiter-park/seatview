@@ -4573,6 +4573,7 @@ input[type="date"]:focus {
 
 .notice-cat {
   flex-shrink: 0;
+  white-space: nowrap;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 0.68rem;
@@ -4608,6 +4609,20 @@ input[type="date"]:focus {
   word-break: keep-all;
 }
 .notice-body[hidden] { display: none; }
+
+/* 이벤트·발표 공지: 위쪽 핵심 요약 상자 + 구분선 + 아래 본문 */
+.notice-summary {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.notice-divider {
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  margin: 14px 0;
+}
 
 .notice-empty {
   padding: 36px 0;

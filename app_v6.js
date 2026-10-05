@@ -7642,7 +7642,7 @@ class SeatViewApp {
       box.innerHTML = '<div class="notice-empty">등록된 공지사항이 없어요.</div>';
       return;
     }
-    const catKey = { "안내": "info", "이벤트": "event", "발표": "result" };
+    const catKey = { "안내": "info", "이벤트": "event", "당첨자 발표": "result", "발표": "result" };
     box.innerHTML = notices.map((n) => `
       <div class="notice-item">
         <button type="button" class="notice-head" onclick="app.toggleNoticeItem(this)" aria-expanded="false">
@@ -7650,7 +7650,7 @@ class SeatViewApp {
           <span class="notice-title">${n.is_pinned ? "📌 " : ""}${this.escapeHtml(n.title)}</span>
           <span class="notice-date">${this.formatNoticeDate(n.published_at)}</span>
         </button>
-        <div class="notice-body" hidden>${this.escapeHtml(n.body)}</div>
+        <div class="notice-body" hidden>${this.renderNoticeBody(n.body)}</div>
       </div>`).join("");
     // 목록을 열어 봤으면 새 공지 배지를 끈다.
     try {
@@ -7659,6 +7659,18 @@ class SeatViewApp {
     } catch (e) { /* 저장소 사용 불가 시 무시 */ }
     const badge = document.getElementById("footer-notice-badge");
     if (badge) badge.style.display = "none";
+  }
+
+  // 본문은 항상 escapeHtml 을 거친 글자로만 출력한다. 본문 안에 "---" 만 있는 줄이 있으면
+  // 그 줄을 구분선으로 바꾸고, 선 위쪽 글은 "요약" 상자로 보여 준다(이벤트·발표 공지용:
+  // 위에 핵심 요약, 선 아래에 자세한 본문). 선이 없는 공지는 예전처럼 본문만 보인다.
+  renderNoticeBody(body) {
+    const parts = String(body == null ? "" : body)
+      // SQL Editor 에 붙여 넣은 본문은 줄바꿈이 \r\n 으로 저장될 수 있어 \r 도 허용한다.
+      .split(/\r?\n[ \t]*-{3,}[ \t]*\r?\n/)
+      .map((p) => this.escapeHtml(p.replace(/^(\r?\n)+|(\r?\n)+$/g, "")));
+    if (parts.length < 2) return parts[0];
+    return `<div class="notice-summary">${parts[0]}</div><hr class="notice-divider">${parts.slice(1).join('<hr class="notice-divider">')}`;
   }
 
   toggleNoticeItem(btn) {
