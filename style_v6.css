@@ -1476,6 +1476,12 @@ img {
   word-break: keep-all;
 }
 
+/* 안내 줄(참여 기간·당첨 발표 등)은 줄바꿈 없이 한 줄로 보이게 한다. 문구는 가장 좁은 폰트 폭(약 360px)
+   에서도 한 줄에 들어가는 길이로 쓸 것(늘릴 때는 폭을 다시 확인). */
+.event-popup-slide[data-slide-id="event"] .event-popup-info > div {
+  white-space: nowrap;
+}
+
 .event-popup-info strong {
   color: var(--text-primary);
 }
@@ -1512,6 +1518,60 @@ img {
 
 .event-popup-notice a {
   color: #a5b4fc;
+}
+
+/* 팝업 슬라이드: 하나의 팝업 안에서 ‹ › 로 안내를 넘긴다(활성 슬라이드만 보임) */
+.event-popup-slide {
+  display: none;
+}
+.event-popup-slide.is-active {
+  display: block;
+}
+
+.event-popup-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.event-popup-nav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.event-popup-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.event-popup-dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.5;
+  cursor: pointer;
+}
+.event-popup-dot.is-active {
+  background: var(--accent-purple);
+  opacity: 1;
 }
 
 .event-popup-actions {

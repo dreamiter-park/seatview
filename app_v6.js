@@ -2345,11 +2345,82 @@ class SeatViewApp {
     }
   }
 
+  // 이벤트 팝업 내용(슬라이드 구성)이 바뀌면 이 값을 올린다. 이용자가 예전에 "3일간 다시
+  // 보지 않기"를 눌렀더라도 새 내용이 올라오면 다시 보여 주기 위한 버전 표시다.
+  EVENT_POPUP_VERSION = "2026-10-05";
+
+  // 지금 보여 줄 슬라이드: data-expires(KST 시각)가 지난 슬라이드는 제외한다.
+  getEventPopupSlides() {
+    return [...document.querySelectorAll("#event-popup-slides .event-popup-slide")]
+      .filter((s) => !s.dataset.expires || Date.now() < new Date(s.dataset.expires).getTime());
+  }
+
+  setEventPopupSlide(index) {
+    const slides = this.getEventPopupSlides();
+    if (!slides.length) return;
+    const i = ((index % slides.length) + slides.length) % slides.length;
+    this._eventPopupIndex = i;
+    document.querySelectorAll("#event-popup-slides .event-popup-slide").forEach((s) => s.classList.remove("is-active"));
+    slides[i].classList.add("is-active");
+    document.querySelectorAll("#event-popup-dots .event-popup-dot").forEach((d, di) => d.classList.toggle("is-active", di === i));
+    // 슬라이드가 바뀔 때 팝업 안 스크롤을 맨 위로
+    const content = document.querySelector("#modal-event-popup .event-popup-content");
+    if (content) content.scrollTop = 0;
+  }
+
+  stepEventPopupSlide(delta) {
+    this.setEventPopupSlide((this._eventPopupIndex || 0) + delta);
+  }
+
+  // 슬라이드 준비: 노출 기간이 지난 슬라이드는 숨기고, 2개 이상일 때만 < > 와 점을 보인다.
+  setupEventPopupSlides() {
+    const all = [...document.querySelectorAll("#event-popup-slides .event-popup-slide")];
+    const active = this.getEventPopupSlides();
+    all.forEach((s) => { if (!active.includes(s)) s.remove(); });
+    const nav = document.getElementById("event-popup-nav");
+    const dots = document.getElementById("event-popup-dots");
+    if (dots) {
+      dots.innerHTML = active.map((s, i) =>
+        `<button type="button" class="event-popup-dot" aria-label="${this.escapeHtml(s.dataset.label || `안내 ${i + 1}`)}" onclick="app.setEventPopupSlide(${i})"></button>`
+      ).join("");
+    }
+    if (nav) nav.style.display = active.length > 1 ? "flex" : "none";
+    this.setEventPopupSlide(0);
+
+    // 모바일 스와이프(가로로 밀기)와 키보드 ← →
+    if (!this._eventPopupSwipeBound) {
+      this._eventPopupSwipeBound = true;
+      const area = document.getElementById("event-popup-slides");
+      let sx = 0, sy = 0;
+      area.addEventListener("touchstart", (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+      area.addEventListener("touchend", (e) => {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) this.stepEventPopupSlide(dx < 0 ? 1 : -1);
+      }, { passive: true });
+      document.addEventListener("keydown", (e) => {
+        const m = document.getElementById("modal-event-popup");
+        if (!m || !m.classList.contains("active")) return;
+        if (e.key === "ArrowRight") this.stepEventPopupSlide(1);
+        else if (e.key === "ArrowLeft") this.stepEventPopupSlide(-1);
+      });
+    }
+  }
+
   maybeShowEventPopup() {
-    // 당첨자 발표 팝업은 2026-10-17(토) 23:59 KST까지만 노출한다.
-    if (Date.now() >= new Date("2026-10-18T00:00:00+09:00").getTime()) return;
-    const hideUntil = Number(localStorage.getItem("seatview_event_result_popup_hide_until") || 0);
+    // 노출할 슬라이드가 하나도 없으면(모든 슬라이드의 노출 기간이 끝나면) 팝업을 띄우지 않는다.
+    // 당첨자 발표 슬라이드는 2026-10-17(토) 23:59 KST까지만 노출한다(index.html의 data-expires).
+    if (!this.getEventPopupSlides().length) return;
+    // "3일간 다시 보지 않기"는 같은 팝업 버전에서만 유효하다 — 팝업 내용이 새로 바뀌면 다시 보여 준다.
+    let hideUntil = 0;
+    try {
+      const savedVersion = localStorage.getItem("seatview_event_popup_version");
+      if (savedVersion === this.EVENT_POPUP_VERSION) {
+        hideUntil = Number(localStorage.getItem("seatview_event_result_popup_hide_until") || 0);
+      }
+    } catch (e) { /* 저장소 사용 불가 시 그냥 보여 준다 */ }
     if (Date.now() < hideUntil) return;
+    this.setupEventPopupSlides();
     // pushHistory=false — this shows on every fresh load regardless of what
     // view/deep-link is underneath, so it must not insert its own back-stop
     // (same reasoning as modal-seat-detail in openSeatDetail): a real user
@@ -7129,6 +7200,7 @@ class SeatViewApp {
         if (checkbox && checkbox.checked) {
           const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
           localStorage.setItem("seatview_event_result_popup_hide_until", String(Date.now() + THREE_DAYS_MS));
+          localStorage.setItem("seatview_event_popup_version", this.EVENT_POPUP_VERSION);
         }
       }
       modal.classList.remove("active");
