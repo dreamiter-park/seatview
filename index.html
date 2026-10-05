@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.73">
+  <link rel="stylesheet" href="/style_v6.css?v=5.75">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -175,10 +175,12 @@
                through 메인 first. -->
           <footer class="site-footer" id="site-footer">
             <div class="site-footer-links">
-              <a href="/terms.html#revision-notice">이용약관<span class="footer-revision-tag">개정예정</span></a>
+              <a href="#notice" onclick="app.navigateTo('notice'); return false;">공지사항<span class="footer-notice-badge" id="footer-notice-badge" style="display: none;">N</span></a>
+              <span class="site-footer-divider">·</span>
+              <a href="/terms.html">이용약관</a>
               <span class="site-footer-divider">·</span>
               <a href="/privacy.html">개인정보처리방침</a>
-              <span class="site-footer-divider">·</span>
+              <span class="site-footer-break"></span>
               <a href="/event-terms.html">이벤트 참여규정</a>
               <span class="site-footer-divider">·</span>
               <a href="/email-policy.html">이메일무단수집거부</a>
@@ -544,6 +546,13 @@
         </section>
 
         <!-- 4. 1:1 COMPARE VIEW -->
+        <!-- 공지사항: 약관 개정·이벤트 안내/발표·서비스 안내. 내용은 notices 표에서 읽는다
+             (등록·수정은 앱이 아니라 Supabase SQL Editor에서 SQL로 한다). -->
+        <section id="view-notice" class="view">
+          <h2 class="notice-page-title">공지사항</h2>
+          <div class="notice-list" id="notice-list-container"></div>
+        </section>
+
         <section id="view-compare" class="view">
           <!-- Cart-style toolbar: item count + clear action, only shown when non-empty -->
           <div id="compare-toolbar" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1198,7 +1207,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.75"></script>
+  <script src="/app_v6.js?v=9.76"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

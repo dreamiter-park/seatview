@@ -661,6 +661,7 @@ class SeatViewApp {
       this.renderVenueList();
     });
     this.loadCategories();
+    this.refreshNoticeBadge();
     this.updateCompareBadge();
 
     // The one-shot checkUserSession() above can race the OAuth redirect's
@@ -1412,6 +1413,8 @@ class SeatViewApp {
       document.title = "1:1 시야 비교 | 잘보여유";
     } else if (viewId === "ticketbook") {
       document.title = "마이페이지 | 잘보여유";
+    } else if (viewId === "notice") {
+      document.title = "공지사항 | 잘보여유";
     } else {
       document.title = DEFAULT_TITLE;
     }
@@ -1427,6 +1430,8 @@ class SeatViewApp {
       this.renderTicketbook();
     } else if (viewId === "compare") {
       this.renderCompareView();
+    } else if (viewId === "notice") {
+      this.renderNoticeView();
     } else if (viewId === "stadiums") {
       this.renderStadiumList();
     } else if (viewId === "venues") {
@@ -7570,6 +7575,98 @@ class SeatViewApp {
   // "2026-07-01" -> "2026.07.01", for the venue-detail 공연 일정 card.
   formatShowDate(isoDate) {
     return isoDate ? isoDate.replace(/-/g, ".") : "";
+  }
+
+  // --- 공지사항 ---
+  // 내용은 notices 표(공개 읽기 전용)에서 읽는다. 표가 아직 없거나 읽기에 실패하면
+  // null 을 돌려주고, 호출하는 쪽에서 오류 안내/배지 숨김으로 처리한다.
+  async loadNotices() {
+    if (!supabaseClient) return null;
+    try {
+      const { data, error } = await supabaseClient
+        .from("notices")
+        .select("id, category, title, body, is_pinned, published_at")
+        .eq("is_visible", true)
+        .order("is_pinned", { ascending: false })
+        .order("published_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.warn("Notice load failed:", e);
+      return null;
+    }
+  }
+
+  formatNoticeDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    const parts = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+    const pick = (t) => (parts.find((p) => p.type === t) || {}).value || "";
+    return `${pick("year")}.${pick("month")}.${pick("day")}`;
+  }
+
+  // 푸터 "공지사항" 옆 N 배지: 가장 최근 공지가 30일 이내이고, 이 브라우저에서 아직 공지사항
+  // 화면을 열어 보지 않은 경우에만 보인다(공지사항 화면을 열면 본 것으로 기록).
+  async refreshNoticeBadge() {
+    const badge = document.getElementById("footer-notice-badge");
+    if (!badge || !supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from("notices")
+        .select("published_at")
+        .eq("is_visible", true)
+        .order("published_at", { ascending: false })
+        .limit(1);
+      if (error || !data || !data.length) return;
+      const latest = new Date(data[0].published_at).getTime();
+      let seen = 0;
+      try { seen = Number(localStorage.getItem("seatview_notice_seen_at") || 0); } catch (e) { /* 저장소 사용 불가 시 항상 새 공지로 취급 */ }
+      const recent = Date.now() - latest < 30 * 24 * 60 * 60 * 1000;
+      badge.style.display = (latest > seen && recent) ? "inline-block" : "none";
+    } catch (e) {
+      console.warn("Notice badge failed:", e);
+    }
+  }
+
+  async renderNoticeView() {
+    const box = document.getElementById("notice-list-container");
+    if (!box) return;
+    box.innerHTML = '<div class="notice-empty">불러오는 중...</div>';
+    const notices = await this.loadNotices();
+    if (notices === null) {
+      box.innerHTML = '<div class="notice-empty">공지사항을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>';
+      return;
+    }
+    if (!notices.length) {
+      box.innerHTML = '<div class="notice-empty">등록된 공지사항이 없어요.</div>';
+      return;
+    }
+    const catKey = { "안내": "info", "이벤트": "event", "발표": "result" };
+    box.innerHTML = notices.map((n) => `
+      <div class="notice-item">
+        <button type="button" class="notice-head" onclick="app.toggleNoticeItem(this)" aria-expanded="false">
+          <span class="notice-cat notice-cat-${catKey[n.category] || "info"}">${this.escapeHtml(n.category)}</span>
+          <span class="notice-title">${n.is_pinned ? "📌 " : ""}${this.escapeHtml(n.title)}</span>
+          <span class="notice-date">${this.formatNoticeDate(n.published_at)}</span>
+        </button>
+        <div class="notice-body" hidden>${this.escapeHtml(n.body)}</div>
+      </div>`).join("");
+    // 목록을 열어 봤으면 새 공지 배지를 끈다.
+    try {
+      const latest = Math.max(...notices.map((n) => new Date(n.published_at).getTime() || 0));
+      localStorage.setItem("seatview_notice_seen_at", String(latest));
+    } catch (e) { /* 저장소 사용 불가 시 무시 */ }
+    const badge = document.getElementById("footer-notice-badge");
+    if (badge) badge.style.display = "none";
+  }
+
+  toggleNoticeItem(btn) {
+    const body = btn.nextElementSibling;
+    if (!body) return;
+    const willOpen = body.hasAttribute("hidden");
+    if (willOpen) body.removeAttribute("hidden"); else body.setAttribute("hidden", "");
+    btn.setAttribute("aria-expanded", String(willOpen));
   }
 
   escapeHtml(text) {
