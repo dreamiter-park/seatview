@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.83">
+  <link rel="stylesheet" href="/style_v6.css?v=5.91">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -188,7 +188,7 @@
             <p class="site-footer-contact">배너 광고 문의 · 오류 제보는 언제든 <a href="mailto:j2mi.help@gmail.com">j2mi.help@gmail.com</a>로 남겨주세요!</p>
             <p class="site-footer-notice">시야 사진 사용을 원하시면 위 메일로 협업 요청 바랍니다.<br>출처 표기 없는 무단 상업적 이용은 금지됩니다.</p>
             <p class="site-footer-business">사업자명: 제이투미(J2MI)</p>
-            <p class="site-footer-copy">© 2026 잘보여유. All rights <span onclick="app.navigateTo('stadiums-lab')" style="cursor: default;">reserved.</span></p>
+            <p class="site-footer-copy"><span onclick="if (typeof IS_LOCAL_DEV !== 'undefined' && IS_LOCAL_DEV) app.navigateTo('stadiums-soccer')" style="cursor: default;">© 2026</span> 잘보여유. All rights <span onclick="app.navigateTo('stadiums-lab')" style="cursor: default;">reserved.</span></p>
           </footer>
         </section>
 
@@ -231,6 +231,31 @@
             <!-- Dynamically populated -->
           </div>
           <div style="display: flex; justify-content: center; margin-top: 16px;" id="ad-slot-stadiums-lab-list"></div>
+        </section>
+
+        <!-- 축구장 목록 (임시: 로컬에서만 푸터 "© 2026" 로 진입. 홈 카드는 badge_text 가
+             "TO BE" 인 동안 안내 팝업만 뜬다). 카드 렌더러는 야구장 목록과 공용. -->
+        <section id="view-stadiums-soccer" class="view">
+          <div class="search-bar-container" style="margin-bottom: 16px;">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" placeholder="경기장명 또는 구단명 검색 (예: 상암, FC서울)" id="stadium-soccer-search-input" autocomplete="off">
+            <button type="button" id="stadium-soccer-search-clear-btn" onclick="app.clearSearchInput('stadium-soccer-search-input', () => app.renderStadiumList(app.stadiumSoccerListOpts('')))" aria-label="검색어 지우기" style="display: none; background: none; border: none; padding: 4px; margin-left: 6px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;">
+              <i data-lucide="x-circle" style="width: 16px; height: 16px; display: block;"></i>
+            </button>
+          </div>
+
+          <div class="venue-list-toolbar">
+            <span class="venue-list-count" id="stadium-soccer-list-count">총 0개</span>
+            <select class="venue-sort-select" id="stadium-soccer-sort-select" onchange="app.renderStadiumList(app.stadiumSoccerListOpts(document.getElementById('stadium-soccer-search-input').value))">
+              <option value="default">등록순</option>
+              <option value="recent">신규 등록순</option>
+              <option value="name">가나다순</option>
+            </select>
+          </div>
+
+          <div class="stadium-grid" id="stadium-soccer-grid">
+            <!-- Dynamically populated -->
+          </div>
         </section>
 
         <section id="view-stadium-map" class="view">
@@ -1265,7 +1290,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.91"></script>
+  <script src="/app_v6.js?v=9.96"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

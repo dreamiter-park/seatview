@@ -965,7 +965,8 @@ img {
 }
 
 /* LAB 야구장 목록: 공연장 목록과 통일감 있게 1줄에 1개씩. */
-#stadium-lab-grid {
+#stadium-lab-grid,
+#stadium-soccer-grid {
   grid-template-columns: 1fr;
 }
 
@@ -2458,6 +2459,67 @@ img {
 
 .seat-item.gap {
   opacity: 0;
+  pointer-events: none;
+}
+
+/* 축구장: 공연장 좌석(.floor-grid-seat)처럼 고정 26px. 통로 열 번호는 칸 수 x 26px + 사이 틈. */
+.seat-fixed .seat-item {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  aspect-ratio: auto;
+  font-size: 0.55rem;
+}
+/* 축구장 좌석 화면: 범례·"그라운드 방면" 안내는 고정, 좌석 영역만 가로·세로 스크롤. */
+.seat-grid-container.seat-grid-fixed {
+  overflow: visible;
+}
+#seat-rows-container.seat-scroller {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-height: max(62vh, 340px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) rgba(30, 41, 59, 0.4);
+}
+.seat-rows-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 100%;
+  width: max-content;
+}
+
+/* 가운데 정렬(공연장처럼): 화면이 넓으면 한 줄 전체를 가운데에 둔다. 오른쪽 끝 열 번호는 오른쪽 정렬. */
+.seat-fixed .seat-row {
+  justify-content: center;
+}
+/* 가로 통로(좌석이 없는 줄) 한 줄의 높이 = 좌석 한 줄. 통로가 몇 줄인지는 사진을 보고 DB에 만든 줄 수로 정한다. */
+.seat-fixed .seat-row-aisle,
+.seat-rows-inner .seat-row-aisle {
+  height: 26px;
+}
+.seat-fixed .row-seats {
+  flex: 0 0 auto;
+}
+.seat-fixed .row-num-right {
+  text-align: right;
+}
+.seat-fixed .seat-aisle-label {
+  flex: 0 0 calc(var(--span, 2) * 26px + (var(--span, 2) - 1) * 3px);
+}
+
+/* 통로 칸 안에 쓰는 열 번호(축구장 등). 이어진 통로 칸 --span 개만큼의 너비를 차지한다. */
+.seat-aisle-label {
+  flex: 0 0 calc(var(--span, 2) * ((100cqw - 36px - (var(--visible-seats, 14) - 1) * 3px) / var(--visible-seats, 14)) + (var(--span, 2) - 1) * 3px);
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.7rem; /* 왼쪽 .row-num 과 같은 크기 */
+  font-weight: 700;
+  color: var(--text-muted);
   pointer-events: none;
 }
 

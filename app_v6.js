@@ -53,7 +53,7 @@ let STADIUMS_DB = [];
 let VENUES_DB = [];
 // STADIUMS_DB uses string ids (jamsil, gocheok, ...) but the baseball_blocks/
 // baseball_seats tables key off the stadiums table's real numeric id.
-const BASEBALL_DB_ID_MAP = { jamsil: 1, gocheok: 2, incheon: 3, suwon: 4, daejeon: 5, daegu: 6, gwangju: 7, changwon: 8, busan: 9 };
+const BASEBALL_DB_ID_MAP = { jamsil: 1, gocheok: 2, incheon: 3, suwon: 4, daejeon: 5, daegu: 6, gwangju: 7, changwon: 8, busan: 9, sangam: 10 };
 
 // --- LAB: 야구장 새 구역 배치도(SVG 폴리곤) 테스트 ---------------------------
 // "프로야구장" 카테고리 카드의 정식 목적지(stadiums-lab) — 카드의 badge_text 가
@@ -79,6 +79,12 @@ const STADIUM_MAP_LAB = {
     // 배경 이미지 출처(공공누리 제1유형 — 출처표시만 하면 가공·상업적 이용 모두 허용).
     // 출처: 공공데이터포털 "서울시설공단_고척스카이돔 좌석 배치도" (data.go.kr/data/15118835/fileData.do)
     credit: "출처 : 서울시설공단 (공공누리 제1유형)"
+  },
+  // 상암월드컵경기장(축구장). 구역 id 가 "section-E-A" 형태라 DB block_code("E-A")와 그대로 맞는다.
+  sangam: {
+    svg: "/stadiums/sangam.map.svg",
+    srcSvg: "/stadiums/sangam.svg",
+    credit: ""
   }
 };
 // One shopping-ad banner per category (baseball/musical), keyed by category —
@@ -747,6 +753,7 @@ class SeatViewApp {
             let bgImage = "/assets/jamsil_stadium.jpg";
             if (cat.id === "musical") bgImage = "/assets/musical_stage.jpg";
             else if (cat.id === "plane") bgImage = "/assets/flight_cinema.jpg";
+            else if (cat.id === "soccer") bgImage = "/assets/soccer_stadium.jpg";
 
             // Click behavior is driven purely by badge_text: "TO BE" shows the
             // coming-soon popup, everything else navigates to its real screen.
@@ -760,6 +767,8 @@ class SeatViewApp {
               // 새 배치도(LAB)가 이 카드의 정식 목적지 — badge_text 가 "TO BE"인 동안은
               // 위 분기에서 이미 걸러져서 일반 사용자에겐 아직 안 열린다.
               card.onclick = () => this.navigateTo('stadiums-lab');
+            } else if (cat.id === "soccer") {
+              card.onclick = () => this.navigateTo('stadiums-soccer');
             } else if (cat.id === "musical") {
               card.onclick = () => this.navigateTo('venues');
             } else {
@@ -842,7 +851,8 @@ class SeatViewApp {
             6: "daegu",
             7: "gwangju",
             8: "changwon",
-            9: "busan"
+            9: "busan",
+            10: "sangam"
           };
 
           const amenitiesFallback = {
@@ -913,13 +923,15 @@ class SeatViewApp {
             const newStadium = {
               id: mappedId,
               db_id: dbStadium.id,
+              category_id: dbStadium.category_id || "baseball",
               display_order: dbStadium.display_order,
               ins_dtm: dbStadium.ins_dtm,
               name: dbStadium.name,
               fullname: dbStadium.name,
               team: dbStadium.home_teams ? dbStadium.home_teams.join(" / ") : "",
               location: dbStadium.address || dbStadium.location_district,
-              bg: dbStadium.bg_image_url || "/assets/jamsil_stadium.jpg",
+              // 구장 사진이 DB에 없으면 카테고리별 기본 사진(야구장은 잠실, 축구장은 축구 경기장).
+              bg: dbStadium.bg_image_url || (dbStadium.category_id === "soccer" ? "/assets/soccer_stadium.jpg" : "/assets/jamsil_stadium.jpg"),
               map_image_url: dbStadium.map_image_url,
               gradient: dbStadium.primary_color ? `linear-gradient(135deg, ${dbStadium.primary_color}DD, ${secColor}B0)` : "linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.75))",
               blocks: [],
@@ -1002,6 +1014,13 @@ class SeatViewApp {
     if (stadiumLabSearchInput) {
       stadiumLabSearchInput.addEventListener("input", () => {
         this.renderStadiumList(this.stadiumLabListOpts(stadiumLabSearchInput.value));
+      });
+    }
+    // 축구장 목록도 같은 방식.
+    const stadiumSoccerSearchInput = document.getElementById("stadium-soccer-search-input");
+    if (stadiumSoccerSearchInput) {
+      stadiumSoccerSearchInput.addEventListener("input", () => {
+        this.renderStadiumList(this.stadiumSoccerListOpts(stadiumSoccerSearchInput.value));
       });
     }
 
@@ -1359,6 +1378,10 @@ class SeatViewApp {
       this.renderStadiumList(this.stadiumLabListOpts(searchInput ? searchInput.value : ""));
       this.injectKakaoAd("ad-slot-stadiums-lab-list", "DAN-j8zQm1KA9FEGWPIx");
     }
+    if (viewId === "stadiums-soccer") {
+      const searchInput = document.getElementById("stadium-soccer-search-input");
+      this.renderStadiumList(this.stadiumSoccerListOpts(searchInput ? searchInput.value : ""));
+    }
     if (viewId === "stadium-map") this.injectKakaoAd("ad-slot-stadium-map", "DAN-CtgChTKnhEpfWomO");
     if (viewId === "stadium-detail" && state.stadiumFromMap) this.injectKakaoAd("ad-slot-stadium-detail", "DAN-kOcP8nPwMZ9LlLaK");
 
@@ -1409,6 +1432,8 @@ class SeatViewApp {
       document.title = "프로야구장 목록 | 잘보여유";
     } else if (viewId === "stadiums-lab" || viewId === "stadium-map") {
       document.title = "야구장 새 배치도 (LAB) | 잘보여유";
+    } else if (viewId === "stadiums-soccer") {
+      document.title = "축구장 목록 | 잘보여유";
     } else if (viewId === "compare") {
       document.title = "1:1 시야 비교 | 잘보여유";
     } else if (viewId === "ticketbook") {
@@ -1725,12 +1750,30 @@ class SeatViewApp {
   stadiumLabListOpts(filterText) {
     return {
       containerId: "stadium-lab-grid",
+      categoryId: "baseball",
       noAds: true,
       onOpen: (st) => this.openStadiumMapLab(st.id),
       filterText,
       sortSelectId: "stadium-lab-sort-select",
       countId: "stadium-lab-list-count",
       searchClearBtnId: "stadium-lab-search-clear-btn",
+    };
+  }
+
+  // 축구장 목록 (상암월드컵경기장 등). 야구장 목록과 같은 카드/렌더러를 쓰고
+  // categoryId 로 stadiums.category_id 가 'soccer' 인 구장만 보여준다.
+  stadiumSoccerListOpts(filterText) {
+    return {
+      containerId: "stadium-soccer-grid",
+      categoryId: "soccer",
+      noAds: true,
+      onOpen: (st) => this.openStadiumMapLab(st.id),
+      filterText,
+      sortSelectId: "stadium-soccer-sort-select",
+      countId: "stadium-soccer-list-count",
+      searchClearBtnId: "stadium-soccer-search-clear-btn",
+      noun: "축구장",
+      emptyText: "등록된 축구장이 아직 없습니다",
     };
   }
 
@@ -1746,9 +1789,13 @@ class SeatViewApp {
     // 없으면 예전 방식과 동일하게 전체를 보여준다).
     const trimmed = (opts.filterText || "").trim();
     const needle = trimmed.toLowerCase();
+    // categoryId 를 안 주면 'baseball' (옛 화면은 야구장만 보여줘야 함 —
+    // category_id 가 없는 구장은 야구장으로 취급).
+    const categoryId = opts.categoryId || "baseball";
+    const inCategory = STADIUMS_DB.filter(st => (st.category_id || "baseball") === categoryId);
     let stadiums = trimmed.length >= 1
-      ? STADIUMS_DB.filter(st => st.name.toLowerCase().includes(needle) || (st.team && st.team.toLowerCase().includes(needle)))
-      : STADIUMS_DB.slice();
+      ? inCategory.filter(st => st.name.toLowerCase().includes(needle) || (st.team && st.team.toLowerCase().includes(needle)))
+      : inCategory;
 
     // 정렬: opts.sortSelectId가 가리키는 <select>의 값을 읽는다. 없으면(옛 방식
     // 화면) 항상 "등록순"과 같은 기본 정렬을 쓴다.
@@ -1775,7 +1822,17 @@ class SeatViewApp {
       container.innerHTML = `
         <div class="compare-empty" style="border-style: solid;">
           <div class="compare-empty-icon"><i data-lucide="search-x"></i></div>
-          <h3>'${this.escapeHtml(trimmed)}'와(과) 일치하는 야구장이 없습니다</h3>
+          <h3>'${this.escapeHtml(trimmed)}'와(과) 일치하는 ${this.escapeHtml(opts.noun || "야구장")}이 없습니다</h3>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+    if (stadiums.length === 0 && opts.emptyText) {
+      container.innerHTML = `
+        <div class="compare-empty" style="border-style: solid;">
+          <div class="compare-empty-icon"><i data-lucide="construction"></i></div>
+          <h3>${this.escapeHtml(opts.emptyText)}</h3>
         </div>
       `;
       lucide.createIcons();
@@ -4120,6 +4177,21 @@ class SeatViewApp {
 
     wrapper.style.display = "block";
     container.innerHTML = "";
+    // 축구장은 공연장처럼 좌석을 고정 크기(26px)로 보여 준다(칸 수가 많아 어차피 가로 스크롤).
+    // 야구장은 예전처럼 화면 폭에 맞춰 크기가 정해진다.
+    const isSoccerGrid = !!(state.selectedStadium && state.selectedStadium.category_id === "soccer");
+    container.classList.toggle("seat-fixed", isSoccerGrid);
+    // 축구장: 범례·"그라운드 방면" 안내는 고정하고, 좌석 영역(#seat-rows-container)만 가로·세로로
+    // 스크롤한다. 좌석 줄들은 그 안의 .seat-rows-inner 에 쌓는다.
+    container.classList.toggle("seat-scroller", isSoccerGrid);
+    wrapper.classList.toggle("seat-grid-fixed", isSoccerGrid);
+    wrapper.querySelectorAll(":scope > .field-direction-indicator").forEach(el => el.remove());
+    let rowsHost = container;
+    if (isSoccerGrid) {
+      rowsHost = document.createElement("div");
+      rowsHost.className = "seat-rows-inner";
+      container.appendChild(rowsHost);
+    }
     // 공연장(renderVenueFloorGrid)은 무대 정면인 가운데 좌석이 중요해서 가로로
     // 넘칠 때 가운데부터 보여주지만, 야구장은 열 번호(1번 좌석)부터 보는 게
     // 기준이라 항상 왼쪽 끝(스크롤 0)에서 시작하도록 명시적으로 맞춘다 — 안 그러면
@@ -4143,7 +4215,8 @@ class SeatViewApp {
     // scroll tick.
     if (state.selectedStadium) {
       const isPerformance = state.selectedStadium.category === "musical" || state.selectedStadium.id === "musical";
-      const directionText = isPerformance ? "▲ 🎭 무대 (STAGE) 방면 ▲" : "▲ ⚾ 그라운드 (경기장) 방면 ▲";
+      const isSoccer = state.selectedStadium.category_id === "soccer";
+      const directionText = isPerformance ? "▲ 🎭 무대 (STAGE) 방면 ▲" : (isSoccer ? "▲ ⚽ 그라운드 (경기장) 방면 ▲" : "▲ ⚾ 그라운드 (경기장) 방면 ▲");
 
       const indicator = document.createElement("div");
       indicator.className = "field-direction-indicator";
@@ -4168,6 +4241,17 @@ class SeatViewApp {
       label.style.letterSpacing = "2px";
       label.textContent = directionText;
       indicator.appendChild(label);
+      if (wrapper._recenterFieldLabel) {
+        wrapper.removeEventListener("scroll", wrapper._recenterFieldLabel);
+        wrapper._recenterFieldLabel = null;
+      }
+      if (isSoccerGrid) {
+        // 축구장: 스크롤 영역 밖(위)에 두어 항상 고정, 글자는 가운데.
+        label.style.position = "static";
+        label.style.display = "block";
+        label.style.textAlign = "center";
+        wrapper.insertBefore(indicator, container);
+      } else {
       container.appendChild(indicator);
 
       const recenterLabel = () => {
@@ -4186,18 +4270,28 @@ class SeatViewApp {
       if (wrapper._recenterFieldLabel) wrapper.removeEventListener("scroll", wrapper._recenterFieldLabel);
       wrapper._recenterFieldLabel = recenterLabel;
       wrapper.addEventListener("scroll", recenterLabel, { passive: true });
+      }
     }
 
     // Fetch and render seats from Supabase if available
     const block = state.selectedStadium ? state.selectedStadium.blocks.find(b => b.id === blockId) : null;
     if (supabaseClient && block && block.db_id) {
       try {
-        const { data: seats, error } = await supabaseClient
-          .from('baseball_seats')
-          .select('*')
-          .eq('block_id', block.db_id)
-          .order('grid_y', { ascending: true })
-          .order('grid_x', { ascending: true });
+        // Supabase 는 한 번에 최대 1000행만 돌려준다 — 칸이 많은 구역(축구장 등)은 잘리지 않게 나눠 받는다.
+        const seats = [];
+        let error = null;
+        for (let from = 0; ; from += 1000) {
+          const { data: page, error: pageErr } = await supabaseClient
+            .from('baseball_seats')
+            .select('*')
+            .eq('block_id', block.db_id)
+            .order('grid_y', { ascending: true })
+            .order('grid_x', { ascending: true })
+            .range(from, from + 999);
+          if (pageErr) { error = pageErr; break; }
+          seats.push(...(page || []));
+          if (!page || page.length < 1000) break;
+        }
 
         if (!error) {
           const seatIds = (seats || []).map(s => s.id);
@@ -4206,11 +4300,12 @@ class SeatViewApp {
           // 올린 사진만 있는 좌석은 따로 모아 회색("공식 시야")으로 구분 표시한다.
           // 같은 좌석에 실제 관람객 사진도 있으면 seatsWithPhotos(파란색)가 우선한다.
           const seatsWithOfficialPhotos = new Set();
-          if (seatIds.length > 0) {
+          // 좌석 번호가 수백 개면 주소가 너무 길어지므로 300개씩 나눠서 조회한다.
+          for (let i = 0; i < seatIds.length; i += 300) {
             const { data: reviews, error: revErr } = await supabaseClient
               .from('baseball_seat_reviews')
               .select('baseball_seat_id, image_urls, user_id')
-              .in('baseball_seat_id', seatIds);
+              .in('baseball_seat_id', seatIds.slice(i, i + 300));
 
             if (!revErr && reviews) {
               reviews.forEach(rev => {
@@ -4272,7 +4367,7 @@ class SeatViewApp {
             if (isAisleRow) {
               const aisleDiv = document.createElement("div");
               aisleDiv.className = "seat-row-aisle";
-              container.appendChild(aisleDiv);
+              rowsHost.appendChild(aisleDiv);
               continue;
             }
 
@@ -4323,7 +4418,22 @@ class SeatViewApp {
                 const isPhotoExists = seatsWithPhotos.has(seat.id);
                 const isOfficialPhotoExists = !isPhotoExists && seatsWithOfficialPhotos.has(seat.id);
 
-                if (isWalkway) {
+                // 통로 칸 안에 열 번호를 보여 주는 칸: 통로(status 3)이면서 seat_num 이 0 인 칸.
+                // 이어진 칸들(보통 2칸)은 하나로 합쳐서 가운데에 열 번호를 한 번만 쓴다.
+                const isAisleLabel = isWalkway && seat.seat_num === 0 && seat.row_num;
+                if (isAisleLabel) {
+                  let span = 1;
+                  while (c + span <= maxCols) {
+                    const nx = rowsMap[r] ? rowsMap[r][c + span] : null;
+                    if (nx && nx.status == 3 && nx.seat_num === 0) span++; else break;
+                  }
+                  const aisleLabel = document.createElement("span");
+                  aisleLabel.className = "seat-aisle-label";
+                  aisleLabel.style.setProperty("--span", span);
+                  aisleLabel.textContent = String(seat.row_num).endsWith("열") ? String(seat.row_num) : `${seat.row_num}열`;
+                  seatsDiv.appendChild(aisleLabel);
+                  c += span - 1;
+                } else if (isWalkway) {
                   const gapBtn = document.createElement("button");
                   gapBtn.className = "seat-item gap";
                   seatsDiv.appendChild(gapBtn);
@@ -4362,7 +4472,19 @@ class SeatViewApp {
             }
 
             rowDiv.appendChild(seatsDiv);
-            container.appendChild(rowDiv);
+            // 축구장: 오른쪽 맨끝에도 열 번호를 하나 더 보여 준다(왼쪽 끝·통로 2곳과 함께 총 4곳).
+            if (container.classList.contains("seat-fixed")) {
+              const labelRight = document.createElement("span");
+              labelRight.className = "row-num row-num-right";
+              labelRight.textContent = dispLabel;
+              rowDiv.appendChild(labelRight);
+            }
+            rowsHost.appendChild(rowDiv);
+          }
+          // 축구장: 좌석 영역을 공연장처럼 가운데부터 보이게 한다(가로·세로 스크롤은 이 영역 안에서만).
+          if (isSoccerGrid) {
+            container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
+            container.scrollTop = 0;
           }
           return;
         }
@@ -5928,7 +6050,7 @@ class SeatViewApp {
     const stadiumSelect = document.getElementById("form-stadium");
     if (stadiumSelect) {
       stadiumSelect.innerHTML = `<option value="">야구장을 선택하세요</option>` +
-        STADIUMS_DB.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+        STADIUMS_DB.filter(s => (s.category_id || "baseball") === "baseball").map(s => `<option value="${s.id}">${s.name}</option>`).join("");
     }
 
     // Reset form fields
@@ -7057,7 +7179,7 @@ class SeatViewApp {
     }
     const stadiumSelect = document.getElementById("form-stadium");
     if (stadiumSelect) {
-      stadiumSelect.innerHTML = STADIUMS_DB.map(st => `<option value="${st.id}">${this.escapeHtml(st.name)}</option>`).join("");
+      stadiumSelect.innerHTML = STADIUMS_DB.filter(s => (s.category_id || "baseball") === "baseball").map(st => `<option value="${st.id}">${this.escapeHtml(st.name)}</option>`).join("");
     }
 
     document.getElementById("form-stadium").value = stadiumId;
@@ -7251,7 +7373,7 @@ class SeatViewApp {
     if (nickInput) nickInput.value = state.userNickname || "";
     if (stadiumSelect) {
       const placeholder = `<option value="" disabled ${state.favoriteStadiumId ? "" : "selected"}>구장을 선택해주세요</option>`;
-      stadiumSelect.innerHTML = placeholder + STADIUMS_DB.map(s => `<option value="${this.escapeHtml(s.id)}">${this.escapeHtml(s.name)}</option>`).join("");
+      stadiumSelect.innerHTML = placeholder + STADIUMS_DB.filter(s => (s.category_id || "baseball") === "baseball").map(s => `<option value="${this.escapeHtml(s.id)}">${this.escapeHtml(s.name)}</option>`).join("");
       stadiumSelect.value = state.favoriteStadiumId || "";
     }
     if (teamSelect) teamSelect.value = state.cheeringTeam || "";
