@@ -2466,7 +2466,7 @@ class SeatViewApp {
 
   maybeShowEventPopup() {
     // 노출할 슬라이드가 하나도 없으면(모든 슬라이드의 노출 기간이 끝나면) 팝업을 띄우지 않는다.
-    // 당첨자 발표 슬라이드는 2026-10-17(토) 23:59 KST까지만 노출한다(index.html의 data-expires).
+    // 당첨자 발표 슬라이드는 2026-10-10(토) 23:59 KST까지만 노출한다(index.html의 data-expires).
     if (!this.getEventPopupSlides().length) return;
     // "3일간 다시 보지 않기"는 같은 팝업 버전에서만 유효하다 — 팝업 내용이 새로 바뀌면 다시 보여 준다.
     let hideUntil = 0;
