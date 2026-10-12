@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.91">
+  <link rel="stylesheet" href="/style_v6.css?v=5.92">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -175,7 +175,7 @@
                through 메인 first. -->
           <footer class="site-footer" id="site-footer">
             <div class="site-footer-links">
-              <a href="#notice" onclick="app.navigateTo('notice'); return false;">공지사항<span class="footer-notice-badge" id="footer-notice-badge" style="display: none;">N</span></a>
+              <a href="#notice" onclick="app.navigateTo('notice'); return false;">공지사항</a>
               <span class="site-footer-divider">·</span>
               <a href="/terms.html">이용약관</a>
               <span class="site-footer-divider">·</span>
@@ -238,7 +238,7 @@
         <section id="view-stadiums-soccer" class="view">
           <div class="search-bar-container" style="margin-bottom: 16px;">
             <i data-lucide="search" class="search-icon"></i>
-            <input type="text" placeholder="경기장명 또는 구단명 검색 (예: 상암, FC서울)" id="stadium-soccer-search-input" autocomplete="off">
+            <input type="text" placeholder="경기장명 또는 구단명 검색 (예: 서울월드컵, FC서울)" id="stadium-soccer-search-input" autocomplete="off">
             <button type="button" id="stadium-soccer-search-clear-btn" onclick="app.clearSearchInput('stadium-soccer-search-input', () => app.renderStadiumList(app.stadiumSoccerListOpts('')))" aria-label="검색어 지우기" style="display: none; background: none; border: none; padding: 4px; margin-left: 6px; color: var(--text-muted); cursor: pointer; flex-shrink: 0;">
               <i data-lucide="x-circle" style="width: 16px; height: 16px; display: block;"></i>
             </button>
@@ -1029,7 +1029,7 @@
               <div class="event-popup-prizes">
                 <div class="event-popup-prize-item event-popup-prize-1">
                   <span class="event-popup-rank">🏆 최다 등록자 (1명)</span>
-                  <span class="event-popup-gift">신세계상품권 3만원</span>
+                  <span class="event-popup-gift">신세계상품권 5만원</span>
                 </div>
                 <div class="event-popup-prize-item event-popup-prize-draw">
                   <span class="event-popup-rank">🎁 추첨 (3명)</span>
@@ -1290,7 +1290,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.96"></script>
+  <script src="/app_v6.js?v=9.98"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

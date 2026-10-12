@@ -4663,19 +4663,6 @@ input[type="date"]:focus {
   font-size: 0.76rem;
 }
 
-/* 새 공지가 있을 때 공지사항 링크 옆에 붙는 작은 칩("N") */
-.site-footer-links .footer-notice-badge {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 0 6px;
-  font-size: 0.6rem;
-  line-height: 1.5;
-  color: var(--accent-purple);
-  background: rgba(139, 92, 246, 0.14);
-  border-radius: 999px;
-  vertical-align: 1px;
-}
-
 /* --- 공지사항 화면 --- */
 .notice-page-title {
   font-size: 1.1rem;

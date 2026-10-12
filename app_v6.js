@@ -67,6 +67,10 @@ const IS_LOCAL_DEV = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)
 // 로컬에서 주소 끝에 ?labopt=1 을 붙여 열면 서비스용(가벼운) SVG 로 확인할 수 있다.
 // 화면 이동 때 주소창의 ?..... 가 지워지므로 페이지를 열 때 딱 한 번만 읽어 둔다.
 const LAB_USE_OPT_SVG = new URLSearchParams(window.location.search).has("labopt");
+// 구장 목록 검색에서 공식 이름 말고도 찾을 수 있게 하는 별칭 (예: 서울월드컵경기장 = 상암).
+const STADIUM_SEARCH_ALIASES = {
+  sangam: ["상암", "상암동", "상암월드컵경기장", "상암경기장"],
+};
 const STADIUM_MAP_LAB = {
   gocheok: {
     // svg: 서비스에서 쓰는 가벼운 SVG(배경 그림을 별도 파일로 뺀 것).
@@ -80,7 +84,7 @@ const STADIUM_MAP_LAB = {
     // 출처: 공공데이터포털 "서울시설공단_고척스카이돔 좌석 배치도" (data.go.kr/data/15118835/fileData.do)
     credit: "출처 : 서울시설공단 (공공누리 제1유형)"
   },
-  // 상암월드컵경기장(축구장). 구역 id 가 "section-E-A" 형태라 DB block_code("E-A")와 그대로 맞는다.
+  // 서울월드컵경기장(축구장). 구역 id 가 "section-E-A" 형태라 DB block_code("E-A")와 그대로 맞는다.
   sangam: {
     svg: "/stadiums/sangam.map.svg",
     srcSvg: "/stadiums/sangam.svg",
@@ -667,7 +671,6 @@ class SeatViewApp {
       this.renderVenueList();
     });
     this.loadCategories();
-    this.refreshNoticeBadge();
     this.updateCompareBadge();
 
     // The one-shot checkUserSession() above can race the OAuth redirect's
@@ -1760,7 +1763,7 @@ class SeatViewApp {
     };
   }
 
-  // 축구장 목록 (상암월드컵경기장 등). 야구장 목록과 같은 카드/렌더러를 쓰고
+  // 축구장 목록 (서울월드컵경기장 등). 야구장 목록과 같은 카드/렌더러를 쓰고
   // categoryId 로 stadiums.category_id 가 'soccer' 인 구장만 보여준다.
   stadiumSoccerListOpts(filterText) {
     return {
@@ -1794,7 +1797,8 @@ class SeatViewApp {
     const categoryId = opts.categoryId || "baseball";
     const inCategory = STADIUMS_DB.filter(st => (st.category_id || "baseball") === categoryId);
     let stadiums = trimmed.length >= 1
-      ? inCategory.filter(st => st.name.toLowerCase().includes(needle) || (st.team && st.team.toLowerCase().includes(needle)))
+      ? inCategory.filter(st => st.name.toLowerCase().includes(needle) || (st.team && st.team.toLowerCase().includes(needle))
+          || (STADIUM_SEARCH_ALIASES[st.id] || []).some(a => a.toLowerCase().includes(needle)))
       : inCategory;
 
     // 정렬: opts.sortSelectId가 가리키는 <select>의 값을 읽는다. 없으면(옛 방식
@@ -7800,29 +7804,6 @@ class SeatViewApp {
     return `${pick("year")}.${pick("month")}.${pick("day")}`;
   }
 
-  // 푸터 "공지사항" 옆 N 배지: 가장 최근 공지가 30일 이내이고, 이 브라우저에서 아직 공지사항
-  // 화면을 열어 보지 않은 경우에만 보인다(공지사항 화면을 열면 본 것으로 기록).
-  async refreshNoticeBadge() {
-    const badge = document.getElementById("footer-notice-badge");
-    if (!badge || !supabaseClient) return;
-    try {
-      const { data, error } = await supabaseClient
-        .from("notices")
-        .select("published_at")
-        .eq("is_visible", true)
-        .order("published_at", { ascending: false })
-        .limit(1);
-      if (error || !data || !data.length) return;
-      const latest = new Date(data[0].published_at).getTime();
-      let seen = 0;
-      try { seen = Number(localStorage.getItem("seatview_notice_seen_at") || 0); } catch (e) { /* 저장소 사용 불가 시 항상 새 공지로 취급 */ }
-      const recent = Date.now() - latest < 30 * 24 * 60 * 60 * 1000;
-      badge.style.display = (latest > seen && recent) ? "inline-block" : "none";
-    } catch (e) {
-      console.warn("Notice badge failed:", e);
-    }
-  }
-
   async renderNoticeView() {
     const box = document.getElementById("notice-list-container");
     if (!box) return;
@@ -7846,13 +7827,6 @@ class SeatViewApp {
         </button>
         <div class="notice-body" hidden>${this.renderNoticeBody(n.body)}</div>
       </div>`).join("");
-    // 목록을 열어 봤으면 새 공지 배지를 끈다.
-    try {
-      const latest = Math.max(...notices.map((n) => new Date(n.published_at).getTime() || 0));
-      localStorage.setItem("seatview_notice_seen_at", String(latest));
-    } catch (e) { /* 저장소 사용 불가 시 무시 */ }
-    const badge = document.getElementById("footer-notice-badge");
-    if (badge) badge.style.display = "none";
   }
 
   // 본문은 항상 escapeHtml 을 거친 글자로만 출력한다. 본문 안에 "---" 만 있는 줄이 있으면
