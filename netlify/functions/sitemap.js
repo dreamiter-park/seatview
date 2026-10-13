@@ -59,6 +59,7 @@ exports.handler = async () => {
     { loc: `${SITE}/terms.html`, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE}/privacy.html`, changefreq: "yearly", priority: "0.3" },
     { loc: `${SITE}/event-terms.html`, changefreq: "monthly", priority: "0.3" },
+    { loc: `${SITE}/faq.html`, changefreq: "monthly", priority: "0.5" },
   ];
 
   const venueUrls = venues.map((v) => ({

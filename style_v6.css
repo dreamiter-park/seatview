@@ -4663,6 +4663,14 @@ input[type="date"]:focus {
   font-size: 0.76rem;
 }
 
+/* 아주 좁은 화면(폭 340px 이하)에서도 아랫줄(개인정보처리방침·이벤트 참여규정·이메일무단수집거부)이
+   한 줄에 들어가도록 글자와 간격을 조금 줄인다. */
+@media (max-width: 340px) {
+  .site-footer-links { gap: 0 5px; }
+  .site-footer-links a,
+  .site-footer-divider { font-size: 0.68rem; }
+}
+
 /* --- 공지사항 화면 --- */
 .notice-page-title {
   font-size: 1.1rem;
