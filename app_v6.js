@@ -100,6 +100,20 @@ const STADIUM_MAP_LAB = {
     // 출처: 공공데이터포털 "서울시설공단_고척스카이돔 좌석 배치도" (data.go.kr/data/15118835/fileData.do)
     credit: "출처 : 서울시설공단 (공공누리 제1유형)"
   },
+  // 수원 KT위즈파크. 구역에 색·번호가 칠해진 완성형 SVG 라서, 그림은 그대로 두고 같은 모양의
+  // 투명 눌림 영역(section-<코드>)을 맨 위에 올린 파일을 쓴다(docs/tools/make_overlay_stadium_svg.ps1).
+  // 배경 이미지가 따로 없어 svg 와 srcSvg 가 같은 파일. 코드는 01~35(앞자리 0 포함)·101~505 번호 구역 166개,
+  // 특수 구역(잔디석·캠핑존 등 zone-...)은 아직 연결 안 함.
+  suwon: {
+    svg: "/stadiums/suwon.svg",
+    srcSvg: "/stadiums/suwon.svg",
+    // 그림 자체에 구역 색이 있어서, 고척처럼 흰 반투명 막을 덧칠하면 입체 조각마다 막·테두리가
+    // 겹쳐 지저분해진다 — 평소엔 투명, 누르거나 올릴 때만 강조.
+    artOverlay: true,
+    // 연결 안 된 그림 요소 중 특정 등급에 딸린 것 — 그 등급으로 필터할 때 회색 처리에서 뺀다.
+    artGradeOf: { "zone-table-heading": "티빙테이블석" },
+    credit: ""
+  },
   // 서울월드컵경기장(축구장). 구역 id 가 "section-E-A" 형태라 DB block_code("E-A")와 그대로 맞는다.
   sangam: {
     svg: "/stadiums/sangam.map.svg",
@@ -3236,6 +3250,9 @@ class SeatViewApp {
     const viewport = document.getElementById("smlab-viewport");
     const noteEl = document.getElementById("smlab-note");
     if (!stage || !viewport) return;
+    // 완성형 그림(구역에 색·번호가 칠해진 SVG) 구장은 눌림 영역을 평소엔 완전히 투명하게 둔다
+    // (style_v6.css 의 .smlab-art 참고). 구장을 바꿔 열 때마다 다시 정한다.
+    stage.classList.toggle("smlab-art", !!cfg.artOverlay);
 
     stage.innerHTML = `<div class="smlab-loading">배치도를 불러오는 중...</div>`;
     // 로컬 개발: 원본 SVG 를 매번 새로 읽는다(고친 폴리곤이 바로 보이게).
@@ -3379,6 +3396,15 @@ class SeatViewApp {
       el.classList.toggle("smlab-dim", !match);
       el.classList.toggle("smlab-match", !!z.grade && match);
     });
+    // 완성형 그림 구장: 아직 연결 안 된 그림 구역(zone-...: 잔디석·캠핑존·불펜 등)도 등급 필터 중엔
+    // 같이 회색으로 눌러 둔다. artGradeOf 로 등급에 딸린 그림(예: 티빙테이블석 제목 띠)은 그 등급일 때 유지.
+    const artCfg = (state.selectedStadium && STADIUM_MAP_LAB[state.selectedStadium.id]) || {};
+    if (artCfg.artOverlay) {
+      const gradeOf = artCfg.artGradeOf || {};
+      document.querySelectorAll('#smlab-stage svg [id^="zone-"]').forEach(el => {
+        el.classList.toggle("smlab-art-dim", !!z.grade && gradeOf[el.id] !== z.grade);
+      });
+    }
   }
 
   // 처음 화면에는 배치도 전체가 보이도록 맞추고(모바일은 가로폭 100%, PC는 세로가
@@ -3485,11 +3511,11 @@ class SeatViewApp {
     window.addEventListener("mousemove", (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (Math.abs(dx) + Math.abs(dy) > 4) z.dragMoved = true;
+      if (Math.abs(dx) + Math.abs(dy) > 4) { z.dragMoved = true; viewport.classList.add("smlab-dragging"); }
       viewport.scrollLeft = drag.sl - dx;
       viewport.scrollTop = drag.st - dy;
     });
-    window.addEventListener("mouseup", () => { drag = null; });
+    window.addEventListener("mouseup", () => { drag = null; viewport.classList.remove("smlab-dragging"); });
 
     // PC: Ctrl(⌘)+휠 확대/축소
     viewport.addEventListener("wheel", (e) => {

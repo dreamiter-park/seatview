@@ -5127,7 +5127,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;   /* 두 손가락 확대는 우리가 직접 처리 */
 }
-.smlab-viewport.smlab-zoomed { cursor: grab; }
+/* 확대 상태에서 배치도 전체에 "잡기" 커서를 걸면 눌리지 않는 곳도 눌릴 것처럼 보여서,
+   평소엔 기본 화살표(구역 위에서만 손가락)로 두고 실제로 끌어서 옮기는 동안만 "잡는 중" 커서. */
+.smlab-viewport.smlab-dragging,
+.smlab-viewport.smlab-dragging * { cursor: grabbing !important; }
 .smlab-stage { margin: 0 auto; }
 .smlab-loading { padding: 40px 12px; text-align: center; color: #6b7280; font-size: 0.85rem; }
 .smlab-hint { margin-top: 8px; font-size: 0.72rem; color: var(--text-muted); text-align: center; }
@@ -5163,6 +5166,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   stroke: #fde047;
   stroke-opacity: 1;
   stroke-width: 3px;
+}
+/* 완성형 그림 구장(수원 등, app_v6.js 의 artOverlay): 그림에 이미 구역 색·번호가 있으니 눌림 영역은
+   평소 완전히 투명(눌림은 그대로 동작 — fill 이 none 이 아니라 투명도 0 이라서), 누르거나 올릴 때만
+   노란색으로 덮는다. 입체 조각(윗면·옆면)마다 테두리를 그리면 지저분해서 테두리는 쓰지 않는다.
+   등급 필터의 .smlab-dim(아래)이 이 규칙보다 뒤에 있어 필터 회색 처리는 그대로 적용된다. */
+.smlab-stage.smlab-art svg .smlab-zone,
+.smlab-stage.smlab-art svg .smlab-zone > * {
+  fill: #ffffff;
+  fill-opacity: 0;
+  stroke: none;
+}
+.smlab-stage.smlab-art svg .smlab-zone:hover > *,
+.smlab-stage.smlab-art svg .smlab-zone:active > * {
+  fill: #fde047;
+  fill-opacity: 0.55;
+  stroke: none;
 }
 /* PC: 배치도 화면은 공연장 상세처럼 패널이 넓어지되, 세로로 긴 지도 이미지가 너무
    길어지지 않도록 지도 자체는 읽기 좋은 폭으로 가운데 정렬한다. 배너·탭은 구역
@@ -5313,6 +5332,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   stroke: none;
   pointer-events: none;
   cursor: default;
+}
+/* 완성형 그림 구장의 연결 안 된 그림 구역(잔디석·캠핑존·불펜 등)도 필터 중엔 같은 회색으로.
+   그림 자체를 칠하므로 글자까지 회색으로 묻혀, 눌러 죽인 번호 구역과 같은 모습이 된다. */
+.smlab-stage svg .smlab-art-dim,
+.smlab-stage svg .smlab-art-dim * {
+  fill: #9ca3af;
+  fill-opacity: 0.8;
+  stroke: none;
 }
 /* 배치도에서 넘어온 구역 화면도 자체 탭(좌석배치도/구장 정보)을 그대로 보여준다 —
    배치도 화면의 탭("구역배치도/구장 정보")과는 별개 단계. */
