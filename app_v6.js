@@ -3,6 +3,10 @@ const SUPABASE_URL = 'https://zgdumfqkhqroehaszmau.supabase.co/rest/v1/';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZHVtZnFraHFyb2VoYXN6bWF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MDA2NDcsImV4cCI6MjEwMDQ3NjY0N30.ZtbbY2R0iKMtmNyB36EF6YRR62TRV-_l6huo87FQ41g'; 
 
 let supabaseClient = null;
+
+// 서버(netlify/functions/seat-page.js 등)가 넣어 둔 첫 화면의 탭 제목. 앱이 화면을
+// 바꾸며 제목을 덮어쓰기 전에 잡아 둔다 — 좌석 링크로 들어온 경우 좌석 제목으로 되돌릴 때 쓴다.
+const INITIAL_DOC_TITLE = document.title;
 if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") && window.supabase) {
   try {
     // URL에서 뒤쪽의 '/rest/v1/' 또는 '/rest/v1' 경로가 있다면 제거하여 SDK가 정상 작동하도록 함
@@ -23,6 +27,18 @@ if (SUPABASE_URL && !SUPABASE_URL.includes("본인의-프로젝트-고유ID") &&
 // 사진이 아님). 좌석 그리드 색상 구분(#17)과 공연장 목록 정렬용 카운트
 // 제외(#18)에서 공통으로 쓴다.
 const OFFICIAL_SOURCE_USER_ID = 'ca42d30f-a372-4cc7-8651-3cb49f473dd7';
+
+// [랭킹 보류] 아직 공개하지 않음 - 다시 열 때 아래 주석을 풀기
+// 이번 달 랭킹에서 빼는 운영 계정 2개(공연장 홈페이지 인용 계정 + 잘보여유 에디터).
+// 이벤트 규정과 같이 회사가 운영하는 계정은 집계 대상이 아니다.
+// const RANKING_EXCLUDED_USER_IDS = [
+//   OFFICIAL_SOURCE_USER_ID,
+//   '0326ac0c-fe0b-4be6-9b6e-8dcc9928e9a5',
+// ];
+// 랭킹에 보여 줄 최대 순위(공동 순위 포함해서 이 순위까지)
+// const RANKING_MAX_RANK = 10;
+// 건수 표시 방식: "top1_me" = 1위와 로그인한 본인만, "all" = 모든 줄에 표시
+// const RANKING_COUNT_MODE = "top1_me";
 
 // 공연장 이름은 DB에 "극장명_홀명"(예: 충무아트센터_대극장)으로 저장해 구분하지만,
 // 사용자·검색엔진에 보이는 곳에서는 "_"를 공백으로 바꿔서 "충무아트센터 대극장"으로
@@ -657,6 +673,11 @@ class SeatViewApp {
             // 시트를 닫으면 closeModal()이 다시 공연장 주소로 정리한다.
             if (history.state && history.state.modalId) {
               history.replaceState(history.state, "", `/seat/${pathSeatId}`);
+              // 공연장 화면 진입(navigateTo) 때 탭 제목도 공연장 제목으로 바뀌었으므로,
+              // 서버(seat-page.js)가 넣어 둔 좌석 제목으로 되돌린다. 그대로 두면 검색엔진이
+              // 화면을 그린 뒤 읽는 제목이 같은 공연장의 좌석 페이지끼리 전부 똑같아진다
+              // (네이버 진단 "동일한 제목 웹문서 다수" 원인).
+              if (INITIAL_DOC_TITLE) document.title = INITIAL_DOC_TITLE;
             }
             const ssrContent = document.getElementById("ssr-seo-content");
             if (ssrContent) ssrContent.remove();
@@ -1443,6 +1464,8 @@ class SeatViewApp {
       document.title = "마이페이지 | 잘보여유";
     } else if (viewId === "notice") {
       document.title = "공지사항 | 잘보여유";
+    // [랭킹 보류] } else if (viewId === "ranking") {
+    // [랭킹 보류]   document.title = "이번 달 랭킹 | 잘보여유";
     } else {
       document.title = DEFAULT_TITLE;
     }
@@ -1460,6 +1483,8 @@ class SeatViewApp {
       this.renderCompareView();
     } else if (viewId === "notice") {
       this.renderNoticeView();
+    // [랭킹 보류] } else if (viewId === "ranking") {
+    // [랭킹 보류]   this.renderRankingView();
     } else if (viewId === "stadiums") {
       this.renderStadiumList();
     } else if (viewId === "venues") {
@@ -4185,13 +4210,16 @@ class SeatViewApp {
     // 야구장은 예전처럼 화면 폭에 맞춰 크기가 정해진다.
     const isSoccerGrid = !!(state.selectedStadium && state.selectedStadium.category_id === "soccer");
     container.classList.toggle("seat-fixed", isSoccerGrid);
-    // 축구장: 범례·"그라운드 방면" 안내는 고정하고, 좌석 영역(#seat-rows-container)만 가로·세로로
-    // 스크롤한다. 좌석 줄들은 그 안의 .seat-rows-inner 에 쌓는다.
-    container.classList.toggle("seat-scroller", isSoccerGrid);
-    wrapper.classList.toggle("seat-grid-fixed", isSoccerGrid);
+    // 야구장·축구장 공통: 범례·"그라운드 방면" 안내는 고정하고, 좌석 영역(#seat-rows-container)만
+    // 가로로 스크롤한다(좌석 줄들은 그 안의 .seat-rows-inner 에 쌓는다). 축구장은 칸이 많아 세로로도
+    // 이 영역 안에서 스크롤하고, 야구장은 세로는 예전처럼 화면 스크롤을 따른다(.seat-scroller-x).
+    const useScrollLayout = !!state.selectedStadium;
+    container.classList.toggle("seat-scroller", useScrollLayout);
+    container.classList.toggle("seat-scroller-x", useScrollLayout && !isSoccerGrid);
+    wrapper.classList.toggle("seat-grid-fixed", useScrollLayout);
     wrapper.querySelectorAll(":scope > .field-direction-indicator").forEach(el => el.remove());
     let rowsHost = container;
-    if (isSoccerGrid) {
+    if (useScrollLayout) {
       rowsHost = document.createElement("div");
       rowsHost.className = "seat-rows-inner";
       container.appendChild(rowsHost);
@@ -4249,8 +4277,8 @@ class SeatViewApp {
         wrapper.removeEventListener("scroll", wrapper._recenterFieldLabel);
         wrapper._recenterFieldLabel = null;
       }
-      if (isSoccerGrid) {
-        // 축구장: 스크롤 영역 밖(위)에 두어 항상 고정, 글자는 가운데.
+      if (useScrollLayout) {
+        // 야구장·축구장: 스크롤 영역 밖(위)에 두어 항상 고정, 글자는 가운데.
         label.style.position = "static";
         label.style.display = "block";
         label.style.textAlign = "center";
@@ -4485,9 +4513,22 @@ class SeatViewApp {
             }
             rowsHost.appendChild(rowDiv);
           }
-          // 축구장: 좌석 영역을 공연장처럼 가운데부터 보이게 한다(가로·세로 스크롤은 이 영역 안에서만).
-          if (isSoccerGrid) {
-            container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
+          // 야구장·축구장: 좌석 영역을 공연장처럼 가운데부터 보이게 한다(가로 스크롤은 이 영역 안에서만).
+          if (useScrollLayout) {
+            if (isSoccerGrid) {
+              container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
+            } else {
+              // 야구장: 열 번호(A열…) 바로 오른쪽에 가장 왼쪽 좌석이 오도록 시작한다(왼쪽 좌석이 잘려 보이지 않게).
+              const base = container.getBoundingClientRect().left - container.scrollLeft;
+              let minLeft = Infinity;
+              container.querySelectorAll(".seat-item:not(.gap)").forEach((el) => {
+                const l = el.getBoundingClientRect().left - base;
+                if (l < minLeft) minLeft = l;
+              });
+              const labelEl = container.querySelector(".row-num");
+              const labelW = labelEl ? labelEl.offsetWidth + 8 : 0;
+              container.scrollLeft = isFinite(minLeft) ? Math.max(0, minLeft - labelW) : 0;
+            }
             container.scrollTop = 0;
           }
           return;
@@ -7346,6 +7387,11 @@ class SeatViewApp {
         if (history.state && history.state.modalId === modalId) {
           const fallbackView = history.state.view || state.currentView || "main";
           history.replaceState({ view: fallbackView }, "", this.viewUrl(fallbackView));
+          // 좌석 링크(/seat/<번호>)로 들어와 좌석 제목이 붙어 있던 경우, 시트를 닫아
+          // 공연장 주소로 돌아오면 탭 제목도 공연장 제목으로 되돌린다(navigateTo와 같은 형식).
+          if (fallbackView === "venue-detail" && state.selectedVenue) {
+            document.title = `${state.selectedVenue.name} 좌석 시야 후기 | 뮤지컬·연극 공연장 - 잘보여유`;
+          }
         }
       }
     }
@@ -7774,6 +7820,255 @@ class SeatViewApp {
   formatShowDate(isoDate) {
     return isoDate ? isoDate.replace(/-/g, ".") : "";
   }
+
+  /* [랭킹 보류] 아직 공개하지 않음 - 다시 열 때 이 블록 주석(시작/끝)을 풀기
+  // --- 이번 달 랭킹 ---
+  // 이벤트 참여규정과 같은 기준으로 센다: 티켓 인증을 완료한 게시물을 "서로 다른 좌석" 기준으로
+  // (같은 좌석에 여러 번 올려도 1건), 운영 계정은 제외. 한국 시간 기준 이번 달 1일 0시부터.
+  // 전일 대비 변동은 따로 저장하지 않고, 같은 후기 데이터를 "오늘 0시 이전 등록분"만으로 한 번 더
+  // 계산해서 비교한다(인증된 시점은 기록되지 않아 아주 조금 오차가 있을 수 있다).
+  kstBoundaries() {
+    const KST_MS = 9 * 60 * 60 * 1000;
+    const kst = new Date(Date.now() + KST_MS); // UTC 필드를 한국 시간처럼 읽는다
+    const y = kst.getUTCFullYear(), m = kst.getUTCMonth(), d = kst.getUTCDate();
+    return {
+      monthStart: new Date(Date.UTC(y, m, 1) - KST_MS),
+      todayStart: new Date(Date.UTC(y, m, d) - KST_MS),
+      isFirstDay: d === 1,
+      month: m + 1,
+    };
+  }
+
+  async fetchRankingRows(table, seatCol, monthStartIso) {
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabaseClient
+        .from(table)
+        .select(`user_id, ${seatCol}, ins_dtm`)
+        .eq("is_blocked", false)
+        .eq("is_ticket_verified", true)
+        .gte("ins_dtm", monthStartIso)
+        .not("user_id", "in", `(${RANKING_EXCLUDED_USER_IDS.join(",")})`)
+        .order("id", { ascending: true })
+        .range(from, from + 999);
+      if (error) throw error;
+      (data || []).forEach(r => rows.push({
+        userId: r.user_id,
+        seatKey: `${table}:${r[seatCol]}`,
+        ms: new Date(r.ins_dtm).getTime(),
+      }));
+      if (!data || data.length < 1000) break;
+    }
+    return rows;
+  }
+
+  // beforeMs 가 있으면 그 시각 이전에 등록된 후기만 센다.
+  rankingCounts(rows, beforeMs) {
+    const byUser = new Map();
+    rows.forEach(r => {
+      if (beforeMs != null && r.ms >= beforeMs) return;
+      let u = byUser.get(r.userId);
+      if (!u) { u = { seats: new Set(), firstMs: r.ms }; byUser.set(r.userId, u); }
+      u.seats.add(r.seatKey);
+      if (r.ms < u.firstMs) u.firstMs = r.ms;
+    });
+    return byUser;
+  }
+
+  // 공동 순위: 건수가 같으면 같은 순위, 다음 순위는 그만큼 건너뛴다(1,2,2,2,5). 같은 건수 안에서는
+  // 먼저 등록을 시작한 사람이 위에 보인다.
+  rankingOrder(byUser) {
+    const list = [...byUser.entries()].map(([userId, u]) => ({ userId, count: u.seats.size, firstMs: u.firstMs }));
+    list.sort((a, b) => b.count - a.count || a.firstMs - b.firstMs);
+    list.forEach(item => { item.rank = 1 + list.filter(o => o.count > item.count).length; });
+    return list;
+  }
+
+  // 사용자가 올린 블로그/SNS 링크 중 가장 최근 것을 "블로그 홈(아이디까지)" 주소로 줄인다.
+  // 네이버 블로그·인스타그램 프로필만 허용하고, 그 밖의 주소나 개별 게시글만 있는 주소는 버린다.
+  rankingProfileLink(rawUrl) {
+    if (!rawUrl) return null;
+    let u;
+    try { u = new URL(rawUrl.trim()); } catch (e) { return null; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    const host = u.hostname.toLowerCase();
+    const seg = u.pathname.split("/").filter(Boolean);
+    const idOk = (s) => /^[A-Za-z0-9._-]{2,40}$/.test(s || "");
+    if (host === "blog.naver.com" || host === "m.blog.naver.com") {
+      let id = u.searchParams.get("blogId") || seg[0];
+      if (id && /\.naver$/i.test(id)) id = u.searchParams.get("blogId");
+      if (!idOk(id)) return null;
+      return { href: `https://blog.naver.com/${id}`, label: "블로그", kind: "naver" };
+    }
+    if (host === "instagram.com" || host === "www.instagram.com") {
+      const id = seg[0];
+      if (!idOk(id) || ["p", "reel", "reels", "stories", "explore", "tv"].includes(id.toLowerCase())) return null;
+      return { href: `https://www.instagram.com/${id}/`, label: "인스타", kind: "instagram" };
+    }
+    return null;
+  }
+
+  // 한 사람이 올린 모든 후기의 블로그/SNS 링크 중, 같은 블로그(계정)로 가장 많이 올린 1개를 고른다.
+  // 같은 횟수면 더 최근에 올린 쪽.
+  async fetchRankingTopLinks(userIds) {
+    const best = new Map();
+    if (!userIds.length) return best;
+    const stats = new Map(); // userId -> Map(href -> {n, lastMs, link})
+    for (const table of ["musical_seat_reviews", "baseball_seat_reviews"]) {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabaseClient
+          .from(table)
+          .select("user_id, external_link, ins_dtm")
+          .in("user_id", userIds)
+          .eq("is_blocked", false)
+          .not("external_link", "is", null)
+          .order("id", { ascending: true })
+          .range(from, from + 999);
+        if (error) { console.warn("Ranking link load failed:", error); break; }
+        (data || []).forEach(r => {
+          const link = this.rankingProfileLink(r.external_link);
+          if (!link) return;
+          let perUser = stats.get(r.user_id);
+          if (!perUser) { perUser = new Map(); stats.set(r.user_id, perUser); }
+          const ms = new Date(r.ins_dtm).getTime();
+          const cur = perUser.get(link.href) || { n: 0, lastMs: 0, link };
+          cur.n += 1;
+          if (ms > cur.lastMs) cur.lastMs = ms;
+          perUser.set(link.href, cur);
+        });
+        if (!data || data.length < 1000) break;
+      }
+    }
+    stats.forEach((perUser, uid) => {
+      const pick = [...perUser.values()].sort((a, c) => c.n - a.n || c.lastMs - a.lastMs)[0];
+      if (pick) best.set(uid, pick.link);
+    });
+    return best;
+  }
+
+  // 네이버 블로그 / 인스타그램 작은 아이콘(인라인 SVG)
+  rankingLinkIconHtml(kind) {
+    if (kind === "instagram") {
+      return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><defs><linearGradient id="rk-ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".35" stop-color="#fa7e1e"/><stop offset=".65" stop-color="#d62976"/><stop offset="1" stop-color="#4f5bd5"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(#rk-ig)"/><rect x="5.5" y="5.5" width="13" height="13" rx="4" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="12" cy="12" r="3.1" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="16.2" cy="7.8" r="1" fill="#fff"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#03C75A"/><path d="M7 6.5h3.2l3.8 5.6V6.5H17v11h-3.2L10 11.9v5.6H7z" fill="#fff"/></svg>';
+  }
+  rankingChangeHtml(userId, rank, prevRankMap, isFirstDay) {
+    if (isFirstDay) return '<span class="ranking-change">-</span>';
+    if (!prevRankMap.has(userId)) return '<span class="ranking-change new">NEW</span>';
+    const diff = prevRankMap.get(userId) - rank;
+    if (diff > 0) return `<span class="ranking-change up">▲${diff}</span>`;
+    if (diff < 0) return `<span class="ranking-change down">▼${-diff}</span>`;
+    return '<span class="ranking-change">-</span>';
+  }
+
+  toggleRankingHelp() {
+    const panel = document.getElementById("ranking-help");
+    const btn = document.getElementById("ranking-help-btn");
+    if (!panel) return;
+    const willOpen = panel.hasAttribute("hidden");
+    if (willOpen) panel.removeAttribute("hidden"); else panel.setAttribute("hidden", "");
+    if (btn) btn.setAttribute("aria-expanded", String(willOpen));
+  }
+  async renderRankingView() {
+    const listEl = document.getElementById("ranking-list-container");
+    const meEl = document.getElementById("ranking-me-container");
+    const noteEl = document.getElementById("ranking-note");
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="ranking-empty">불러오는 중...</div>';
+    if (meEl) meEl.innerHTML = "";
+    const b = this.kstBoundaries();
+    const summaryEl = document.getElementById("ranking-summary");
+    if (summaryEl) summaryEl.textContent = `이번 달(${b.month}/1~) 기준 · 전일 대비 순위 변동`;
+    if (noteEl) {
+      noteEl.innerHTML = [
+        `이번 달(${b.month}/1 0시~) 등록분 기준이에요.`,
+        "티켓 인증을 완료한 서로 다른 좌석 수로 세요. 같은 좌석에 여러 번 올려도 1건이에요.",
+        "운영 계정은 제외해요.",
+        "건수가 같으면 공동 순위예요.",
+        "전일 대비는 오늘 0시 이전에 등록한 후기만으로 계산한 어제 순위와 비교해요.",
+        "블로그/인스타 아이콘은 그분이 후기에 가장 많이 남긴 블로그(또는 인스타)로 연결돼요.",
+        RANKING_COUNT_MODE === "all" ? "건수는 모든 순위에 보여요." : "건수는 1위와 내 순위만 보여요.",
+      ].map(line => `<li>${line}</li>`).join("");
+    }
+    if (!supabaseClient) {
+      listEl.innerHTML = '<div class="ranking-empty">랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>';
+      return;
+    }
+    let rows;
+    try {
+      const iso = b.monthStart.toISOString();
+      const [m, bb] = await Promise.all([
+        this.fetchRankingRows("musical_seat_reviews", "musical_seat_id", iso),
+        this.fetchRankingRows("baseball_seat_reviews", "baseball_seat_id", iso),
+      ]);
+      rows = m.concat(bb);
+    } catch (e) {
+      console.warn("Ranking load failed:", e);
+      listEl.innerHTML = '<div class="ranking-empty">랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>';
+      return;
+    }
+    // 화면을 떠났다가 늦게 도착한 응답이 다른 화면 상태를 건드리지 않게 한다.
+    if (state.currentView !== "ranking") return;
+
+    const today = this.rankingOrder(this.rankingCounts(rows, null));
+    const prevRankMap = new Map(this.rankingOrder(this.rankingCounts(rows, b.todayStart.getTime())).map(o => [o.userId, o.rank]));
+    const top = today.filter(o => o.rank <= RANKING_MAX_RANK);
+    const topCount = today.length ? today[0].count : 0;
+
+    const meId = state.userId || null;
+    const meEntry = meId ? today.find(o => o.userId === meId) : null;
+    const idsForNick = top.map(o => o.userId);
+    const [nickMap, linkMap] = await Promise.all([
+      idsForNick.length ? this.fetchNicknames(idsForNick) : Promise.resolve({}),
+      this.fetchRankingTopLinks(idsForNick),
+    ]);
+    if (state.currentView !== "ranking") return;
+
+    if (!top.length) {
+      listEl.innerHTML = '<div class="ranking-empty">아직 이번 달 인증된 등록이 없어요.<br>시야 사진을 올리고 티켓 인증을 하면 순위에 올라가요.</div>';
+    } else {
+      const headHtml = `
+        <div class="ranking-head" aria-hidden="true">
+          <span>순위</span><span>닉네임</span><span>건수</span><span>변동</span>
+        </div>`;
+      listEl.innerHTML = headHtml + top.map(o => {
+        const link = linkMap.get(o.userId) || null;
+        const linkHtml = link
+          ? `<a class="ranking-link" href="${this.escapeHtml(link.href)}" target="_blank" rel="noopener noreferrer nofollow" aria-label="${this.escapeHtml(link.label)} 바로가기" title="${this.escapeHtml(link.label)} 바로가기">${this.rankingLinkIconHtml(link.kind)}</a>`
+          : "";
+        const isMe = meId && o.userId === meId;
+        const showCount = RANKING_COUNT_MODE === "all" || o.rank === 1 || isMe;
+        const top3 = o.rank <= 3;
+        return `
+          <div class="ranking-row${top3 ? ` top${o.rank}` : ""}${isMe ? " is-me" : ""}">
+            <span class="ranking-rank${top3 ? ` top${o.rank}` : ""}">${o.rank}</span>
+            <span class="ranking-name-cell">
+              <span class="ranking-name">${this.escapeHtml(nickMap[o.userId] || "회원")}</span>
+              ${linkHtml}
+            </span>
+            <span class="ranking-count-cell">${showCount ? `<span class="ranking-count">${o.count}건</span>` : ""}</span>
+            ${this.rankingChangeHtml(o.userId, o.rank, prevRankMap, b.isFirstDay)}
+          </div>`;
+      }).join("");
+    }
+
+    if (meEl) {
+      if (!meId) {
+        meEl.textContent = "로그인하면 내 순위를 볼 수 있어요.";
+      } else if (RANKING_EXCLUDED_USER_IDS.includes(meId)) {
+        meEl.textContent = "";
+      } else if (!meEntry) {
+        meEl.textContent = "이번 달 인증된 등록이 아직 없어요. 시야를 등록하고 티켓 인증을 하면 순위에 올라가요.";
+      } else if (meEntry.rank === 1) {
+        meEl.innerHTML = `내 순위 <strong>1위</strong> · ${meEntry.count}건 · 지금 1위예요!`;
+      } else {
+        const gap = topCount - meEntry.count;
+        meEl.innerHTML = `내 순위 <strong>${meEntry.rank}위</strong> · ${meEntry.count}건 · 1위(${topCount}건)까지 ${gap}건 남았어요`;
+      }
+    }
+  }
+  [랭킹 보류 끝] */
 
   // --- 공지사항 ---
   // 내용은 notices 표(공개 읽기 전용)에서 읽는다. 표가 아직 없거나 읽기에 실패하면

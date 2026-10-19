@@ -246,10 +246,19 @@ exports.handler = async (event) => {
     .replace(/<meta property="og:image" content="[^"]*">/, (m) =>
       /^https:\/\//.test(photoUrls[0]) ? `<meta property="og:image" content="${escapeHtml(photoUrls[0])}">` : m
     )
+    // 구글에서만 좌석 페이지를 검색 색인에서 뺀다(2026-10-19). 2026년 9월 구글 스팸
+    // 업데이트 기간(10/2~3)에 사이트 전체의 구글 일반 검색 노출이 거의 0이 됐고,
+    // 틀이 같은 좌석 페이지 1천여 개가 "찍어낸 얇은 페이지"로 평가됐을 가능성이 커서다.
+    // name="googlebot" 은 구글 봇만 읽는 표시라 네이버(Yeti)·다른 검색엔진의 수집과
+    // 노출에는 영향이 없다 — 네이버가 실제 유입 대부분이라 절대 일반 "robots"로 바꾸지 말 것.
     .replace(
       "</head>",
-      () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n<script type="application/ld+json">${safeJsonLd(breadcrumbLd)}</script>\n</head>`
+      () => `<meta name="googlebot" content="noindex">\n<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n<script type="application/ld+json">${safeJsonLd(breadcrumbLd)}</script>\n</head>`
     )
+    // 홈 화면 문구("이 자리에서 경기/무대가 잘 보일까?")의 <h1>을 같은 모양의 <p>로 바꿔
+    // 이 페이지의 <h1>은 좌석 이름 하나만 남긴다(네이버 진단 "H1 2개 이상" 대응).
+    // 스타일은 .hero-title 클래스와 전역 margin:0 리셋으로 정해져 있어 화면은 같다.
+    .replace(/<h1 class="hero-title">([\s\S]*?)<\/h1>/, (m, inner) => `<p class="hero-title">${inner}</p>`)
     .replace("<body>", () => `<body>\n${seoContentHtml}`);
 
   return {

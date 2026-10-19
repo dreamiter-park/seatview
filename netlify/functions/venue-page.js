@@ -259,6 +259,9 @@ exports.handler = async (event) => {
       "</head>",
       () => `<link rel="canonical" href="${canonicalUrl}">\n<script type="application/ld+json">${safeJsonLd(jsonLd)}</script>\n<script type="application/ld+json">${safeJsonLd(breadcrumbLd)}</script>\n</head>`
     )
+    // 홈 화면 문구의 <h1>을 같은 모양의 <p>로 바꿔 이 페이지의 <h1>은 공연장 이름 하나만
+    // 남긴다(네이버 진단 "H1 2개 이상" 대응). seat-page.js 와 같은 처리.
+    .replace(/<h1 class="hero-title">([\s\S]*?)<\/h1>/, (m, inner) => `<p class="hero-title">${inner}</p>`)
     .replace("<body>", () => `<body>\n${seoContentHtml}`);
 
   return {

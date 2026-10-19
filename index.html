@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=5.93">
+  <link rel="stylesheet" href="/style_v6.css?v=6.00">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -130,6 +130,11 @@
         </div>
         <div class="header-title" id="header-title" style="display: none;">페이지 제목</div>
         <div class="header-right">
+          <!-- [랭킹 보류] 아직 공개하지 않음 - 다시 열 때 이 주석을 풀기
+          <button class="icon-btn" onclick="app.navigateTo('ranking')" aria-label="이번 달 랭킹">
+            <i data-lucide="trophy"></i>
+          </button>
+          -->
           <button class="icon-btn" onclick="app.navigateTo('compare')" aria-label="1:1 시야 비교">
             <i data-lucide="columns"></i>
           </button>
@@ -579,6 +584,24 @@
           <h2 class="notice-page-title">공지사항</h2>
           <div class="notice-list" id="notice-list-container"></div>
         </section>
+
+        <!-- [랭킹 보류] 아직 공개하지 않음 - 다시 열 때 이 주석을 풀기
+        <section id="view-ranking" class="view">
+          <div class="ranking-title-row">
+            <h2 class="notice-page-title">이번 달 랭킹</h2>
+            <button type="button" class="ranking-help-btn" id="ranking-help-btn" aria-label="랭킹 기준 보기" aria-expanded="false" onclick="app.toggleRankingHelp()">
+              <i data-lucide="help-circle"></i>
+            </button>
+          </div>
+          <p class="ranking-summary" id="ranking-summary"></p>
+          <div class="ranking-help" id="ranking-help" hidden>
+            <p class="ranking-help-title">랭킹 기준</p>
+            <ul id="ranking-note"></ul>
+          </div>
+          <div class="ranking-list" id="ranking-list-container"></div>
+          <div class="ranking-me" id="ranking-me-container"></div>
+        </section>
+        -->
 
         <section id="view-compare" class="view">
           <!-- Cart-style toolbar: item count + clear action, only shown when non-empty -->
@@ -1292,7 +1315,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=9.98"></script>
+  <script src="/app_v6.js?v=10.05"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>
