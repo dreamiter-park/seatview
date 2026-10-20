@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=6.02">
+  <link rel="stylesheet" href="/style_v6.css?v=6.04">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -545,6 +545,8 @@
                     <div class="legend-item"><span class="legend-box camera">📷</span> 실제 시야<span class="smlab-cnt" id="smlab-cnt-photo"></span></div>
                     <div class="legend-item"><span class="legend-box camera-official">📷</span> 공식 시야<span class="smlab-cnt" id="smlab-cnt-official"></span></div>
                     <div class="legend-item"><span class="legend-box empty"></span> 사진 없음<span class="smlab-cnt" id="smlab-cnt-nophoto"></span></div>
+                    <!-- 시야제한석: 구역에 하나라도 있을 때만 보임(app_v6.js renderSeatingGrid) -->
+                    <div class="legend-item" id="smlab-legend-limited" style="display: none;"><span class="legend-box limited"></span> 시야제한석</div>
                   </div>
 
                   <!-- Seat row grids -->
@@ -722,6 +724,8 @@
             <div>
               <span class="modal-subtitle" id="modal-seat-stadium">잠실 야구장</span>
               <h3 class="modal-title" id="modal-seat-title">101블록 3열 4번</h3>
+              <!-- 야구장 좌석 전용: 등급·방향 칩(app_v6.js openSeatDetail 에서 채움). 공연장·축구장은 항상 숨김. -->
+              <div class="seat-head-chips" id="modal-seat-chips" style="display: none;"></div>
               <span class="wheelchair-seat-badge" id="modal-seat-wheelchair-badge" style="display: none;">
                 <svg viewBox="0 0 24 24" width="12" height="12" style="flex-shrink: 0;">
                   <g fill="currentColor" stroke="currentColor">
@@ -1315,7 +1319,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=10.07"></script>
+  <script src="/app_v6.js?v=10.11"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

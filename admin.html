@@ -427,6 +427,33 @@
       box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35);
     }
 
+    /* 시야제한석 토글(야구장·축구장 좌석만) — 휠체어 버튼의 반대쪽(왼쪽 위) 모서리. 꺼짐은 빈 테두리,
+       켜짐은 주황색으로 채워 휠체어(초록)와 한눈에 구분된다. */
+    .cell-limited-btn {
+      position: absolute;
+      top: -5px;
+      left: -5px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      background-color: transparent;
+      color: rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .cell-limited-btn.active {
+      background-color: #f59e0b;
+      border-color: #f59e0b;
+      color: white;
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+    }
+
     /* Toast notification */
     .toast {
       position: fixed;
@@ -1459,6 +1486,7 @@
         this.gridOffsetType = {}; // In-memory offset_type map per cell ("half_right"/"half_left"/"none") — set in bulk per row, not per cell
         this.gridRowOffset = {}; // In-memory row-level offset selection, mirrors gridOffsetType for the row header <select>
         this.gridDisabledSeat = {}; // In-memory is_disabled_seat map per cell (wheelchair seat toggle)
+        this.gridLimitedView = {}; // 칸별 시야제한석 여부(baseball_seats.is_limited_view) — 야구장·축구장 좌석만
         this.gridRowLabels = {}; // In-memory row label map (editable per row, e.g. for aisle skips)
 
         this.activeTab = 'availability';
@@ -1799,6 +1827,7 @@
         this.gridSeatNums = {};
         this.gridOffsetType = {};
         this.gridDisabledSeat = {};
+        this.gridLimitedView = {};
 
         try {
           const { data: seats, error } = await supabaseClient
@@ -1826,6 +1855,7 @@
             else if (s.offset_type === "half_right" || s.offset_type === "half") this.gridOffsetType[key] = "half_right";
             else this.gridOffsetType[key] = "none";
             this.gridDisabledSeat[key] = !!s.is_disabled_seat;
+            this.gridLimitedView[key] = !!s.is_limited_view;
 
             if (s.grid_y !== null) {
               if (!minGridYSeat || s.grid_y < minGridYSeat.grid_y) {
@@ -2122,6 +2152,26 @@
                 this.toggleDisabledSeat(r, c, wheelchairBtn);
               };
               cellDiv.appendChild(wheelchairBtn);
+
+              // 시야제한석 토글 — 야구장·축구장 좌석에만(공연장 좌석 표에는 이 칸이 없다). 왼쪽 위 모서리.
+              if (this.category !== 'musical') {
+                const limitedBtn = document.createElement("button");
+                limitedBtn.type = "button";
+                limitedBtn.className = `cell-limited-btn${this.gridLimitedView[key] ? ' active' : ''}`;
+                limitedBtn.title = "시야제한석으로 지정";
+                limitedBtn.innerHTML = `
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="11" height="11">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                    <line x1="3" y1="3" x2="21" y2="21"/>
+                  </svg>
+                `;
+                limitedBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  this.toggleLimitedView(r, c, limitedBtn);
+                };
+                cellDiv.appendChild(limitedBtn);
+              }
             }
 
             td.appendChild(cellDiv);
@@ -2153,6 +2203,14 @@
         const key = `${row}_${col}`;
         const next = !this.gridDisabledSeat[key];
         this.gridDisabledSeat[key] = next;
+        if (btnEl) btnEl.classList.toggle("active", next);
+      }
+
+      // Tab B: 칸 하나의 시야제한석 여부 토글(야구장·축구장 좌석만)
+      toggleLimitedView(row, col, btnEl) {
+        const key = `${row}_${col}`;
+        const next = !this.gridLimitedView[key];
+        this.gridLimitedView[key] = next;
         if (btnEl) btnEl.classList.toggle("active", next);
       }
 
@@ -2561,6 +2619,8 @@
                 offset_type: this.gridOffsetType[key] || 'none',
                 is_disabled_seat: !!this.gridDisabledSeat[key]
               };
+              // 시야제한석은 야구장·축구장 좌석 표(baseball_seats)에만 있는 칸 — 공연장 좌석 저장에는 넣지 않는다.
+              if (this.category !== 'musical') record.is_limited_view = !!this.gridLimitedView[key];
 
               // If seat is toggled to walkway (3), seat_num must be null
               if (status === 3) {
@@ -2637,6 +2697,8 @@
                 offset_type: this.gridOffsetType[key] || 'none',
                 is_disabled_seat: !!this.gridDisabledSeat[key]
               };
+              // 시야제한석은 야구장·축구장 좌석 표(baseball_seats)에만 있는 칸 — 공연장 좌석 저장에는 넣지 않는다.
+              if (this.category !== 'musical') record.is_limited_view = !!this.gridLimitedView[key];
 
               if (cached) {
                 record.id = cached.id;

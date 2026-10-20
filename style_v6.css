@@ -2081,6 +2081,30 @@ img {
   border: 1px solid rgba(255,255,255,0.05);
 }
 
+/* 시야제한석(야구장·축구장 좌석): 칸 색은 사진 유무 그대로 두고 오른쪽 위에 주황 삼각형만 얹는다.
+   범례 칸도 같은 모양. */
+.legend-box.limited {
+  position: relative;
+  background-color: #1e293b;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.seat-item.limited-view { position: relative; }
+.seat-item.limited-view::after,
+.legend-box.limited::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 45%;
+  height: 45%;
+  max-width: 8px;
+  max-height: 8px;
+  background: #f59e0b;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  border-top-right-radius: 3px;
+  pointer-events: none;
+}
+
 .field-direction-indicator {
   width: 100%;
   text-align: center;
@@ -3168,6 +3192,36 @@ img {
   color: var(--accent-blue);
   font-weight: 700;
   text-transform: uppercase;
+}
+
+/* 야구장 좌석 시트 제목 아래 등급·방향 칩(배경 채운 칩). 등급 칩의 색 점은 배치도 필터 칩과 같은 구역 색. */
+.seat-head-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.seat-head-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.seat-head-chip.limited {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+.seat-head-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .wheelchair-seat-badge {

@@ -956,6 +956,10 @@ class SeatViewApp {
           };
 
           data.forEach(dbStadium => {
+            // 노출 여부(stadiums.is_visible, 2026-10-20 추가)가 꺼진 구장은 앱 어디에도 싣지 않는다 —
+            // 목록·개수·구장 선택 목록에서 빠지고, 주소로 직접 들어와도 열리지 않는다.
+            // "준비중" 카드로 보여줄지는 따로 status 로 정한다. 칸이 아직 없는 DB(값 undefined)는 노출로 본다.
+            if (dbStadium.is_visible === false) return;
             const mappedId = idMap[dbStadium.id] || dbStadium.id;
             const secColor = dbStadium.secondary_color || '#1e293b';
             const newStadium = {
@@ -4499,6 +4503,8 @@ class SeatViewApp {
                   const seatBtn = document.createElement("button");
                   seatBtn.className = "seat-item";
                   seatBtn.textContent = seat.seat_num !== null && seat.seat_num !== undefined ? seat.seat_num : "";
+                  // 시야제한석(baseball_seats.is_limited_view): 칸 색(사진 유무)은 그대로 두고 오른쪽 위 주황 삼각형만 붙인다.
+                  if (seat.is_limited_view) seatBtn.classList.add("limited-view");
 
                   const dbKey = seat.id;
                   if (isOfficialPhotoExists) seatBtn.classList.add("has-camera-official");
@@ -4557,6 +4563,9 @@ class SeatViewApp {
             }
             container.scrollTop = 0;
           }
+          // 범례의 "시야제한석"은 이 구역에 시야제한석이 하나라도 있을 때만 보인다.
+          const limitedLegend = document.getElementById("smlab-legend-limited");
+          if (limitedLegend) limitedLegend.style.display = container.querySelector(".seat-item.limited-view") ? "" : "none";
           return;
         }
       } catch (e) {
@@ -4788,21 +4797,23 @@ class SeatViewApp {
     const r = parts[2] || "1";
     const s = parts[3] || "1";
 
-    // Match demo seat by checking if it ends with "22567" or matches Gocheok Burgundy block 101, row D, seat 2
-    // (musical seats never go through the demo/mock path \u2014 every musical seat id is a real row)
-    const isDemoSeat = !isMusical && (dbKeyStr.endsWith("22567") || (stadiumId === "gocheok" && blockId === "b101" && (r === "D" || r === "D\uC5F4") && (s === "2" || s === "2\uBC88")));
-    const isRealSeat = isMusical || (!isDemoSeat && /^\d+$/.test(dbKeyStr));
+    // 예전 시연용 좌석(id 끝자리 22567 / 고척 b101 D열 2번) 예외 처리는 2026-10-20 삭제 — 실제 고척
+    // 101구역 1열 1번(id 22567)이 시연용으로 잘못 열려 실제 후기·좌석 정보를 못 쓰고 있었다.
+    // (뮤지컬 좌석은 원래부터 모두 실제 DB 좌석)
+    const isRealSeat = isMusical || /^\d+$/.test(dbKeyStr);
 
     // musical seat ids are plain integers too, so namespace the shared
     // SEAT_VIEWS_DB cache key to avoid colliding with a baseball seat that
     // happens to share the same raw id.
     const cacheKey = isMusical ? `musical_${dbKeyStr}` : dbKeyStr;
-    state.activeModalSeatKey = isDemoSeat ? "22567" : dbKeyStr;
+    state.activeModalSeatKey = dbKeyStr;
 
     let images = [];
     let comment = "\uC544\uC9C1 \uB4F1\uB85D\uB41C \uC2DC\uC57C \uC0AC\uC9C4\uC7B5\uB2C8\uB2E4. \uCCAB \uBC88\uC9F8 \uC2AC\uB85C\uC5D0 \uC0AC\uC9C4\uC744 \uC81C\uBCF4\uD574 \uC8FC\uC138\uC694!";
     let stadiumName, blockName, seatName;
     let isWheelchairSeat = false;
+    let baseballSeatHead = null; // 야구장 좌석 시트의 제목·칩 정보(아래 실제 야구장 좌석 분기에서만 채움)
+    let isLimitedView = false; // 시야제한석(baseball_seats.is_limited_view) — 야구장·축구장 좌석만
     // Hoisted out of the try block below so the "\uAD00\uB78C \uACF5\uC5F0" dropdown
     // (populated further down, past this whole if-block) can still read the
     // venue this seat belongs to \u2014 the same lookup the "N\uC5F4" show/hide fix
@@ -4883,6 +4894,7 @@ class SeatViewApp {
       try {
         const { data: seatRow } = await supabaseClient.from('baseball_seats').select('*').eq('id', dbKey).single();
         isWheelchairSeat = !!(seatRow && seatRow.is_disabled_seat);
+        isLimitedView = !!(seatRow && seatRow.is_limited_view);
         let blockRow = null, stadiumRow = null;
         if (seatRow) {
           const { data: bRow } = await supabaseClient.from('baseball_blocks').select('*').eq('id', seatRow.block_id).single();
@@ -4894,6 +4906,14 @@ class SeatViewApp {
         }
         stadiumName = stadiumRow ? stadiumRow.name : (state.selectedStadium ? state.selectedStadium.name : "\uACBD\uAE30\uC7A5");
         blockName = blockRow ? (blockRow.full_name || blockRow.block_code + "\uAD6C\uC5ED") : (state.selectedBlock ? state.selectedBlock.name : "\uAD6C\uC5ED \uC815\uBCF4 \uC5C6\uC74C");
+        // 야구장 좌석 시트 제목: "응원지정석 101구역 1열 2번" 대신 제목은 "101구역 1열 2번"만 크게, 등급·방향은
+        // 아래 칩으로 뺀다. full_name 이 "<등급> <구역>" 형식인 야구장 구역에만 적용(축구장은 이름 형식이 달라 제외).
+        // blockName 자체는 그대로 두어 비교함·마이페이지 등에 저장되는 이름은 바뀌지 않는다.
+        const grade = blockRow && blockRow.seat_grade ? String(blockRow.seat_grade) : "";
+        const fullName = blockRow && blockRow.full_name ? String(blockRow.full_name) : "";
+        if (stadiumRow && stadiumRow.category_id !== "soccer" && grade && fullName.startsWith(grade + " ")) {
+          baseballSeatHead = { blockLabel: fullName.slice(grade.length + 1), grade, color: blockRow.color_code || "", loc: blockRow.location_type || "" };
+        }
         if (seatRow && (seatRow.seat_num === null || seatRow.seat_num === undefined || seatRow.seat_num === "")) {
           seatName = isWheelchairSeat ? `${seatRow.row_num}\uC5F4 \uC7A5\uC560\uC778\uC11D` : `${seatRow.row_num}\uC5F4`;
         } else if (seatRow) {
@@ -4925,13 +4945,35 @@ class SeatViewApp {
     // makes sense for baseball's "_"-joined composite keys.
     state.activeModalDisplayInfo = { stadiumName, blockName, seatName };
 
-    const seatInfo = isDemoSeat
-      ? SEAT_VIEWS_DB["22567"]
-      : (SEAT_VIEWS_DB[cacheKey] = { ...(SEAT_VIEWS_DB[cacheKey] || {}), stadiumName, blockName, seatName });
+    const seatInfo = (SEAT_VIEWS_DB[cacheKey] = { ...(SEAT_VIEWS_DB[cacheKey] || {}), stadiumName, blockName, seatName });
 
     document.getElementById("modal-seat-stadium").textContent = stadiumName;
     document.getElementById("modal-seat-title").textContent = blockName ? `${blockName} ${seatName}` : seatName;
     document.getElementById("modal-seat-wheelchair-badge").style.display = isWheelchairSeat ? "inline-flex" : "none";
+    // 야구장 좌석만: 제목은 "101구역 1열 2번", 그 아래에 [● 등급] [1루] 칩. 공연장·축구장은 칩을 숨기고 위 제목 그대로.
+    const seatChipsEl = document.getElementById("modal-seat-chips");
+    if (seatChipsEl) {
+      if (baseballSeatHead || isLimitedView) {
+        let chipsHtml = "";
+        if (baseballSeatHead) {
+          document.getElementById("modal-seat-title").textContent = `${baseballSeatHead.blockLabel} ${seatName}`;
+          // 방향: "1루측 (HOME)"·"1루측" -> "1루", 중앙/기타는 칩 생략, 그 밖의 값은 그대로.
+          const locRaw = baseballSeatHead.loc.trim();
+          const loc = /^[13]루/.test(locRaw) ? locRaw.slice(0, 2) : (locRaw === "중앙/기타" ? "" : locRaw);
+          const color = /^#[0-9a-fA-F]{3,8}$/.test(baseballSeatHead.color) ? baseballSeatHead.color : "";
+          chipsHtml +=
+            `<span class="seat-head-chip">${color ? `<span class="seat-head-dot" style="background:${color}"></span>` : ""}${this.escapeHtml(baseballSeatHead.grade)}</span>` +
+            (loc ? `<span class="seat-head-chip">${this.escapeHtml(loc)}</span>` : "");
+        }
+        // 시야제한석: 주황 칩(좌석 칸의 주황 모서리 표시와 같은 색). 축구장처럼 등급 칩이 없어도 단독으로 보인다.
+        if (isLimitedView) chipsHtml += `<span class="seat-head-chip limited">⚠ 시야제한석</span>`;
+        seatChipsEl.innerHTML = chipsHtml;
+        seatChipsEl.style.display = "flex";
+      } else {
+        seatChipsEl.innerHTML = "";
+        seatChipsEl.style.display = "none";
+      }
+    }
 
     // For real DB seats, skip this legacy placeholder-image block entirely —
     // images/comments come only from the actual baseball_seat_reviews fetch below.
@@ -4964,21 +5006,6 @@ class SeatViewApp {
         let uploaderDate = seatInfo.matchDate || seatInfo.ins_dtm || "2026-08-01";
         let viewDir = directions[i] || "\uC815\uBA74";
 
-        if (isDemoSeat) {
-          if (i === 0) {
-            commentText = "\uACE0\uCC99\uB3D4 \uBC84\uAC74\uB514 101\uAD6C\uC5ED D\uC5F4 2\uBC88 \uC2DC\uC57C \uC608\uC220\uC785\uB2C8\uB2E4! \uD0C0\uC11D\uC7B5\uC5D0\uC11C \uC815\uB9D0 \uAC00\uCCA5\uACE0, \uB192\uC774\uB3C4 \uC801\uB2F9\uD574\uC11C \uD22C\uC218 \uACF5 \uADA4\uC801\uC774 \uC815\uBA74\uC73C\uB85C \uBCF4\uC5EC\uC694. \uACE0\uCC99\uB3D4 \uAC00\uC2EC \uB54C \uBB34\uC870\uAC74 \uAC15\uCD94\uD558\uB294 \uBA85\uB2F9 \uC790\uB9AC\uC785\uB2C8\uB2E4!";
-            uploaderName = "@\uC57C\uAD6C\uB7EC\uBC84";
-            uploaderBadge = "\uCCAB \uC81C\uBCF4\uC790";
-            uploaderDate = "2026-08-01";
-            viewDir = "home";
-          } else {
-            commentText = "\uAC19\uC740 \uC790\uB9AC\uC5D0\uC11C \uC57D\uAC04 \uC77C\uC5B4\uC11C\uC11C \uCC0D\uC740 \uC2DC\uC57C\uC785\uB2C8\uB2E4. \uC804\uAD11\uD310\uACFC \uC6B0\uCE21 \uC678\uC57C \uD39C\uC2A4\uAE4C\uC9C0 \uC544\uC8FC \uC2DC\uC6D0\uC2DC\uC6D0\uD558\uAC8C \uBCF4\uC785\uB2C8\uB2E4!";
-            uploaderName = "@\uACE0\uCC99\uB3D4\uB2E8\uACE8";
-            uploaderBadge = "\uACE8\uB4DC \uC81C\uBCF4\uC790";
-            uploaderDate = "2026-08-02";
-            viewDir = "center";
-          }
-        }
 
         images.push({
           url: url,
@@ -7219,8 +7246,7 @@ class SeatViewApp {
       return;
     }
 
-    const isDemoSeat = state.activeModalSeatKey.endsWith("22567");
-    const seatInfo = isDemoSeat ? SEAT_VIEWS_DB["22567"] : SEAT_VIEWS_DB[state.activeModalSeatKey];
+    const seatInfo = SEAT_VIEWS_DB[state.activeModalSeatKey];
 
     const parts = state.activeModalSeatKey.split("_");
     const stadiumId = parts[0];
