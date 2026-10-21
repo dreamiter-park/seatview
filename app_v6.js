@@ -2916,6 +2916,10 @@ class SeatViewApp {
         // an invisible trailing \r\n, which silently fails a strict ===
         // and just renders nothing with no error.
         const labelPos = (b.label_position || "").trim();
+        // label_position 값: "left"/"right"/"both" = 그 쪽 통로에 열 번호를 그린다.
+        // "detail" = 배치도에는 아무것도 그리지 않고, 좌석 상세(openSeatDetail)에서만 열 번호를 보여준다
+        // — 옆 구역(시작 높이 offset_y 가 다른)이 이미 같은 줄 열 번호를 그려 주는 구역용
+        //   (예: 샤롯데씨어터 1층 A·C — B구역이 OP줄 때문에 한 칸 위에서 시작, 2026-10-21).
         const wantsLeft = labelPos === "left" || labelPos === "both";
         const wantsRight = labelPos === "right" || labelPos === "both";
         if (b.show_row_label !== false && (wantsLeft || wantsRight)) {
@@ -3313,7 +3317,9 @@ class SeatViewApp {
       (gradeColors[block.category] = gradeColors[block.category] || block.color_code || "");
       if (block.color_code) el.style.setProperty("--zone", block.color_code);
       const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-      title.textContent = `${block.block_code}구역 · ${block.category || ""}`;
+      // 이름이 등급과 같은 특수 구역(예: 익사이팅석)은 "익사이팅석 · 익사이팅석"처럼 겹치지 않게 한 번만.
+      const zoneLabel = this.stadiumBlockLabel(block);
+      title.textContent = zoneLabel === (block.category || "") ? zoneLabel : `${zoneLabel} · ${block.category || ""}`;
       el.appendChild(title);
     });
     // 이 구장의 (공개된) 구역을 전부 연결했으면 안내만, 일부만이면 몇 개가 연결됐는지 함께 보여 준다.
@@ -3575,9 +3581,19 @@ class SeatViewApp {
     // 등급은 배지에 이미 있으니 제목에서는 빼고 "204구역" 만 보여 준다.
     const block = (stadium.blocks || []).find(b => String(b.id) === String(blockId));
     const titleEl = document.getElementById("selected-block-title");
-    if (block && titleEl) titleEl.textContent = `${block.block_code}구역`;
+    if (block && titleEl) titleEl.textContent = this.stadiumBlockLabel(block);
     this.smlabWatchSeatStats();
     this.syncUrlToView("stadium-detail"); // 주소를 /stadium/<구장>/<구역> 까지
+  }
+
+  // 야구장 구역의 짧은 이름: "응원지정석 101구역" -> "101구역". 이름이 등급과 같은 특수 구역
+  // (예: 익사이팅석, 하이파이브존 — 번호가 없는 구역)은 그 이름 그대로. 그 밖(축구장 등)은 예전처럼 "<코드>구역".
+  stadiumBlockLabel(block) {
+    const name = String((block && (block.name || block.full_name)) || "");
+    const grade = String((block && (block.category || block.seat_grade)) || "");
+    if (grade && name.startsWith(grade + " ")) return name.slice(grade.length + 1);
+    if (grade && name === grade) return name;
+    return `${block && block.block_code}구역`;
   }
 
   // 주소로 바로 들어온 경우(/stadium/gocheok, /stadium/gocheok/101): 배치도를 열고 구역이 있으면 그 구역까지.
@@ -4860,6 +4876,8 @@ class SeatViewApp {
         // blocks like BOX1/BOX2 sitting on a totally different offset_y).
         let showRowNum = true;
         if (blockRow) {
+          // left/right/both 는 물론 "detail"(배치도엔 안 그리고 상세에서만 열 번호 — 위 floor grid 주석 참고)도
+          // 비어 있지 않은 값이라 열 번호를 보여준다.
           showRowNum = !!(blockRow.label_position || "").trim();
           if (!showRowNum) {
             const { data: rowBandBlocks } = await supabaseClient

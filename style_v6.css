@@ -2392,6 +2392,9 @@ img {
   font-weight: 700;
   color: var(--text-muted);
   width: 30px;
+  /* "10열"처럼 두 자리 열이 칸 폭에 걸려 "10 / 열"로 줄바꿈되지 않게. 칸이 눌려 줄어들지도 않게. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .row-seats {
@@ -2486,6 +2489,28 @@ img {
   pointer-events: none;
 }
 
+/* 야구장도 2026-10-21부터 축구장·공연장과 같은 방식: 좌석 고정 26px, 좌석이 영역보다 적으면 가운데,
+   많으면 첫 좌석부터 보이고 가로 스크롤. (예전엔 모바일에서 "한 줄 최대 14석이 화면을 꽉 채우게"
+   cqw 로 계산해서 좌석 수가 적은 구역일수록 칸이 커지고 구역마다 칸 크기가 달랐다.)
+   반칸 밀린 줄(지그재그)은 고정 칸의 절반(13px), 통로 열 번호 칸은 칸 수 x 26px + 사이 틈. */
+.seat-scroller-x .seat-item {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  aspect-ratio: auto;
+  font-size: 0.55rem;
+}
+.seat-scroller-x .seat-row.offset-right .row-seats { margin-left: 13px; }
+.seat-scroller-x .seat-row.offset-left .row-seats { margin-left: -13px; }
+.seat-scroller-x .seat-aisle-label {
+  flex: 0 0 calc(var(--span, 2) * 26px + (var(--span, 2) - 1) * 3px);
+}
+.seat-scroller-x .seat-rows-inner {
+  min-width: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* 축구장: 공연장 좌석(.floor-grid-seat)처럼 고정 26px. 통로 열 번호는 칸 수 x 26px + 사이 틈. */
 .seat-fixed .seat-item {
   flex: 0 0 26px;
@@ -2518,6 +2543,8 @@ img {
   z-index: 3;
   background: var(--bg-card);
   padding-right: 8px;
+  /* 오른쪽 여백 8px 만큼 칸을 넓혀 글자 자리는 기본(30px)과 같게 — 안 넓히면 22px만 남아 "10열"이 넘친다. */
+  width: 38px;
   box-shadow: 10px 0 8px -2px var(--bg-card);
 }
 .seat-rows-inner {
@@ -5298,6 +5325,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     min-width: 0 !important;
     margin-left: auto !important;
     margin-right: auto !important;
+  }
+  /* 좌석 줄은 가로 스크롤 영역(.seat-rows) 안의 .seat-rows-inner 에 쌓인다(2026-10-18 구조 변경).
+     위 규칙만으로는 안쪽 묶음이 min-width:100% 로 꽉 차 왼쪽에 쏠렸다 — 안쪽 묶음도 내용 폭만큼만
+     차지하고 가운데로. 내용이 패널보다 넓으면 margin:auto 가 0 이 되어 예전처럼 왼쪽부터 스크롤된다. */
+  #view-stadium-detail.from-map .seat-rows-inner {
+    min-width: 0 !important;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
