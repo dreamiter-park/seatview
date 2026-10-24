@@ -622,10 +622,11 @@ class SeatViewApp {
       || (window.location.pathname.match(/^\/venue\/(\d+)/) || [])[1];
     const deepLinkSeatId = (window.location.pathname.match(/^\/seat\/(\d+)/) || [])[1];
     this._deepLinkVenueId = deepLinkVenueId; // setupListeners()의 라우터 초기화에서도 쓴다
-    // LAB 야구장 새 배치도 주소: /stadium/<구장> 또는 /stadium/<구장>/<구역>. 배치도 진입점이 로컬 전용이라
-    // 딥링크도 로컬에서만 연다(정식 오픈 때 IS_LOCAL_DEV 조건을 걷어낸다).
+    // LAB 야구장 새 배치도 주소: /stadium/<구장> 또는 /stadium/<구장>/<구역>. 메인 화면의 "프로야구장" 진입은
+    // 정식 오픈 전까지 막아 두지만, 주소를 알고 직접 들어오는 건 운영 중에도 열어 둔다(2026-10-25).
+    // 숨김(is_visible=false) 구장은 loadStadiums()가 목록에 싣지 않아 이 주소로도 열리지 않는다.
     const stadiumMatch = window.location.pathname.match(/^\/stadium\/([A-Za-z0-9_-]+)(?:\/([A-Za-z0-9_-]+))?/);
-    this._deepLinkStadium = (IS_LOCAL_DEV && stadiumMatch) ? { id: stadiumMatch[1], code: stadiumMatch[2] || null } : null;
+    this._deepLinkStadium = stadiumMatch ? { id: stadiumMatch[1], code: stadiumMatch[2] || null } : null;
 
     // Clock update
     this.updateClock();
@@ -4255,7 +4256,8 @@ class SeatViewApp {
     // 축구장은 공연장처럼 좌석을 고정 크기(26px)로 보여 준다(칸 수가 많아 어차피 가로 스크롤).
     // 야구장은 예전처럼 화면 폭에 맞춰 크기가 정해진다.
     const isSoccerGrid = !!(state.selectedStadium && state.selectedStadium.category_id === "soccer");
-    container.classList.toggle("seat-fixed", isSoccerGrid);
+    // 2026-10-25: 야구장도 공연장·축구장처럼 열 번호를 양쪽 끝에 두고, 열 번호 고정 없이 좌석과 함께 가로 스크롤한다.
+    container.classList.toggle("seat-fixed", !!state.selectedStadium);
     // 야구장·축구장 공통: 범례·"그라운드 방면" 안내는 고정하고, 좌석 영역(#seat-rows-container)만
     // 가로로 스크롤한다(좌석 줄들은 그 안의 .seat-rows-inner 에 쌓는다). 축구장은 칸이 많아 세로로도
     // 이 영역 안에서 스크롤하고, 야구장은 세로는 예전처럼 화면 스크롤을 따른다(.seat-scroller-x).
@@ -4566,16 +4568,9 @@ class SeatViewApp {
             if (isSoccerGrid) {
               container.scrollLeft = Math.max(0, (container.scrollWidth - container.clientWidth) / 2);
             } else {
-              // 야구장: 열 번호(A열…) 바로 오른쪽에 가장 왼쪽 좌석이 오도록 시작한다(왼쪽 좌석이 잘려 보이지 않게).
-              const base = container.getBoundingClientRect().left - container.scrollLeft;
-              let minLeft = Infinity;
-              container.querySelectorAll(".seat-item:not(.gap)").forEach((el) => {
-                const l = el.getBoundingClientRect().left - base;
-                if (l < minLeft) minLeft = l;
-              });
-              const labelEl = container.querySelector(".row-num");
-              const labelW = labelEl ? labelEl.offsetWidth + 8 : 0;
-              container.scrollLeft = isFinite(minLeft) ? Math.max(0, minLeft - labelW) : 0;
+              // 야구장: 구역이 화면보다 넓으면 왼쪽 끝(왼쪽 열 번호와 1번 좌석)부터 보인다. 위쪽 줄이 짧은 사다리꼴
+              // 구역은 짧은 줄 좌석이 왼쪽에 몰려 있어서, 가운데부터 보이면 그 줄들이 화면 밖으로 잘린다.
+              container.scrollLeft = 0;
             }
             container.scrollTop = 0;
           }

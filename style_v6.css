@@ -2535,18 +2535,12 @@ img {
 /* 야구장: 가로로만 이 영역 안에서 스크롤(세로는 화면 스크롤을 따라 높이 제한 없음) */
 #seat-rows-container.seat-scroller.seat-scroller-x {
   max-height: none;
+  /* 세로 높이를 제한하지 않아 마지막 열 바로 아래가 영역 끝이라, 폰에서 가로 스크롤바(화면 위에 얹혀 보이는
+     방식)가 마지막 열(예: 11열)을 가렸다. 스크롤바가 놓일 여백을 아래에 확보한다. */
+  padding-bottom: 14px;
 }
-/* 가로로 밀어도 열 번호(A열, B열…)는 왼쪽에 붙어 있게 한다. 좌석이 그 뒤로 지나간다. */
-#seat-rows-container.seat-scroller-x .seat-row > .row-num {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  background: var(--bg-card);
-  padding-right: 8px;
-  /* 오른쪽 여백 8px 만큼 칸을 넓혀 글자 자리는 기본(30px)과 같게 — 안 넓히면 22px만 남아 "10열"이 넘친다. */
-  width: 38px;
-  box-shadow: 10px 0 8px -2px var(--bg-card);
-}
+/* (2026-10-25 삭제) 예전엔 가로로 밀어도 열 번호를 왼쪽에 붙여 두는 sticky 규칙이 있었다. 지금은 공연장처럼
+   열 번호를 줄 양쪽 끝에 두고 좌석과 함께 스크롤한다(.seat-fixed .row-num-right). */
 .seat-rows-inner {
   display: flex;
   flex-direction: column;
