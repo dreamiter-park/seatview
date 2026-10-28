@@ -1975,6 +1975,10 @@ img {
   display: inline-block;
   margin-bottom: 4px;
 }
+/* 야구장·축구장 구역 화면의 등급·방향 칩: 좌석 시트 칩(.seat-head-chip)과 같은 모양, 제목 위에 한 줄로 */
+.seat-head-chip.block-head-chip {
+  margin: 0 4px 6px 0;
+}
 
 .block-name {
   font-size: 0.95rem;
@@ -5410,8 +5414,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    주지 않는다 — .smlab-zone 기본(“전체”) 스타일을 그대로 물려받는다.) */
 .smlab-stage svg .smlab-zone.smlab-dim,
 .smlab-stage svg .smlab-zone.smlab-dim > * {
-  fill: #9ca3af;
-  fill-opacity: 0.8;
+  fill: #374151;
+  fill-opacity: 0.82;
   stroke: none;
   pointer-events: none;
   cursor: default;

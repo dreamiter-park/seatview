@@ -99,7 +99,7 @@
        (고정한 파일은 기존 @latest와 바이트 단위로 동일 — 동작 변화 없음. 버전을 올릴 땐 해시도 같이 갱신) -->
   <script src="https://unpkg.com/lucide@1.47.0/dist/umd/lucide.min.js" integrity="sha384-v15JX+vZHMR3T6LQR9N6e6wIKrKOdNTbdj8j+e5irqq3L9gCauJz2vGlUzomWyUp" crossorigin="anonymous"></script>
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="/style_v6.css?v=6.08">
+  <link rel="stylesheet" href="/style_v6.css?v=6.11">
   <link rel="stylesheet" href="/map_style.css?v=2.2">
 </head>
 <body>
@@ -531,6 +531,8 @@
                 <div class="block-info-header">
                   <div>
                     <span class="block-badge" id="selected-block-badge">구역 미선택</span>
+                    <!-- 야구장 구역 방향(1루/3루 등). 값이 없거나 "중앙/기타"면 숨김(app_v6.js selectStadiumBlock) -->
+                    <span class="block-badge block-badge-loc" id="selected-block-loc" style="display:none"></span>
                     <h4 class="block-name" id="selected-block-title">원하는 구역을 먼저 지도에서 선택해 주세요</h4>
                   </div>
                   <!-- LAB: 배치도에서 넘어온 화면에서만 보이는 "배치도로" 버튼 -->
@@ -1319,7 +1321,7 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
   <script src="/stadiums/jamsil.js?v=4.5"></script>
-  <script src="/app_v6.js?v=10.16"></script>
+  <script src="/app_v6.js?v=10.19"></script>
 
   <!-- Kakao AdFit -->
   <script type="text/javascript" src="//t1.kakaocdn.net/kas/static/ba.min.js" async></script>

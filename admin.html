@@ -796,13 +796,9 @@
   <!-- 임시 도구 — 확인 끝나면 이 블록 통째로 지워도 됨 -->
   <div id="cache-migration-tool" style="background: rgba(59, 130, 246, 0.08); border-bottom: 1px solid var(--border-color); padding: 10px 16px; font-family: sans-serif; font-size: 0.8rem;">
     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-      <strong style="color: #60a5fa;">🧪 캐시 헤더 마이그레이션 (테스트)</strong>
+      <strong style="color: #60a5fa;">🧪 캐시 헤더 점검·재설정</strong>
       <span style="color: var(--text-muted);">기존 파일의 Cache-Control을 1년으로 재설정 (경로/URL은 안 바뀜, 재실행해도 이미 고친 건 건너뜀)</span>
-      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem;" onclick="app.runCacheHeaderMigrationTest()">테스트 실행 (공연장 이미지 2개 + 시야사진 3개)</button>
-      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #2d3748;" onclick="app.runCacheHeaderMigrationEditorBatch()">1차 확대: 잘보여유 에디터 계정 · 9/11~9/13 등록분</button>
-      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #4c1d95;" onclick="app.runCacheHeaderMigrationEditorFull()">2차 확대: 잘보여유 에디터 계정 전체(113건)</button>
-      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #047857;" onclick="app.runCacheHeaderBackupOnly()">1단계: 백업만 먼저 (원본 수정 없음)</button>
-      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #b91c1c;" onclick="app.runCacheHeaderMigrationAll()">2단계: 전체 실행 (시야사진 + 공연장/구장 이미지 + 광고)</button>
+      <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #b91c1c;" onclick="app.runCacheHeaderMigrationAll()">전체 점검·재설정 실행 (시야사진 + 공연장/구장 이미지 + 광고)</button>
       <button class="btn" style="padding: 6px 12px; font-size: 0.78rem; background: #4b5563;" onclick="app.stopCacheMigrationAll()">중지</button>
     </div>
     <pre id="cache-migration-log" style="margin-top: 8px; max-height: 260px; overflow-y: auto; background: #0b0b12; color: #d1d5db; padding: 8px 10px; border-radius: 6px; display: none; white-space: pre-wrap; font-size: 0.72rem;"></pre>
@@ -3607,8 +3603,6 @@
         }
       }
 
-      async runCacheHeaderBackupOnly() { return this.runCacheHeaderMigrationAll(true); }
-
       async runCacheHeaderMigrationAll(backupOnly = false) {
         const logEl = document.getElementById("cache-migration-log");
         logEl.style.display = "block";
@@ -3674,141 +3668,6 @@
           log(`\n요약 — 새로 적용 ${stats.done}개 / 이미 적용돼 건너뜀 ${stats.skipped}개 / 실패 ${stats.failed}개`);
           if (failedList.length) log(`실패 목록:\n${failedList.join("\n")}`);
           log("끝나면 실제 사이트에서 사진이 정상 표시되는지 확인해주세요. (원본은 각 버킷의 _cache_migration_backup/ 폴더에 백업돼 있어요)");
-        } catch (e) {
-          log(`\n❌ 오류 발생: ${e.message || e}`);
-        }
-      }
-
-      async runCacheHeaderMigrationTest() {
-        const logEl = document.getElementById("cache-migration-log");
-        logEl.style.display = "block";
-        logEl.textContent = "";
-        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
-
-        log("테스트 시작 (공연장 이미지 2개 + 시야사진 3개)...\n");
-
-        try {
-          const { data: venues, error: vErr } = await supabaseClient
-            .from("venues")
-            .select("id, name, bg_image_url")
-            .not("bg_image_url", "is", null)
-            .limit(2);
-          if (vErr) throw vErr;
-          for (const v of (venues || [])) {
-            await this.migrateOneCacheHeader(v.bg_image_url, `공연장 배경사진 (${v.name})`, log);
-            await this.sleep(150);
-          }
-
-          const { data: reviews, error: rErr } = await supabaseClient
-            .from("musical_seat_reviews")
-            .select("id, image_urls")
-            .not("image_urls", "is", null)
-            .limit(5);
-          if (rErr) throw rErr;
-          let seatPhotoCount = 0;
-          for (const rev of (reviews || [])) {
-            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
-            for (const u of urls) {
-              if (seatPhotoCount >= 3) break;
-              await this.migrateOneCacheHeader(u, `시야 사진 (review id ${rev.id})`, log);
-              seatPhotoCount++;
-              await this.sleep(150);
-            }
-            if (seatPhotoCount >= 3) break;
-          }
-
-          log("\n테스트 완료. 위 결과에서 '✅ 완료 — 새 캐시: max-age=31536000'으로 나왔는지, 그리고 사진들이 정상적으로 실제 사이트에서 보이는지 확인해주세요.");
-        } catch (e) {
-          log(`\n❌ 오류 발생: ${e.message || e}`);
-        }
-      }
-
-      // 1차 확대 실행: 전체가 아니라 "잘보여유 에디터" 계정(운영자 본인
-      // 계정으로 등록한 시야 사진)이 2026-09-11~09-13 사이에 등록한 것만
-      // 우선 실행 — 실제 이용자 데이터를 건드리기 전에 운영자 소유 데이터로
-      // 한 번 더 검증하려는 단계적 롤아웃.
-      async runCacheHeaderMigrationEditorBatch() {
-        const EDITOR_USER_ID = "0326ac0c-fe0b-4be6-9b6e-8dcc9928e9a5"; // 잘보여유 에디터📸
-        const RANGE_START = "2026-09-11";
-        const RANGE_END_EXCLUSIVE = "2026-09-14"; // 9/13 23:59:59까지 포함
-
-        const logEl = document.getElementById("cache-migration-log");
-        logEl.style.display = "block";
-        logEl.textContent = "";
-        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
-
-        log(`잘보여유 에디터 계정, ${RANGE_START} ~ ${RANGE_END_EXCLUSIVE} 등록분 실행...\n`);
-
-        try {
-          const { data: reviews, error } = await supabaseClient
-            .from("musical_seat_reviews")
-            .select("id, ins_dtm, image_urls")
-            .eq("user_id", EDITOR_USER_ID)
-            .gte("ins_dtm", RANGE_START)
-            .lt("ins_dtm", RANGE_END_EXCLUSIVE)
-            .not("image_urls", "is", null);
-          if (error) throw error;
-
-          if (!reviews || reviews.length === 0) {
-            log("해당 조건에 맞는 리뷰가 없습니다.");
-            return;
-          }
-
-          let fileCount = 0;
-          for (const rev of reviews) {
-            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
-            for (const u of urls) {
-              await this.migrateOneCacheHeader(u, `시야 사진 (review id ${rev.id}, ${rev.ins_dtm})`, log);
-              fileCount++;
-              await this.sleep(150);
-            }
-          }
-
-          log(`\n완료 — 리뷰 ${reviews.length}건 / 파일 ${fileCount}개 처리. 위 결과와 실제 사이트를 확인해주세요.`);
-        } catch (e) {
-          log(`\n❌ 오류 발생: ${e.message || e}`);
-        }
-      }
-
-      // 2차 확대: "잘보여유 에디터" 계정의 전체 리뷰(날짜 제한 없음). 이
-      // 계정 소유 데이터로 문제없음을 확인한 뒤, 다른 사용자들 데이터로
-      // 넘어가는 다음 단계.
-      async runCacheHeaderMigrationEditorFull() {
-        const EDITOR_USER_ID = "0326ac0c-fe0b-4be6-9b6e-8dcc9928e9a5"; // 잘보여유 에디터📸
-
-        const logEl = document.getElementById("cache-migration-log");
-        logEl.style.display = "block";
-        logEl.textContent = "";
-        const log = (msg) => { logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; };
-
-        log(`잘보여유 에디터 계정 전체 리뷰 실행...\n`);
-
-        try {
-          const { data: reviews, error } = await supabaseClient
-            .from("musical_seat_reviews")
-            .select("id, ins_dtm, image_urls")
-            .eq("user_id", EDITOR_USER_ID)
-            .not("image_urls", "is", null);
-          if (error) throw error;
-
-          if (!reviews || reviews.length === 0) {
-            log("해당 조건에 맞는 리뷰가 없습니다.");
-            return;
-          }
-
-          log(`대상 리뷰 ${reviews.length}건 확인됨. 순차 처리 시작...\n`);
-
-          let fileCount = 0;
-          for (const rev of reviews) {
-            const urls = Array.isArray(rev.image_urls) ? rev.image_urls : [];
-            for (const u of urls) {
-              await this.migrateOneCacheHeader(u, `시야 사진 (review id ${rev.id}, ${rev.ins_dtm})`, log);
-              fileCount++;
-              await this.sleep(150);
-            }
-          }
-
-          log(`\n완료 — 리뷰 ${reviews.length}건 / 파일 ${fileCount}개 처리. 위 결과와 실제 사이트를 확인해주세요.`);
         } catch (e) {
           log(`\n❌ 오류 발생: ${e.message || e}`);
         }

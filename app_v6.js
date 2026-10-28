@@ -1917,9 +1917,11 @@ class SeatViewApp {
       // gradient instead of st.gradient, so the team color isn't what was
       // making some of them stand out — plus a grayscale filter (in CSS) as
       // a second layer of insurance against the photos' own natural hues.
+      // 2026-10-28: 열린 구장 카드는 팀 색 그라데이션(진하게 덮음)을 빼고, 공연장 카드처럼 사진 + 공통 어둡게 막
+      // (.stadium-card::before)만 쓴다. 두 겹이 겹쳐 사진이 잘 안 보였다. 팀 정보는 [팀명] 칩으로 그대로 보인다.
       card.style.backgroundImage = isPreparing
         ? `linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(8, 10, 15, 0.6)), url('${st.bg}')`
-        : `${st.gradient}, url('${st.bg}')`;
+        : `url('${st.bg}')`;
       card.onclick = isPreparing
         ? () => this.showItemPreparing(st.name)
         : (opts.onOpen ? () => opts.onOpen(st) : () => this.loadStadiumDetail(st.id));
@@ -3479,6 +3481,48 @@ class SeatViewApp {
     if (viewport) { viewport.scrollTop = 0; viewport.scrollLeft = 0; }
   }
 
+  // 등급 칩을 누르면 그 등급 구역들이 화면에 꽉 차게 확대·이동한다("전체"면 처음 화면으로).
+  // 구역 수가 적고 작은 등급(테이블석·스카이박스 등)이 전체 지도에서 점처럼 묻히지 않게 하려는 것.
+  // 위치는 화면 좌표로 재서(그룹 transform 이 있어도 맞게) 지금 배율 기준 비율로 바꿔 쓴다.
+  smlabFocusGrade(grade) {
+    const z = this._smlab;
+    const viewport = document.getElementById("smlab-viewport");
+    const stage = document.getElementById("smlab-stage");
+    if (!z || !viewport || !stage || !z.baseW) return;
+    if (!grade) { this.smlabReset(); return; }
+    const els = [...stage.querySelectorAll(".smlab-zone.smlab-match")];
+    if (!els.length) return;
+    const s = stage.getBoundingClientRect();
+    if (!s.width || !s.height) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    els.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top);
+      x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+    });
+    if (!isFinite(x0)) return;
+    // 스테이지 안에서의 비율(0~1)
+    const fx0 = (x0 - s.left) / s.width, fx1 = (x1 - s.left) / s.width;
+    const fy0 = (y0 - s.top) / s.height, fy1 = (y1 - s.top) / s.height;
+    const fw = Math.max(fx1 - fx0, 0.02), fh = Math.max(fy1 - fy0, 0.02);
+    const pad = 0.8; // 화면의 80% 안에 들어오게
+    const want = Math.min(
+      (viewport.clientWidth * pad) / (fw * z.baseW),
+      (viewport.clientHeight * pad) / (fh * z.baseW * z.aspect)
+    );
+    this.smlabApplyZoom(want); // min~max 범위로 잘린다
+    const W = stage.offsetWidth, H = stage.offsetHeight;
+    const offX = Math.max(0, (viewport.clientWidth - W) / 2);
+    const cx = ((fx0 + fx1) / 2) * W + offX;
+    const cy = ((fy0 + fy1) / 2) * H;
+    viewport.scrollTo({
+      left: Math.max(0, cx - viewport.clientWidth / 2),
+      top: Math.max(0, cy - viewport.clientHeight / 2),
+      behavior: "smooth"
+    });
+  }
+
   // 최초 1회 안내 오버레이를 닫고, 이 브라우저에서는 다시 뜨지 않게 기억해 둔다.
   smlabDismissHint() {
     try { localStorage.setItem(this.SMLAB_HINT_KEY, "1"); } catch (e) {}
@@ -3501,6 +3545,7 @@ class SeatViewApp {
         if (!btn) return;
         const g = btn.dataset.grade || null;
         this.smlabSetGrade(g && g === z.grade ? null : g);
+        this.smlabFocusGrade(z.grade);
       });
     }
 
@@ -4226,7 +4271,20 @@ class SeatViewApp {
     });
 
     // Render seating grid
-    document.getElementById("selected-block-badge").textContent = block.category;
+    // 등급 칩: 좌석 시트(openSeatDetail)와 같은 모양 — 회색 칩 + DB 등급 색 점(배치도 등급 색과 같음).
+    const badgeEl = document.getElementById("selected-block-badge");
+    const gradeColor = /^#[0-9a-fA-F]{3,8}$/.test(String(block.color_code || "")) ? block.color_code : "";
+    badgeEl.className = "seat-head-chip block-head-chip";
+    badgeEl.innerHTML = (gradeColor ? `<span class="seat-head-dot" style="background:${gradeColor}"></span>` : "") + this.escapeHtml(block.category || "");
+    // 방향 칩: 좌석 시트와 같은 규칙("1루측 (HOME)"·"1루측" -> "1루", 중앙/기타는 숨김, 그 밖의 값은 그대로).
+    const locEl = document.getElementById("selected-block-loc");
+    if (locEl) {
+      const locRaw = String(block.location_type || "").trim();
+      const loc = /^[13]루/.test(locRaw) ? locRaw.slice(0, 2) : (locRaw === "중앙/기타" ? "" : locRaw);
+      locEl.className = "seat-head-chip block-head-chip";
+      locEl.textContent = loc;
+      locEl.style.display = loc ? "inline-flex" : "none";
+    }
     document.getElementById("selected-block-title").textContent = block.name;
     this.renderSeatingGrid(blockId);
     this.updateStepVisibility();
