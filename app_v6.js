@@ -656,6 +656,18 @@ class SeatViewApp {
       // search engines (see netlify/functions/venue-page.js) — jump
       // straight into that venue once the list it needs is loaded.
       if (deepLinkVenueId) {
+        // /venue/<번호> 로 들어온 경우에만 공연장 이름(<h3>)을 <h1>로 바꾼다. 서버가 넣어 둔
+        // 검색용 글(아래에서 지움)의 <h1>을 대신해, 화면을 그린 뒤에도 이 페이지의 <h1>이
+        // 공연장 이름 하나로 남게 하려는 것. 원본 HTML은 그대로라 네이버 진단("H1 2개 이상")에는
+        // 영향이 없고, 모양은 CSS(h1#venue-detail-name)로 기존 h3와 똑같이 맞춘다.
+        // loadVenueDetail()이 이 요소를 id로 다시 찾으므로 그보다 먼저 바꿔 둔다.
+        const nameH3 = document.getElementById("venue-detail-name");
+        if (nameH3 && nameH3.tagName === "H3") {
+          const nameH1 = document.createElement("h1");
+          nameH1.id = nameH3.id;
+          nameH1.innerHTML = nameH3.innerHTML;
+          nameH3.replaceWith(nameH1);
+        }
         this.loadVenueDetail(deepLinkVenueId);
         // The /venue/:id page pre-renders a plain-text summary for
         // crawlers (id="ssr-seo-content") — once the real interactive

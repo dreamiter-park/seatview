@@ -262,6 +262,12 @@ exports.handler = async (event) => {
     // 홈 화면 문구의 <h1>을 같은 모양의 <p>로 바꿔 이 페이지의 <h1>은 공연장 이름 하나만
     // 남긴다(네이버 진단 "H1 2개 이상" 대응). seat-page.js 와 같은 처리.
     .replace(/<h1 class="hero-title">([\s\S]*?)<\/h1>/, (m, inner) => `<p class="hero-title">${inner}</p>`)
+    // 구글 전용: 이 공연장 화면(view-venue-detail)을 뺀 나머지 숨은 화면·창(홈 목록, 마이페이지,
+    // "준비 중인 구장" 안내, 이벤트 팝업 등)에 data-nosnippet 을 달아 구글이 검색 설명문을
+    // 거기서 뽑아 쓰지 않게 한다(2026-10-28, 구글 설명이 "나의 시야 등록 내역 · 준비 중인
+    // 구장입니다…"로 나오던 문제). 구글이 정한 속성이라 네이버 수집·노출과는 무관하고 화면도 그대로다.
+    .replace(/<section id="view-(?!venue-detail")/g, '<section data-nosnippet id="view-')
+    .replace(/<div class="modal([ "])/g, '<div data-nosnippet class="modal$1')
     .replace("<body>", () => `<body>\n${seoContentHtml}`);
 
   return {

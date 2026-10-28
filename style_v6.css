@@ -1255,6 +1255,13 @@ img {
   position: relative;
   z-index: 2;
 }
+/* /venue/<번호> 로 들어오면 공연장 이름이 <h3>에서 <h1>로 바뀐다(app_v6.js) — 모양은 기존 h3 그대로 */
+h1#venue-detail-name {
+  font-size: 1.17em;
+  font-weight: 700;
+  line-height: normal;
+  margin: 0;
+}
 
 .venue-share-btn {
   position: absolute;
