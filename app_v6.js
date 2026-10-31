@@ -2464,9 +2464,9 @@ class SeatViewApp {
     }
   }
 
-  // 이벤트 팝업 내용(슬라이드 구성)이 바뀌면 이 값을 올린다. 이용자가 예전에 "3일간 다시
+  // 이벤트 팝업 내용(슬라이드 구성)이 바뀌면 이 값을 올린다. 이용자가 예전에 "이번 달 다시
   // 보지 않기"를 눌렀더라도 새 내용이 올라오면 다시 보여 주기 위한 버전 표시다.
-  EVENT_POPUP_VERSION = "2026-10-05";
+  EVENT_POPUP_VERSION = "2026-11-01";
 
   // 지금 보여 줄 슬라이드: data-expires(KST 시각)가 지난 슬라이드는 제외한다.
   getEventPopupSlides() {
@@ -2530,7 +2530,7 @@ class SeatViewApp {
     // 노출할 슬라이드가 하나도 없으면(모든 슬라이드의 노출 기간이 끝나면) 팝업을 띄우지 않는다.
     // 당첨자 발표 슬라이드는 2026-10-10(토) 23:59 KST까지만 노출한다(index.html의 data-expires).
     if (!this.getEventPopupSlides().length) return;
-    // "3일간 다시 보지 않기"는 같은 팝업 버전에서만 유효하다 — 팝업 내용이 새로 바뀌면 다시 보여 준다.
+    // "이번 달 다시 보지 않기"는 같은 팝업 버전에서만 유효하다 — 팝업 내용이 새로 바뀌면 다시 보여 준다.
     let hideUntil = 0;
     try {
       const savedVersion = localStorage.getItem("seatview_event_popup_version");
@@ -2549,16 +2549,24 @@ class SeatViewApp {
   }
 
   closeEventPopup() {
-    // The "3일간 다시 보지 않기" checkbox is actually read inside closeModal()
+    // The "이번 달 다시 보지 않기" checkbox is actually read inside closeModal()
     // itself, so it's honored no matter which path closes this modal (this
     // button, the backdrop, the header "<" button, or a real back-press).
     this.closeModal("modal-event-popup");
   }
 
-  // The visible "3일간 다시 보지 않기" button just checks the (hidden) checkbox
+  // 다음 달 1일 0시(한국시간)의 시각(ms). "이번 달 다시 보지 않기"의 숨김 만료 시각으로 쓴다.
+  // 이용자의 기기 시간대와 상관없이 한국 달력 기준으로 계산한다(KST = UTC+9).
+  getNextMonthStartKst() {
+    const KST_MS = 9 * 60 * 60 * 1000;
+    const kstNow = new Date(Date.now() + KST_MS);
+    return Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth() + 1, 1) - KST_MS;
+  }
+
+  // The visible "이번 달 다시 보지 않기" button just checks the (hidden) checkbox
   // and closes — reuses the exact same checkbox-read-in-closeModal() logic
   // as every other close path, instead of duplicating the localStorage write.
-  hideEventPopupFor3Days() {
+  hideEventPopupForMonth() {
     const checkbox = document.getElementById("event-popup-dontshow-checkbox");
     if (checkbox) checkbox.checked = true;
     this.closeEventPopup();
@@ -7492,7 +7500,7 @@ class SeatViewApp {
         }
       }
 
-      // The event popup's "3일간 다시 보지 않기" checkbox has to be read
+      // The event popup's "이번 달 다시 보지 않기" checkbox has to be read
       // HERE, not only in closeEventPopup() — this modal doesn't own a
       // history entry (see openModal), so a real back-press or the header
       // "<" button closes it by calling closeModal() directly, skipping
@@ -7500,8 +7508,9 @@ class SeatViewApp {
       if (modalId === "modal-event-popup") {
         const checkbox = document.getElementById("event-popup-dontshow-checkbox");
         if (checkbox && checkbox.checked) {
-          const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-          localStorage.setItem("seatview_event_result_popup_hide_until", String(Date.now() + THREE_DAYS_MS));
+          // 이벤트가 매달 새로 시작하므로 "이번 달 다시 보지 않기" = 다음 달 1일 0시(KST)까지 숨긴다.
+          // (저장 키 이름은 예전 "3일" 때부터 쓰던 그대로 둬서, 이미 눌러 둔 값도 계속 유효하다.)
+          localStorage.setItem("seatview_event_result_popup_hide_until", String(this.getNextMonthStartKst()));
           localStorage.setItem("seatview_event_popup_version", this.EVENT_POPUP_VERSION);
         }
       }
